@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { 
   mockAccounts, 
-  mockCategories, 
+  mockTransactionCategories, 
   mockCostCenters, 
   mockPaymentMethods 
 } from '@/data/mockData';
@@ -22,8 +22,19 @@ import { cn } from '@/lib/utils';
 
 type SettingsTab = 'accounts' | 'categories' | 'costcenters' | 'payment' | 'documents' | 'rules';
 
-export function SettingsView() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('accounts');
+interface SettingsViewProps {
+  activeSection?: string;
+}
+
+export function SettingsView({ activeSection }: SettingsViewProps) {
+  const getInitialTab = (): SettingsTab => {
+    if (activeSection?.includes('categories')) return 'categories';
+    if (activeSection?.includes('cost-centers')) return 'costcenters';
+    if (activeSection?.includes('payment')) return 'payment';
+    return 'accounts';
+  };
+  
+  const [activeTab, setActiveTab] = useState<SettingsTab>(getInitialTab());
 
   const tabs = [
     { id: 'accounts' as const, label: 'Contas', icon: CreditCard },
@@ -89,7 +100,7 @@ export function SettingsView() {
                     </div>
                     <div>
                       <p className="font-medium text-foreground">{account.name}</p>
-                      <p className="text-sm text-muted-foreground">{account.bank || account.type}</p>
+                      <p className="text-sm text-muted-foreground">{account.bank || account.categoryName}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -126,7 +137,7 @@ export function SettingsView() {
                   Entradas
                 </h4>
                 <div className="space-y-2">
-                  {mockCategories.filter(c => c.nature === 'ENTRADA').map((category) => (
+                  {mockTransactionCategories.filter(c => c.nature === 'ENTRADA').map((category) => (
                     <div 
                       key={category.id}
                       className="flex items-center justify-between p-3 bg-income-muted/50 rounded-lg"
@@ -145,7 +156,7 @@ export function SettingsView() {
                   Saídas
                 </h4>
                 <div className="space-y-2">
-                  {mockCategories.filter(c => c.nature === 'SAIDA').map((category) => (
+                  {mockTransactionCategories.filter(c => c.nature === 'SAIDA').map((category) => (
                     <div 
                       key={category.id}
                       className="flex items-center justify-between p-3 bg-expense-muted/50 rounded-lg"
