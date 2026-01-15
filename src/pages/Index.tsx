@@ -2,24 +2,28 @@ import { useState } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { Dashboard } from '@/components/dashboard/Dashboard';
-import { TransactionTable } from '@/components/transactions/TransactionTable';
-import { IncomeView } from '@/components/transactions/IncomeView';
-import { ExpenseView } from '@/components/transactions/ExpenseView';
+import { AccountsView } from '@/components/accounts/AccountsView';
+import { TransactionsView } from '@/components/transactions/TransactionsView';
 import { ClientsView } from '@/components/clients/ClientsView';
-import { ImportView } from '@/components/import/ImportView';
+import { ImportExportView } from '@/components/import/ImportExportView';
 import { ReportsView } from '@/components/reports/ReportsView';
 import { SettingsView } from '@/components/settings/SettingsView';
 import { cn } from '@/lib/utils';
 
 const tabConfig: Record<string, { title: string; subtitle?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Visão geral financeira' },
-  transactions: { title: 'Lançamentos', subtitle: 'Gerencie todas as movimentações' },
-  income: { title: 'Entradas', subtitle: 'Receitas e recebimentos' },
-  expenses: { title: 'Despesas', subtitle: 'Custos e pagamentos' },
-  clients: { title: 'Clientes & Contratos', subtitle: 'Gerencie sua carteira' },
+  accounts: { title: 'Contas', subtitle: 'Gestão de contas e saldos' },
+  transactions: { title: 'Transações', subtitle: 'Lançamentos e movimentações' },
   reports: { title: 'Relatórios', subtitle: 'Análises e exportações' },
-  import: { title: 'Importar XLSX', subtitle: 'Importe dados do Excel' },
-  settings: { title: 'Configurações', subtitle: 'Personalize o módulo financeiro' },
+  clients: { title: 'Clientes & Contratos', subtitle: 'Gerencie sua carteira' },
+  import: { title: 'Importar / Exportar', subtitle: 'Dados em lote' },
+  'settings-companies': { title: 'Empresas Financeiras', subtitle: 'Cadastro de empresas' },
+  'settings-accounts': { title: 'Contas', subtitle: 'Cadastro de contas bancárias' },
+  'settings-account-categories': { title: 'Categorias de Conta', subtitle: 'Agrupadores de saldo' },
+  'settings-categories': { title: 'Categorias de Transação', subtitle: 'Natureza do gasto/receita' },
+  'settings-cost-centers': { title: 'Centros de Custo', subtitle: 'Estrutura DRE' },
+  'settings-payment-methods': { title: 'Formas de Pagamento', subtitle: 'Métodos aceitos' },
+  'settings-sources': { title: 'Fontes Financeiras', subtitle: 'Origens de recursos' },
 };
 
 const Index = () => {
@@ -30,21 +34,20 @@ const Index = () => {
     switch (activeTab) {
       case 'dashboard':
         return <Dashboard />;
+      case 'accounts':
+        return <AccountsView />;
       case 'transactions':
-        return <TransactionTable />;
-      case 'income':
-        return <IncomeView />;
-      case 'expenses':
-        return <ExpenseView />;
-      case 'clients':
-        return <ClientsView />;
+        return <TransactionsView />;
       case 'reports':
         return <ReportsView />;
+      case 'clients':
+        return <ClientsView />;
       case 'import':
-        return <ImportView />;
-      case 'settings':
-        return <SettingsView />;
+        return <ImportExportView />;
       default:
+        if (activeTab.startsWith('settings')) {
+          return <SettingsView activeSection={activeTab} />;
+        }
         return <Dashboard />;
     }
   };
@@ -57,11 +60,12 @@ const Index = () => {
       
       <main className={cn(
         "transition-all duration-300",
-        "ml-64" // Sidebar width
+        "pt-16 lg:pt-0", // Mobile header offset
+        "lg:ml-64" // Desktop sidebar offset
       )}>
         <Header title={title} subtitle={subtitle} />
         
-        <div className="p-8">
+        <div className="p-4 lg:p-8">
           {renderContent()}
         </div>
       </main>
