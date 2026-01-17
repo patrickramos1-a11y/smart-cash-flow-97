@@ -13,13 +13,23 @@ import {
 } from 'lucide-react';
 import { mockClients, mockTransactions, formatCurrency } from '@/data/mockData';
 import { cn } from '@/lib/utils';
+import { ClientModal } from '@/components/modals/ClientModal';
+import { Client } from '@/types/financial';
+import { toast } from 'sonner';
 
 export function ClientsView() {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'RECORRENTE' | 'AVULSO'>('all');
+  
+  // Modal states
+  const [showModal, setShowModal] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | undefined>();
+  
+  // Local clients state
+  const [clients, setClients] = useState(mockClients);
 
   // Calculate client stats
-  const clientStats = mockClients.map(client => {
+  const clientStats = clients.map(client => {
     const clientTransactions = mockTransactions.filter(t => t.clientId === client.id);
     const revenue = clientTransactions
       .filter(t => t.nature === 'ENTRADA')
@@ -46,8 +56,33 @@ export function ClientsView() {
     return matchesSearch && matchesType;
   });
 
-  const recurringCount = mockClients.filter(c => c.type === 'RECORRENTE').length;
-  const avulsoCount = mockClients.filter(c => c.type === 'AVULSO').length;
+  const recurringCount = clients.filter(c => c.type === 'RECORRENTE').length;
+  const avulsoCount = clients.filter(c => c.type === 'AVULSO').length;
+
+  const openNewClient = () => {
+    setEditingClient(undefined);
+    setShowModal(true);
+  };
+
+  const openEditClient = (client: Client) => {
+    setEditingClient(client);
+    setShowModal(true);
+  };
+
+  const handleSaveClient = (clientData: Partial<Client>) => {
+    if (editingClient) {
+      setClients(prev =>
+        prev.map(c => c.id === editingClient.id ? { ...c, ...clientData } as Client : c)
+      );
+    } else {
+      setClients(prev => [...prev, clientData as Client]);
+    }
+  };
+
+  const handleViewContracts = (client: Client) => {
+    toast.info(`Visualizando contratos de ${client.name}`);
+    // TODO: Navigate to contracts view with client filter
+  };
 
   return (
     <div className="space-y-6">
@@ -66,7 +101,7 @@ export function ClientsView() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total de Clientes</p>
-              <p className="text-2xl font-bold text-foreground">{mockClients.length}</p>
+              <p className="text-2xl font-bold text-foreground">{clients.length}</p>
             </div>
           </div>
         </div>
@@ -134,7 +169,7 @@ export function ClientsView() {
             className="form-input pl-10"
           />
         </div>
-        <button className="btn-primary">
+        <button className="btn-primary" onClick={openNewClient}>
           <Plus className="w-4 h-4" />
           Novo Cliente
         </button>
@@ -167,7 +202,10 @@ export function ClientsView() {
                   </span>
                 </div>
               </div>
-              <button className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+              <button 
+                className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+                onClick={() => openEditClient(client)}
+              >
                 <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
               </button>
             </div>
@@ -207,11 +245,17 @@ export function ClientsView() {
 
             {/* Actions */}
             <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border/50">
-              <button className="btn-ghost flex-1 text-sm">
+              <button 
+                className="btn-ghost flex-1 text-sm"
+                onClick={() => handleViewContracts(client)}
+              >
                 <FileText className="w-4 h-4" />
                 Contratos
               </button>
-              <button className="btn-secondary flex-1 text-sm">
+              <button 
+                className="btn-secondary flex-1 text-sm"
+                onClick={() => openEditClient(client)}
+              >
                 <Edit className="w-4 h-4" />
                 Editar
               </button>
@@ -219,6 +263,14 @@ export function ClientsView() {
           </div>
         ))}
       </div>
+
+      {/* Client Modal */}
+      <ClientModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        client={editingClient}
+        onSave={handleSaveClient}
+      />
     </div>
   );
 }
