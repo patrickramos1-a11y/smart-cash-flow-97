@@ -1,18 +1,21 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
-  Search, Plus, Filter, ArrowUpCircle, ArrowDownCircle, 
+  Search, ArrowUpCircle, ArrowDownCircle, 
   ArrowLeftRight, MoreVertical, CheckCircle, Clock, AlertTriangle,
-  FileText, Send, Copy, Pencil, Trash2
+  Send, Copy, Pencil, Trash2
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { mockTransactions, formatCurrency, formatDate } from '@/data/mockData';
 import { Transaction, TransactionStatus } from '@/types/financial';
 import { cn } from '@/lib/utils';
+import { TransactionModal } from '@/components/modals/TransactionModal';
+import { ConfirmModal } from '@/components/modals/ConfirmModal';
+import { toast } from 'sonner';
 
 const statusConfig: Record<TransactionStatus, { label: string; color: string; icon: React.ComponentType<{className?: string}> }> = {
   PAGO: { label: 'Pago', color: 'bg-income/10 text-income border-income/20', icon: CheckCircle },
@@ -24,8 +27,18 @@ export function TransactionsView() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [natureFilter, setNatureFilter] = useState<string>('all');
+  
+  // Modal states
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState<'ENTRADA' | 'SAIDA' | 'TRANSFERENCIA'>('ENTRADA');
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
+  
+  // Local transactions state (simulating database)
+  const [transactions, setTransactions] = useState(mockTransactions);
 
-  const filteredTransactions = mockTransactions.filter(t => {
+  const filteredTransactions = transactions.filter(t => {
     const matchesSearch = t.description.toLowerCase().includes(search.toLowerCase()) ||
       t.clientName?.toLowerCase().includes(search.toLowerCase()) ||
       t.categoryName?.toLowerCase().includes(search.toLowerCase());
@@ -43,18 +56,96 @@ export function TransactionsView() {
     return <ArrowLeftRight className="w-5 h-5 text-info" />;
   };
 
+  const openNewTransaction = (type: 'ENTRADA' | 'SAIDA' | 'TRANSFERENCIA') => {
+    setModalType(type);
+    setEditingTransaction(undefined);
+    setShowModal(true);
+  };
+
+  const openEditTransaction = (transaction: Transaction) => {
+    setModalType(transaction.nature as 'ENTRADA' | 'SAIDA' | 'TRANSFERENCIA');
+    setEditingTransaction(transaction);
+    setShowModal(true);
+  };
+
+  const handleSaveTransaction = (transactionData: Partial<Transaction>) => {
+    if (editingTransaction) {
+      // Update existing
+      setTransactions(prev => 
+        prev.map(t => t.id === editingTransaction.id ? { ...t, ...transactionData } as Transaction : t)
+      );
+    } else {
+      // Add new
+      setTransactions(prev => [...prev, transactionData as Transaction]);
+    }
+  };
+
+  const handleDuplicate = (transaction: Transaction) => {
+    const duplicate = {
+      ...transaction,
+      id: `trx_${Date.now()}`,
+      description: `${transaction.description} (Cópia)`,
+      isPaid: false,
+      status: 'EM_ABERTO' as TransactionStatus,
+      paymentDate: undefined,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    setTransactions(prev => [...prev, duplicate]);
+    toast.success('Transação duplicada!');
+  };
+
+  const handleMarkPaid = (transaction: Transaction) => {
+    setTransactions(prev =>
+      prev.map(t => t.id === transaction.id ? {
+        ...t,
+        isPaid: true,
+        status: 'PAGO' as TransactionStatus,
+        paymentDate: new Date(),
+        updatedAt: new Date(),
+      } : t)
+    );
+    toast.success('Transação marcada como paga!');
+  };
+
+  const handleSendCollection = (transaction: Transaction) => {
+    toast.success(`Cobrança enviada para ${transaction.clientName || 'cliente'}!`);
+  };
+
+  const handleDelete = () => {
+    if (deletingTransaction) {
+      setTransactions(prev => prev.filter(t => t.id !== deletingTransaction.id));
+      toast.success('Transação excluída!');
+      setDeletingTransaction(null);
+    }
+  };
+
+  const confirmDelete = (transaction: Transaction) => {
+    setDeletingTransaction(transaction);
+    setShowDeleteConfirm(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Actions Bar */}
       <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
         <div className="flex flex-wrap gap-2">
-          <Button className="bg-income hover:bg-income/90">
+          <Button 
+            className="bg-income hover:bg-income/90"
+            onClick={() => openNewTransaction('ENTRADA')}
+          >
             <ArrowDownCircle className="w-4 h-4 mr-2" /> Nova Entrada
           </Button>
-          <Button className="bg-expense hover:bg-expense/90">
+          <Button 
+            className="bg-expense hover:bg-expense/90"
+            onClick={() => openNewTransaction('SAIDA')}
+          >
             <ArrowUpCircle className="w-4 h-4 mr-2" /> Nova Saída
           </Button>
-          <Button variant="outline">
+          <Button 
+            variant="outline"
+            onClick={() => openNewTransaction('TRANSFERENCIA')}
+          >
             <ArrowLeftRight className="w-4 h-4 mr-2" /> Transferência
           </Button>
         </div>
@@ -157,13 +248,28 @@ export function TransactionsView() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem><Pencil className="w-4 h-4 mr-2" /> Editar</DropdownMenuItem>
-                            <DropdownMenuItem><Copy className="w-4 h-4 mr-2" /> Duplicar</DropdownMenuItem>
-                            {!t.isPaid && <DropdownMenuItem><CheckCircle className="w-4 h-4 mr-2" /> Marcar Pago</DropdownMenuItem>}
-                            {t.nature === 'ENTRADA' && !t.isPaid && (
-                              <DropdownMenuItem><Send className="w-4 h-4 mr-2" /> Enviar Cobrança</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEditTransaction(t)}>
+                              <Pencil className="w-4 h-4 mr-2" /> Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDuplicate(t)}>
+                              <Copy className="w-4 h-4 mr-2" /> Duplicar
+                            </DropdownMenuItem>
+                            {!t.isPaid && (
+                              <DropdownMenuItem onClick={() => handleMarkPaid(t)}>
+                                <CheckCircle className="w-4 h-4 mr-2" /> Marcar Pago
+                              </DropdownMenuItem>
                             )}
-                            <DropdownMenuItem className="text-destructive"><Trash2 className="w-4 h-4 mr-2" /> Excluir</DropdownMenuItem>
+                            {t.nature === 'ENTRADA' && !t.isPaid && (
+                              <DropdownMenuItem onClick={() => handleSendCollection(t)}>
+                                <Send className="w-4 h-4 mr-2" /> Enviar Cobrança
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={() => confirmDelete(t)}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </td>
@@ -175,6 +281,26 @@ export function TransactionsView() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Transaction Modal */}
+      <TransactionModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        type={modalType}
+        transaction={editingTransaction}
+        onSave={handleSaveTransaction}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDelete}
+        title="Excluir Transação"
+        message={`Tem certeza que deseja excluir "${deletingTransaction?.description}"? Esta ação não pode ser desfeita.`}
+        confirmText="Excluir"
+        type="danger"
+      />
     </div>
   );
 }

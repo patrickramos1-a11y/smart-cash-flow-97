@@ -8,7 +8,6 @@ import {
   Wand2,
   Plus,
   Edit,
-  Trash2,
   ToggleLeft,
   ToggleRight
 } from 'lucide-react';
@@ -19,6 +18,7 @@ import {
   mockPaymentMethods 
 } from '@/data/mockData';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 type SettingsTab = 'accounts' | 'categories' | 'costcenters' | 'payment' | 'documents' | 'rules';
 
@@ -35,6 +35,7 @@ export function SettingsView({ activeSection }: SettingsViewProps) {
   };
   
   const [activeTab, setActiveTab] = useState<SettingsTab>(getInitialTab());
+  const [paymentMethods, setPaymentMethods] = useState(mockPaymentMethods);
 
   const tabs = [
     { id: 'accounts' as const, label: 'Contas', icon: CreditCard },
@@ -52,29 +53,33 @@ export function SettingsView({ activeSection }: SettingsViewProps) {
     { id: 'SEM_DOCUMENTO', name: 'Sem Documento', active: true },
   ];
 
-  const automationRules = [
-    { 
-      id: '1', 
-      name: 'Receita Recorrente', 
-      condition: 'Descrição contém "Recorrente"', 
-      action: 'Tipo receita = RECORRENTE',
-      active: true 
-    },
-    { 
-      id: '2', 
-      name: 'Despesa Fixa - Aluguel', 
-      condition: 'Categoria = "ALUGUEL"', 
-      action: 'Tipo despesa = FIXA',
-      active: true 
-    },
-    { 
-      id: '3', 
-      name: 'Despesa Fixa - Salários', 
-      condition: 'Categoria = "SALÁRIOS"', 
-      action: 'Tipo despesa = FIXA',
-      active: true 
-    },
-  ];
+  const [automationRules, setAutomationRules] = useState([
+    { id: '1', name: 'Receita Recorrente', condition: 'Descrição contém "Recorrente"', action: 'Tipo receita = RECORRENTE', active: true },
+    { id: '2', name: 'Despesa Fixa - Aluguel', condition: 'Categoria = "ALUGUEL"', action: 'Tipo despesa = FIXA', active: true },
+    { id: '3', name: 'Despesa Fixa - Salários', condition: 'Categoria = "SALÁRIOS"', action: 'Tipo despesa = FIXA', active: true },
+  ]);
+
+  const togglePaymentMethod = (id: string) => {
+    setPaymentMethods(prev => prev.map(pm => 
+      pm.id === id ? { ...pm, active: !pm.active } : pm
+    ));
+    toast.success('Forma de pagamento atualizada!');
+  };
+
+  const toggleRule = (id: string) => {
+    setAutomationRules(prev => prev.map(rule => 
+      rule.id === id ? { ...rule, active: !rule.active } : rule
+    ));
+    toast.success('Regra atualizada!');
+  };
+
+  const handleNewItem = (type: string) => {
+    toast.info(`Funcionalidade "Novo ${type}" será implementada em breve!`);
+  };
+
+  const handleEdit = (type: string, name: string) => {
+    toast.info(`Editando ${type}: ${name}`);
+  };
 
   const renderContent = () => {
     switch (activeTab) {

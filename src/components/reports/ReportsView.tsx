@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -12,24 +12,15 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { mockTransactions, formatCurrency, calculateClientProfitability } from '@/data/mockData';
 import { cn } from '@/lib/utils';
-
-const cashFlowData = [
-  { date: '01/01', entrada: 5000, saida: 2000, saldo: 3000 },
-  { date: '05/01', entrada: 8000, saida: 4500, saldo: 6500 },
-  { date: '10/01', entrada: 12000, saida: 6000, saldo: 12500 },
-  { date: '15/01', entrada: 15000, saida: 8000, saldo: 19500 },
-  { date: '20/01', entrada: 18000, saida: 10000, saldo: 27500 },
-];
-
-const agingData = [
-  { range: '0-7 dias', value: 6072, count: 2 },
-  { range: '8-15 dias', value: 3036, count: 1 },
-  { range: '16-30 dias', value: 0, count: 0 },
-  { range: '30+ dias', value: 0, count: 0 },
-];
+import { DatePickerModal } from '@/components/modals/DatePickerModal';
+import { toast } from 'sonner';
 
 export function ReportsView() {
   const [selectedReport, setSelectedReport] = useState<string>('cashflow');
+  const [selectedMonth, setSelectedMonth] = useState(1);
+  const [selectedYear, setSelectedYear] = useState(2026);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  
   const clientProfitability = calculateClientProfitability(mockTransactions);
 
   const reports = [
@@ -39,14 +30,85 @@ export function ReportsView() {
     { id: 'aging', name: 'Envelhecimento', icon: Clock },
   ];
 
-  // Calculate DRE
-  const totalRevenue = mockTransactions
+  const MONTHS = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 
+    'Maio', 'Junho', 'Julho', 'Agosto', 
+    'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+
+  // Filter transactions by selected period
+  const filteredTransactions = mockTransactions.filter(t => {
+    return t.competenceMonth === selectedMonth && t.competenceYear === selectedYear;
+  });
+
+  // Calculate DRE based on filtered data
+  const totalRevenue = filteredTransactions
     .filter(t => t.nature === 'ENTRADA')
     .reduce((sum, t) => sum + t.value, 0);
-  const totalExpenses = mockTransactions
+  const totalExpenses = filteredTransactions
     .filter(t => t.nature === 'SAIDA')
     .reduce((sum, t) => sum + t.value, 0);
   const netResult = totalRevenue - totalExpenses;
+
+  const cashFlowData = [
+    { date: '01/' + String(selectedMonth).padStart(2, '0'), entrada: 5000, saida: 2000, saldo: 3000 },
+    { date: '05/' + String(selectedMonth).padStart(2, '0'), entrada: 8000, saida: 4500, saldo: 6500 },
+    { date: '10/' + String(selectedMonth).padStart(2, '0'), entrada: 12000, saida: 6000, saldo: 12500 },
+    { date: '15/' + String(selectedMonth).padStart(2, '0'), entrada: 15000, saida: 8000, saldo: 19500 },
+    { date: '20/' + String(selectedMonth).padStart(2, '0'), entrada: 18000, saida: 10000, saldo: 27500 },
+  ];
+
+  const agingData = [
+    { range: '0-7 dias', value: 6072, count: 2 },
+    { range: '8-15 dias', value: 3036, count: 1 },
+    { range: '16-30 dias', value: 0, count: 0 },
+    { range: '30+ dias', value: 0, count: 0 },
+  ];
+
+  const handleExport = (format: 'xlsx' | 'pdf') => {
+    // Simulate export
+    toast.success(`Exportando relatório em ${format.toUpperCase()}...`);
+    
+    // Create a simple CSV for XLSX simulation
+    if (format === 'xlsx') {
+      let csvContent = '';
+      
+      if (selectedReport === 'ranking') {
+        csvContent = 'Cliente,Receita,Despesas,Lucro,Margem\n';
+        clientProfitability.forEach(client => {
+          csvContent += `${client.clientName},${client.totalRevenue},${client.totalExpenses},${client.profit},${client.margin}%\n`;
+        });
+      } else if (selectedReport === 'dre') {
+        csvContent = 'Item,Valor\n';
+        csvContent += `Receita Bruta,${totalRevenue}\n`;
+        csvContent += `Despesas Totais,${totalExpenses}\n`;
+        csvContent += `Resultado Líquido,${netResult}\n`;
+      } else {
+        csvContent = 'Data,Entradas,Saídas,Saldo\n';
+        cashFlowData.forEach(row => {
+          csvContent += `${row.date},${row.entrada},${row.saida},${row.saldo}\n`;
+        });
+      }
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `relatorio_${selectedReport}_${MONTHS[selectedMonth - 1]}_${selectedYear}.csv`;
+      link.click();
+      
+      toast.success('Relatório exportado com sucesso!');
+    } else {
+      // For PDF, we'll use print functionality
+      toast.info('Abrindo visualização para impressão...');
+      window.print();
+    }
+  };
+
+  const handleDateSelect = (month: number, year: number) => {
+    setSelectedMonth(month);
+    setSelectedYear(year);
+    toast.success(`Período alterado para ${MONTHS[month - 1]} ${year}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -72,14 +134,28 @@ export function ReportsView() {
         })}
         
         <div className="ml-auto flex items-center gap-2">
-          <button className="btn-secondary">
+          <button 
+            className="btn-secondary"
+            onClick={() => setShowDatePicker(true)}
+          >
             <Calendar className="w-4 h-4" />
-            Janeiro 2026
+            {MONTHS[selectedMonth - 1]} {selectedYear}
           </button>
-          <button className="btn-primary">
-            <Download className="w-4 h-4" />
-            Exportar
-          </button>
+          <div className="flex gap-1">
+            <button 
+              className="btn-primary"
+              onClick={() => handleExport('xlsx')}
+            >
+              <Download className="w-4 h-4" />
+              XLSX
+            </button>
+            <button 
+              className="btn-secondary"
+              onClick={() => handleExport('pdf')}
+            >
+              PDF
+            </button>
+          </div>
         </div>
       </div>
 
@@ -87,7 +163,9 @@ export function ReportsView() {
       {selectedReport === 'cashflow' && (
         <div className="space-y-6">
           <div className="chart-container">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Fluxo de Caixa - Janeiro 2026</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-4">
+              Fluxo de Caixa - {MONTHS[selectedMonth - 1]} {selectedYear}
+            </h3>
             <div className="h-[350px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={cashFlowData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
@@ -142,7 +220,9 @@ export function ReportsView() {
       {/* DRE Report */}
       {selectedReport === 'dre' && (
         <div className="chart-container max-w-2xl">
-          <h3 className="text-lg font-semibold text-foreground mb-6">DRE Simplificada - Janeiro 2026</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-6">
+            DRE Simplificada - {MONTHS[selectedMonth - 1]} {selectedYear}
+          </h3>
           
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-income-muted rounded-xl">
@@ -157,13 +237,13 @@ export function ReportsView() {
               <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <span className="text-sm text-muted-foreground">(-) Receita Recorrente</span>
                 <span className="font-medium text-foreground">
-                  {formatCurrency(mockTransactions.filter(t => t.nature === 'ENTRADA' && t.revenueType === 'RECORRENTE').reduce((s, t) => s + t.value, 0))}
+                  {formatCurrency(filteredTransactions.filter(t => t.nature === 'ENTRADA' && t.revenueType === 'RECORRENTE').reduce((s, t) => s + t.value, 0))}
                 </span>
               </div>
               <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <span className="text-sm text-muted-foreground">(-) Receita Pontual</span>
                 <span className="font-medium text-foreground">
-                  {formatCurrency(mockTransactions.filter(t => t.nature === 'ENTRADA' && t.revenueType === 'PONTUAL').reduce((s, t) => s + t.value, 0))}
+                  {formatCurrency(filteredTransactions.filter(t => t.nature === 'ENTRADA' && t.revenueType === 'PONTUAL').reduce((s, t) => s + t.value, 0))}
                 </span>
               </div>
             </div>
@@ -180,13 +260,13 @@ export function ReportsView() {
               <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <span className="text-sm text-muted-foreground">(-) Despesas Fixas</span>
                 <span className="font-medium text-foreground">
-                  {formatCurrency(mockTransactions.filter(t => t.nature === 'SAIDA' && t.expenseType === 'FIXA').reduce((s, t) => s + t.value, 0))}
+                  {formatCurrency(filteredTransactions.filter(t => t.nature === 'SAIDA' && t.expenseType === 'FIXA').reduce((s, t) => s + t.value, 0))}
                 </span>
               </div>
               <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <span className="text-sm text-muted-foreground">(-) Despesas Variáveis</span>
                 <span className="font-medium text-foreground">
-                  {formatCurrency(mockTransactions.filter(t => t.nature === 'SAIDA' && t.expenseType === 'VARIAVEL').reduce((s, t) => s + t.value, 0))}
+                  {formatCurrency(filteredTransactions.filter(t => t.nature === 'SAIDA' && t.expenseType === 'VARIAVEL').reduce((s, t) => s + t.value, 0))}
                 </span>
               </div>
             </div>
@@ -324,6 +404,15 @@ export function ReportsView() {
           </div>
         </div>
       )}
+
+      {/* Date Picker Modal */}
+      <DatePickerModal
+        open={showDatePicker}
+        onClose={() => setShowDatePicker(false)}
+        onSelect={handleDateSelect}
+        currentMonth={selectedMonth}
+        currentYear={selectedYear}
+      />
     </div>
   );
 }
