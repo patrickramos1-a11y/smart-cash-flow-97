@@ -18,7 +18,8 @@ import {
   CreditCard,
   Landmark,
   Menu,
-  X
+  X,
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -39,6 +40,7 @@ const menuItems: MenuItemType[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'accounts', label: 'Contas', icon: Wallet },
   { id: 'transactions', label: 'Transações', icon: ArrowDownUp },
+  { id: 'recurring-contracts', label: 'Contratos Recorrentes', icon: RefreshCw },
   { id: 'reports', label: 'Relatórios', icon: BarChart3 },
   { 
     id: 'settings', 
