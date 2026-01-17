@@ -8,12 +8,14 @@ import { ClientsView } from '@/components/clients/ClientsView';
 import { ImportExportView } from '@/components/import/ImportExportView';
 import { ReportsView } from '@/components/reports/ReportsView';
 import { SettingsView } from '@/components/settings/SettingsView';
+import { RecurringContractsView } from '@/components/contracts/RecurringContractsView';
 import { cn } from '@/lib/utils';
 
 const tabConfig: Record<string, { title: string; subtitle?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Visão geral financeira' },
   accounts: { title: 'Contas', subtitle: 'Gestão de contas e saldos' },
   transactions: { title: 'Transações', subtitle: 'Lançamentos e movimentações' },
+  'recurring-contracts': { title: 'Contratos Recorrentes', subtitle: 'Gestão de contratos por salário mínimo' },
   reports: { title: 'Relatórios', subtitle: 'Análises e exportações' },
   clients: { title: 'Clientes & Contratos', subtitle: 'Gerencie sua carteira' },
   import: { title: 'Importar / Exportar', subtitle: 'Dados em lote' },
@@ -38,6 +40,8 @@ const Index = () => {
         return <AccountsView />;
       case 'transactions':
         return <TransactionsView />;
+      case 'recurring-contracts':
+        return <RecurringContractsView />;
       case 'reports':
         return <ReportsView />;
       case 'clients':

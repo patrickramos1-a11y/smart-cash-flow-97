@@ -14,7 +14,218 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      contract_plans: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          minimum_wage_factor: number
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          minimum_wage_factor: number
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          minimum_wage_factor?: number
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      minimum_wage_config: {
+        Row: {
+          created_at: string
+          effective_date: string
+          id: string
+          notes: string | null
+          updated_at: string
+          value: number
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          effective_date?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          value: number
+          year: number
+        }
+        Update: {
+          created_at?: string
+          effective_date?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          value?: number
+          year?: number
+        }
+        Relationships: []
+      }
+      recurring_clients: {
+        Row: {
+          active: boolean
+          address: string | null
+          created_at: string
+          document: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          address?: string | null
+          created_at?: string
+          document?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          address?: string | null
+          created_at?: string
+          document?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      recurring_contracts: {
+        Row: {
+          active: boolean
+          client_id: string
+          created_at: string
+          custom_minimum_wage_factor: number | null
+          end_date: string | null
+          id: string
+          notes: string | null
+          plan_id: string | null
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          client_id: string
+          created_at?: string
+          custom_minimum_wage_factor?: number | null
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          plan_id?: string | null
+          start_date?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          client_id?: string
+          created_at?: string
+          custom_minimum_wage_factor?: number | null
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          plan_id?: string | null
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_contracts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_contracts_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "contract_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recurring_installments: {
+        Row: {
+          competence_month: number
+          competence_year: number
+          contract_id: string
+          created_at: string
+          due_date: string
+          expected_value: number
+          id: string
+          minimum_wage_factor: number
+          minimum_wage_value: number
+          notes: string | null
+          paid_value: number | null
+          payment_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          competence_month: number
+          competence_year: number
+          contract_id: string
+          created_at?: string
+          due_date: string
+          expected_value: number
+          id?: string
+          minimum_wage_factor: number
+          minimum_wage_value: number
+          notes?: string | null
+          paid_value?: number | null
+          payment_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          competence_month?: number
+          competence_year?: number
+          contract_id?: string
+          created_at?: string
+          due_date?: string
+          expected_value?: number
+          id?: string
+          minimum_wage_factor?: number
+          minimum_wage_value?: number
+          notes?: string | null
+          paid_value?: number | null
+          payment_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_installments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
