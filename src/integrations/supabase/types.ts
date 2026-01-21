@@ -44,6 +44,57 @@ export type Database = {
         }
         Relationships: []
       }
+      fixed_expenses: {
+        Row: {
+          active: boolean
+          categoria_id: string | null
+          centro_custo_id: string | null
+          conta_id: string | null
+          created_at: string
+          data_fim: string | null
+          data_inicio: string
+          dia_vencimento: number
+          forma_pagamento_id: string | null
+          id: string
+          nome: string
+          notes: string | null
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          active?: boolean
+          categoria_id?: string | null
+          centro_custo_id?: string | null
+          conta_id?: string | null
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          dia_vencimento: number
+          forma_pagamento_id?: string | null
+          id?: string
+          nome: string
+          notes?: string | null
+          updated_at?: string
+          valor?: number
+        }
+        Update: {
+          active?: boolean
+          categoria_id?: string | null
+          centro_custo_id?: string | null
+          conta_id?: string | null
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          dia_vencimento?: number
+          forma_pagamento_id?: string | null
+          id?: string
+          nome?: string
+          notes?: string | null
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: []
+      }
       minimum_wage_config: {
         Row: {
           created_at: string
@@ -226,6 +277,157 @@ export type Database = {
           },
         ]
       }
+      transaction_history: {
+        Row: {
+          created_at: string
+          dados_anteriores: Json | null
+          evento: Database["public"]["Enums"]["history_evento"]
+          id: string
+          modulo_origem: string
+          transaction_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          dados_anteriores?: Json | null
+          evento: Database["public"]["Enums"]["history_evento"]
+          id?: string
+          modulo_origem: string
+          transaction_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          dados_anteriores?: Json | null
+          evento?: Database["public"]["Enums"]["history_evento"]
+          id?: string
+          modulo_origem?: string
+          transaction_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_history_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          categoria_id: string | null
+          centro_custo_id: string | null
+          cliente_id: string | null
+          competencia_ano: number
+          competencia_mes: number
+          conta_id: string | null
+          contrato_id: string | null
+          created_at: string
+          data_pagamento: string | null
+          data_vencimento: string
+          descricao: string | null
+          documento_numero: string | null
+          documento_tipo: Database["public"]["Enums"]["documento_tipo"] | null
+          fixed_expense_id: string | null
+          forma_pagamento_id: string | null
+          id: string
+          installment_id: string | null
+          natureza: Database["public"]["Enums"]["transaction_natureza"]
+          notes: string | null
+          origem: Database["public"]["Enums"]["transaction_origem"]
+          status: Database["public"]["Enums"]["transaction_status"]
+          tipo_movimento: Database["public"]["Enums"]["transaction_tipo_movimento"]
+          updated_at: string
+          valor: number
+          valor_pago: number | null
+        }
+        Insert: {
+          categoria_id?: string | null
+          centro_custo_id?: string | null
+          cliente_id?: string | null
+          competencia_ano: number
+          competencia_mes: number
+          conta_id?: string | null
+          contrato_id?: string | null
+          created_at?: string
+          data_pagamento?: string | null
+          data_vencimento: string
+          descricao?: string | null
+          documento_numero?: string | null
+          documento_tipo?: Database["public"]["Enums"]["documento_tipo"] | null
+          fixed_expense_id?: string | null
+          forma_pagamento_id?: string | null
+          id?: string
+          installment_id?: string | null
+          natureza: Database["public"]["Enums"]["transaction_natureza"]
+          notes?: string | null
+          origem: Database["public"]["Enums"]["transaction_origem"]
+          status?: Database["public"]["Enums"]["transaction_status"]
+          tipo_movimento: Database["public"]["Enums"]["transaction_tipo_movimento"]
+          updated_at?: string
+          valor?: number
+          valor_pago?: number | null
+        }
+        Update: {
+          categoria_id?: string | null
+          centro_custo_id?: string | null
+          cliente_id?: string | null
+          competencia_ano?: number
+          competencia_mes?: number
+          conta_id?: string | null
+          contrato_id?: string | null
+          created_at?: string
+          data_pagamento?: string | null
+          data_vencimento?: string
+          descricao?: string | null
+          documento_numero?: string | null
+          documento_tipo?: Database["public"]["Enums"]["documento_tipo"] | null
+          fixed_expense_id?: string | null
+          forma_pagamento_id?: string | null
+          id?: string
+          installment_id?: string | null
+          natureza?: Database["public"]["Enums"]["transaction_natureza"]
+          notes?: string | null
+          origem?: Database["public"]["Enums"]["transaction_origem"]
+          status?: Database["public"]["Enums"]["transaction_status"]
+          tipo_movimento?: Database["public"]["Enums"]["transaction_tipo_movimento"]
+          updated_at?: string
+          valor?: number
+          valor_pago?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_transactions_fixed_expense"
+            columns: ["fixed_expense_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_installments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -234,7 +436,16 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      documento_tipo: "NF" | "RECIBO" | "NOTA_DEBITO" | "SEM_DOCUMENTO"
+      history_evento: "CRIADO" | "MARCADO_PAGO" | "ESTORNADO" | "ALTERADO"
+      transaction_natureza: "RECORRENTE" | "AVULSA"
+      transaction_origem:
+        | "CONTRATO_RECORRENTE"
+        | "DESPESA_FIXA"
+        | "LANCAMENTO_MANUAL"
+        | "IMPORTACAO"
+      transaction_status: "EM_ABERTO" | "PAGO" | "ATRASADO"
+      transaction_tipo_movimento: "ENTRADA" | "SAIDA"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -361,6 +572,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      documento_tipo: ["NF", "RECIBO", "NOTA_DEBITO", "SEM_DOCUMENTO"],
+      history_evento: ["CRIADO", "MARCADO_PAGO", "ESTORNADO", "ALTERADO"],
+      transaction_natureza: ["RECORRENTE", "AVULSA"],
+      transaction_origem: [
+        "CONTRATO_RECORRENTE",
+        "DESPESA_FIXA",
+        "LANCAMENTO_MANUAL",
+        "IMPORTACAO",
+      ],
+      transaction_status: ["EM_ABERTO", "PAGO", "ATRASADO"],
+      transaction_tipo_movimento: ["ENTRADA", "SAIDA"],
+    },
   },
 } as const
