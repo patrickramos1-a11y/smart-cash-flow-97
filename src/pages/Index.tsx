@@ -3,7 +3,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import { AccountsView } from '@/components/accounts/AccountsView';
-import { TransactionsView } from '@/components/transactions/TransactionsView';
+import { TransactionsHub } from '@/components/transactions/TransactionsHub';
 import { ClientsView } from '@/components/clients/ClientsView';
 import { ImportExportView } from '@/components/import/ImportExportView';
 import { ReportsView } from '@/components/reports/ReportsView';
@@ -39,7 +39,7 @@ const Index = () => {
       case 'accounts':
         return <AccountsView />;
       case 'transactions':
-        return <TransactionsView />;
+        return <TransactionsHub />;
       case 'recurring-contracts':
         return <RecurringContractsView />;
       case 'reports':
