@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { 
   LayoutDashboard, 
   ArrowDownUp, 
-  ArrowUpCircle, 
-  ArrowDownCircle, 
+  Wallet, 
   Users, 
   Settings, 
   FileSpreadsheet,
@@ -11,15 +10,9 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  Wallet,
-  Building2,
-  Tags,
-  Target,
-  CreditCard,
-  Landmark,
   Menu,
-  X,
-  RefreshCw
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -33,42 +26,34 @@ type MenuItemType = {
   id: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  children?: { id: string; label: string; icon: React.ComponentType<{ className?: string }> }[];
+  badge?: 'new' | 'critical';
 };
 
 const menuItems: MenuItemType[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'accounts', label: 'Contas', icon: Wallet },
   { id: 'transactions', label: 'Transações', icon: ArrowDownUp },
-  { id: 'recurring-contracts', label: 'Contratos Recorrentes', icon: RefreshCw },
+  { id: 'accounts', label: 'Contas', icon: Wallet },
+  { id: 'open-payments', label: 'Em Aberto', icon: AlertCircle, badge: 'critical' },
+  { id: 'recurring-contracts', label: 'Contratos', icon: RefreshCw },
   { id: 'reports', label: 'Relatórios', icon: BarChart3 },
-  { 
-    id: 'settings', 
-    label: 'Cadastros', 
-    icon: Settings,
-    children: [
-      { id: 'settings-companies', label: 'Empresas Financeiras', icon: Building2 },
-      { id: 'settings-accounts', label: 'Contas', icon: Wallet },
-      { id: 'settings-account-categories', label: 'Categorias de Conta', icon: Landmark },
-      { id: 'settings-categories', label: 'Categorias de Transação', icon: Tags },
-      { id: 'settings-cost-centers', label: 'Centros de Custo', icon: Target },
-      { id: 'settings-payment-methods', label: 'Formas de Pagamento', icon: CreditCard },
-      { id: 'settings-sources', label: 'Fontes Financeiras', icon: Landmark },
-    ]
-  },
   { id: 'clients', label: 'Clientes', icon: Users },
+  { id: 'config', label: 'Configuração', icon: Settings },
   { id: 'import', label: 'Importar/Exportar', icon: FileSpreadsheet },
 ];
 
-function SidebarContent({ activeTab, onTabChange, collapsed, setCollapsed, isMobile = false }: SidebarProps & { collapsed: boolean; setCollapsed: (v: boolean) => void; isMobile?: boolean }) {
-  const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
-
+function SidebarContent({ 
+  activeTab, 
+  onTabChange, 
+  collapsed, 
+  setCollapsed, 
+  isMobile = false 
+}: SidebarProps & { 
+  collapsed: boolean; 
+  setCollapsed: (v: boolean) => void; 
+  isMobile?: boolean 
+}) {
   const handleMenuClick = (item: MenuItemType) => {
-    if (item.children) {
-      setExpandedMenu(expandedMenu === item.id ? null : item.id);
-    } else {
-      onTabChange(item.id);
-    }
+    onTabChange(item.id);
   };
 
   return (
@@ -90,57 +75,36 @@ function SidebarContent({ activeTab, onTabChange, collapsed, setCollapsed, isMob
       <nav className="flex-1 p-3 lg:p-4 space-y-1 overflow-y-auto custom-scrollbar">
         {menuItems.map((item) => {
           const Icon = item.icon;
-          const isActive = activeTab === item.id || (item.children && activeTab.startsWith('settings'));
-          const isExpanded = expandedMenu === item.id;
+          const isActive = activeTab === item.id;
           
           return (
-            <div key={item.id}>
-              <button
-                onClick={() => handleMenuClick(item)}
-                className={cn(
-                  "nav-item w-full",
-                  isActive && !item.children && "active",
-                  item.children && isExpanded && "bg-sidebar-accent/50"
-                )}
-                title={collapsed && !isMobile ? item.label : undefined}
-              >
-                <Icon className="w-5 h-5 flex-shrink-0" />
-                {(!collapsed || isMobile) && (
-                  <>
-                    <span className="flex-1 text-left">{item.label}</span>
-                    {item.children && (
-                      <ChevronRight className={cn(
-                        "w-4 h-4 transition-transform",
-                        isExpanded && "rotate-90"
-                      )} />
-                    )}
-                  </>
-                )}
-              </button>
-              
-              {/* Submenu */}
-              {item.children && isExpanded && (!collapsed || isMobile) && (
-                <div className="ml-4 mt-1 space-y-1 border-l-2 border-sidebar-border pl-3">
-                  {item.children.map((child) => {
-                    const ChildIcon = child.icon;
-                    const isChildActive = activeTab === child.id;
-                    return (
-                      <button
-                        key={child.id}
-                        onClick={() => onTabChange(child.id)}
-                        className={cn(
-                          "nav-item w-full text-sm py-2",
-                          isChildActive && "active"
-                        )}
-                      >
-                        <ChildIcon className="w-4 h-4 flex-shrink-0" />
-                        <span>{child.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+            <button
+              key={item.id}
+              onClick={() => handleMenuClick(item)}
+              className={cn(
+                "nav-item w-full relative",
+                isActive && "active"
               )}
-            </div>
+              title={collapsed && !isMobile ? item.label : undefined}
+            >
+              <Icon className="w-5 h-5 flex-shrink-0" />
+              {(!collapsed || isMobile) && (
+                <>
+                  <span className="flex-1 text-left">{item.label}</span>
+                  {item.badge === 'critical' && (
+                    <span className="w-2 h-2 bg-expense rounded-full animate-pulse" />
+                  )}
+                  {item.badge === 'new' && (
+                    <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
+                      Novo
+                    </span>
+                  )}
+                </>
+              )}
+              {collapsed && !isMobile && item.badge === 'critical' && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-expense rounded-full animate-pulse" />
+              )}
+            </button>
           );
         })}
       </nav>
