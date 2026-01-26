@@ -14,6 +14,159 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_categories: {
+        Row: {
+          active: boolean
+          color: string | null
+          company_id: string | null
+          created_at: string
+          display_order: number
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          color?: string | null
+          company_id?: string | null
+          created_at?: string
+          display_order?: number
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          color?: string | null
+          company_id?: string | null
+          created_at?: string
+          display_order?: number
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_categories_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "financial_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      account_transfers: {
+        Row: {
+          amount: number
+          company_id: string | null
+          created_at: string
+          from_account_id: string
+          id: string
+          notes: string | null
+          to_account_id: string
+          transfer_date: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          company_id?: string | null
+          created_at?: string
+          from_account_id: string
+          id?: string
+          notes?: string | null
+          to_account_id: string
+          transfer_date?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          company_id?: string | null
+          created_at?: string
+          from_account_id?: string
+          id?: string
+          notes?: string | null
+          to_account_id?: string
+          transfer_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_transfers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "financial_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_transfers_from_account_id_fkey"
+            columns: ["from_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_transfers_to_account_id_fkey"
+            columns: ["to_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounts: {
+        Row: {
+          active: boolean
+          bank: string | null
+          category_id: string | null
+          company_id: string | null
+          created_at: string
+          current_balance: number
+          id: string
+          initial_balance: number
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          bank?: string | null
+          category_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          current_balance?: number
+          id?: string
+          initial_balance?: number
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          bank?: string | null
+          category_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          current_balance?: number
+          id?: string
+          initial_balance?: number
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "account_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "financial_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_plans: {
         Row: {
           active: boolean
@@ -39,6 +192,83 @@ export type Database = {
           description?: string | null
           id?: string
           minimum_wage_factor?: number
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cost_centers: {
+        Row: {
+          active: boolean
+          code: string | null
+          company_id: string | null
+          created_at: string
+          dre_group: string
+          dre_label: string
+          dre_order: number
+          id: string
+          is_expense: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code?: string | null
+          company_id?: string | null
+          created_at?: string
+          dre_group: string
+          dre_label: string
+          dre_order: number
+          id?: string
+          is_expense?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string | null
+          company_id?: string | null
+          created_at?: string
+          dre_group?: string
+          dre_label?: string
+          dre_order?: number
+          id?: string
+          is_expense?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_centers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "financial_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_companies: {
+        Row: {
+          active: boolean
+          cnpj: string | null
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          cnpj?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          cnpj?: string | null
+          created_at?: string
+          id?: string
           name?: string
           updated_at?: string
         }
@@ -124,6 +354,41 @@ export type Database = {
           year?: number
         }
         Relationships: []
+      }
+      payment_methods: {
+        Row: {
+          active: boolean
+          company_id: string | null
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_methods_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "financial_companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       recurring_clients: {
         Row: {
@@ -277,6 +542,76 @@ export type Database = {
           },
         ]
       }
+      transaction_categories: {
+        Row: {
+          active: boolean
+          color: string | null
+          company_id: string | null
+          cost_center_id: string
+          created_at: string
+          default_account_id: string | null
+          expense_type:
+            | Database["public"]["Enums"]["expense_category_type"]
+            | null
+          id: string
+          name: string
+          type: Database["public"]["Enums"]["transaction_tipo_movimento"]
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          color?: string | null
+          company_id?: string | null
+          cost_center_id: string
+          created_at?: string
+          default_account_id?: string | null
+          expense_type?:
+            | Database["public"]["Enums"]["expense_category_type"]
+            | null
+          id?: string
+          name: string
+          type: Database["public"]["Enums"]["transaction_tipo_movimento"]
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          color?: string | null
+          company_id?: string | null
+          cost_center_id?: string
+          created_at?: string
+          default_account_id?: string | null
+          expense_type?:
+            | Database["public"]["Enums"]["expense_category_type"]
+            | null
+          id?: string
+          name?: string
+          type?: Database["public"]["Enums"]["transaction_tipo_movimento"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_categories_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "financial_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_categories_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_categories_default_account_id_fkey"
+            columns: ["default_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transaction_history: {
         Row: {
           created_at: string
@@ -317,13 +652,16 @@ export type Database = {
       }
       transactions: {
         Row: {
+          account_id: string | null
           categoria_id: string | null
           centro_custo_id: string | null
           cliente_id: string | null
+          company_id: string | null
           competencia_ano: number
           competencia_mes: number
           conta_id: string | null
           contrato_id: string | null
+          cost_center_id: string | null
           created_at: string
           data_pagamento: string | null
           data_vencimento: string
@@ -339,18 +677,22 @@ export type Database = {
           origem: Database["public"]["Enums"]["transaction_origem"]
           status: Database["public"]["Enums"]["transaction_status"]
           tipo_movimento: Database["public"]["Enums"]["transaction_tipo_movimento"]
+          transaction_category_id: string | null
           updated_at: string
           valor: number
           valor_pago: number | null
         }
         Insert: {
+          account_id?: string | null
           categoria_id?: string | null
           centro_custo_id?: string | null
           cliente_id?: string | null
+          company_id?: string | null
           competencia_ano: number
           competencia_mes: number
           conta_id?: string | null
           contrato_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           data_pagamento?: string | null
           data_vencimento: string
@@ -366,18 +708,22 @@ export type Database = {
           origem: Database["public"]["Enums"]["transaction_origem"]
           status?: Database["public"]["Enums"]["transaction_status"]
           tipo_movimento: Database["public"]["Enums"]["transaction_tipo_movimento"]
+          transaction_category_id?: string | null
           updated_at?: string
           valor?: number
           valor_pago?: number | null
         }
         Update: {
+          account_id?: string | null
           categoria_id?: string | null
           centro_custo_id?: string | null
           cliente_id?: string | null
+          company_id?: string | null
           competencia_ano?: number
           competencia_mes?: number
           conta_id?: string | null
           contrato_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           data_pagamento?: string | null
           data_vencimento?: string
@@ -393,6 +739,7 @@ export type Database = {
           origem?: Database["public"]["Enums"]["transaction_origem"]
           status?: Database["public"]["Enums"]["transaction_status"]
           tipo_movimento?: Database["public"]["Enums"]["transaction_tipo_movimento"]
+          transaction_category_id?: string | null
           updated_at?: string
           valor?: number
           valor_pago?: number | null
@@ -406,10 +753,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "transactions_cliente_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "recurring_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "financial_companies"
             referencedColumns: ["id"]
           },
           {
@@ -420,10 +781,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "transactions_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "transactions_installment_id_fkey"
             columns: ["installment_id"]
             isOneToOne: false
             referencedRelation: "recurring_installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_transaction_category_id_fkey"
+            columns: ["transaction_category_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_categories"
             referencedColumns: ["id"]
           },
         ]
@@ -437,6 +812,7 @@ export type Database = {
     }
     Enums: {
       documento_tipo: "NF" | "RECIBO" | "NOTA_DEBITO" | "SEM_DOCUMENTO"
+      expense_category_type: "FIXA" | "VARIAVEL" | "IMPOSTO"
       history_evento: "CRIADO" | "MARCADO_PAGO" | "ESTORNADO" | "ALTERADO"
       transaction_natureza: "RECORRENTE" | "AVULSA"
       transaction_origem:
@@ -574,6 +950,7 @@ export const Constants = {
   public: {
     Enums: {
       documento_tipo: ["NF", "RECIBO", "NOTA_DEBITO", "SEM_DOCUMENTO"],
+      expense_category_type: ["FIXA", "VARIAVEL", "IMPOSTO"],
       history_evento: ["CRIADO", "MARCADO_PAGO", "ESTORNADO", "ALTERADO"],
       transaction_natureza: ["RECORRENTE", "AVULSA"],
       transaction_origem: [
