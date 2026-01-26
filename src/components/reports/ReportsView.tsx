@@ -7,16 +7,22 @@ import {
   Clock,
   Download,
   Calendar,
-  FileText
+  FileText,
+  Target,
+  Tags
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { mockTransactions, formatCurrency, calculateClientProfitability } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { DatePickerModal } from '@/components/modals/DatePickerModal';
+import { DRECompleteView } from './DRECompleteView';
+import { ExpenseAnalysisView } from './ExpenseAnalysisView';
 import { toast } from 'sonner';
 
 export function ReportsView() {
-  const [selectedReport, setSelectedReport] = useState<string>('cashflow');
+  const [selectedReport, setSelectedReport] = useState<string>('dre');
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [selectedYear, setSelectedYear] = useState(2026);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -24,8 +30,9 @@ export function ReportsView() {
   const clientProfitability = calculateClientProfitability(mockTransactions);
 
   const reports = [
+    { id: 'dre', name: 'DRE Completa', icon: BarChart3 },
+    { id: 'expenses', name: 'Análise de Despesas', icon: TrendingDown },
     { id: 'cashflow', name: 'Fluxo de Caixa', icon: TrendingUp },
-    { id: 'dre', name: 'DRE Simplificada', icon: BarChart3 },
     { id: 'ranking', name: 'Ranking de Clientes', icon: Users },
     { id: 'aging', name: 'Envelhecimento', icon: Clock },
   ];
@@ -66,10 +73,8 @@ export function ReportsView() {
   ];
 
   const handleExport = (format: 'xlsx' | 'pdf') => {
-    // Simulate export
     toast.success(`Exportando relatório em ${format.toUpperCase()}...`);
     
-    // Create a simple CSV for XLSX simulation
     if (format === 'xlsx') {
       let csvContent = '';
       
@@ -78,11 +83,6 @@ export function ReportsView() {
         clientProfitability.forEach(client => {
           csvContent += `${client.clientName},${client.totalRevenue},${client.totalExpenses},${client.profit},${client.margin}%\n`;
         });
-      } else if (selectedReport === 'dre') {
-        csvContent = 'Item,Valor\n';
-        csvContent += `Receita Bruta,${totalRevenue}\n`;
-        csvContent += `Despesas Totais,${totalExpenses}\n`;
-        csvContent += `Resultado Líquido,${netResult}\n`;
       } else {
         csvContent = 'Data,Entradas,Saídas,Saldo\n';
         cashFlowData.forEach(row => {
@@ -98,7 +98,6 @@ export function ReportsView() {
       
       toast.success('Relatório exportado com sucesso!');
     } else {
-      // For PDF, we'll use print functionality
       toast.info('Abrindo visualização para impressão...');
       window.print();
     }
@@ -133,31 +132,39 @@ export function ReportsView() {
           );
         })}
         
-        <div className="ml-auto flex items-center gap-2">
-          <button 
-            className="btn-secondary"
-            onClick={() => setShowDatePicker(true)}
-          >
-            <Calendar className="w-4 h-4" />
-            {MONTHS[selectedMonth - 1]} {selectedYear}
-          </button>
-          <div className="flex gap-1">
-            <button 
-              className="btn-primary"
-              onClick={() => handleExport('xlsx')}
-            >
-              <Download className="w-4 h-4" />
-              XLSX
-            </button>
+        {(selectedReport === 'cashflow' || selectedReport === 'ranking' || selectedReport === 'aging') && (
+          <div className="ml-auto flex items-center gap-2">
             <button 
               className="btn-secondary"
-              onClick={() => handleExport('pdf')}
+              onClick={() => setShowDatePicker(true)}
             >
-              PDF
+              <Calendar className="w-4 h-4" />
+              {MONTHS[selectedMonth - 1]} {selectedYear}
             </button>
+            <div className="flex gap-1">
+              <button 
+                className="btn-primary"
+                onClick={() => handleExport('xlsx')}
+              >
+                <Download className="w-4 h-4" />
+                XLSX
+              </button>
+              <button 
+                className="btn-secondary"
+                onClick={() => handleExport('pdf')}
+              >
+                PDF
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
+
+      {/* DRE Complete Report */}
+      {selectedReport === 'dre' && <DRECompleteView />}
+
+      {/* Expense Analysis Report */}
+      {selectedReport === 'expenses' && <ExpenseAnalysisView />}
 
       {/* Cash Flow Report */}
       {selectedReport === 'cashflow' && (
@@ -212,81 +219,6 @@ export function ReportsView() {
                   />
                 </LineChart>
               </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* DRE Report */}
-      {selectedReport === 'dre' && (
-        <div className="chart-container max-w-2xl">
-          <h3 className="text-lg font-semibold text-foreground mb-6">
-            DRE Simplificada - {MONTHS[selectedMonth - 1]} {selectedYear}
-          </h3>
-          
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-income-muted rounded-xl">
-              <div className="flex items-center gap-3">
-                <TrendingUp className="w-5 h-5 text-income" />
-                <span className="font-medium text-foreground">Receita Bruta</span>
-              </div>
-              <span className="text-xl font-bold text-income">{formatCurrency(totalRevenue)}</span>
-            </div>
-
-            <div className="ml-8 space-y-2">
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="text-sm text-muted-foreground">(-) Receita Recorrente</span>
-                <span className="font-medium text-foreground">
-                  {formatCurrency(filteredTransactions.filter(t => t.nature === 'ENTRADA' && t.revenueType === 'RECORRENTE').reduce((s, t) => s + t.value, 0))}
-                </span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="text-sm text-muted-foreground">(-) Receita Pontual</span>
-                <span className="font-medium text-foreground">
-                  {formatCurrency(filteredTransactions.filter(t => t.nature === 'ENTRADA' && t.revenueType === 'PONTUAL').reduce((s, t) => s + t.value, 0))}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-expense-muted rounded-xl">
-              <div className="flex items-center gap-3">
-                <TrendingDown className="w-5 h-5 text-expense" />
-                <span className="font-medium text-foreground">(-) Despesas Totais</span>
-              </div>
-              <span className="text-xl font-bold text-expense">{formatCurrency(totalExpenses)}</span>
-            </div>
-
-            <div className="ml-8 space-y-2">
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="text-sm text-muted-foreground">(-) Despesas Fixas</span>
-                <span className="font-medium text-foreground">
-                  {formatCurrency(filteredTransactions.filter(t => t.nature === 'SAIDA' && t.expenseType === 'FIXA').reduce((s, t) => s + t.value, 0))}
-                </span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="text-sm text-muted-foreground">(-) Despesas Variáveis</span>
-                <span className="font-medium text-foreground">
-                  {formatCurrency(filteredTransactions.filter(t => t.nature === 'SAIDA' && t.expenseType === 'VARIAVEL').reduce((s, t) => s + t.value, 0))}
-                </span>
-              </div>
-            </div>
-
-            <div className="h-px bg-border my-4" />
-
-            <div className={cn(
-              "flex items-center justify-between p-4 rounded-xl",
-              netResult >= 0 ? "bg-income-muted" : "bg-expense-muted"
-            )}>
-              <div className="flex items-center gap-3">
-                <FileText className={cn("w-5 h-5", netResult >= 0 ? "text-income" : "text-expense")} />
-                <span className="font-semibold text-foreground">Resultado Líquido</span>
-              </div>
-              <span className={cn(
-                "text-2xl font-bold",
-                netResult >= 0 ? "text-income" : "text-expense"
-              )}>
-                {formatCurrency(netResult)}
-              </span>
             </div>
           </div>
         </div>
