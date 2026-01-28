@@ -14,6 +14,7 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAccounts, useAccountCategories, useAccountTransfers, type Account } from '@/hooks/useFinancialConfig';
 import { useTransactions } from '@/hooks/useTransactions';
+import { TransferModal } from './TransferModal';
 import { cn } from '@/lib/utils';
 
 const formatCurrency = (value: number) => {
@@ -31,6 +32,7 @@ export function AccountsView() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [showTransferModal, setShowTransferModal] = useState(false);
 
   const { data: accounts, isLoading: accountsLoading } = useAccounts();
   const { data: categories, isLoading: categoriesLoading } = useAccountCategories();
@@ -335,7 +337,7 @@ export function AccountsView() {
                 <ArrowLeftRight className="w-5 h-5" />
                 Transferências entre Contas
               </CardTitle>
-              <Button size="sm">
+              <Button size="sm" onClick={() => setShowTransferModal(true)}>
                 <Plus className="w-4 h-4 mr-1" /> Nova Transferência
               </Button>
             </CardHeader>
@@ -361,6 +363,7 @@ export function AccountsView() {
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {new Date(t.transfer_date).toLocaleDateString('pt-BR')}
+                              {t.notes && <span className="ml-2 text-xs">• {t.notes}</span>}
                             </p>
                           </div>
                         </div>
@@ -374,6 +377,12 @@ export function AccountsView() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Transfer Modal */}
+      <TransferModal 
+        open={showTransferModal} 
+        onClose={() => setShowTransferModal(false)} 
+      />
     </div>
   );
 }
