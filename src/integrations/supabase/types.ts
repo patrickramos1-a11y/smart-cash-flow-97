@@ -167,6 +167,342 @@ export type Database = {
           },
         ]
       }
+      backlog_attachments: {
+        Row: {
+          backlog_item_id: string
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+        }
+        Insert: {
+          backlog_item_id: string
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+        }
+        Update: {
+          backlog_item_id?: string
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backlog_attachments_backlog_item_id_fkey"
+            columns: ["backlog_item_id"]
+            isOneToOne: false
+            referencedRelation: "backlog_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      backlog_history: {
+        Row: {
+          backlog_item_id: string
+          created_at: string
+          event_description: string | null
+          event_type: Database["public"]["Enums"]["backlog_event_type"]
+          id: string
+          new_value: string | null
+          previous_value: string | null
+          user_id: string | null
+        }
+        Insert: {
+          backlog_item_id: string
+          created_at?: string
+          event_description?: string | null
+          event_type: Database["public"]["Enums"]["backlog_event_type"]
+          id?: string
+          new_value?: string | null
+          previous_value?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          backlog_item_id?: string
+          created_at?: string
+          event_description?: string | null
+          event_type?: Database["public"]["Enums"]["backlog_event_type"]
+          id?: string
+          new_value?: string | null
+          previous_value?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backlog_history_backlog_item_id_fkey"
+            columns: ["backlog_item_id"]
+            isOneToOne: false
+            referencedRelation: "backlog_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      backlog_implementation_records: {
+        Row: {
+          backlog_item_id: string
+          created_at: string
+          date: string
+          description: string
+          id: string
+          responsible: string | null
+          status: Database["public"]["Enums"]["backlog_implementation_status"]
+        }
+        Insert: {
+          backlog_item_id: string
+          created_at?: string
+          date?: string
+          description: string
+          id?: string
+          responsible?: string | null
+          status?: Database["public"]["Enums"]["backlog_implementation_status"]
+        }
+        Update: {
+          backlog_item_id?: string
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          responsible?: string | null
+          status?: Database["public"]["Enums"]["backlog_implementation_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backlog_implementation_records_backlog_item_id_fkey"
+            columns: ["backlog_item_id"]
+            isOneToOne: false
+            referencedRelation: "backlog_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      backlog_item_modules: {
+        Row: {
+          backlog_item_id: string
+          created_at: string
+          id: string
+          module_id: string
+        }
+        Insert: {
+          backlog_item_id: string
+          created_at?: string
+          id?: string
+          module_id: string
+        }
+        Update: {
+          backlog_item_id?: string
+          created_at?: string
+          id?: string
+          module_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backlog_item_modules_backlog_item_id_fkey"
+            columns: ["backlog_item_id"]
+            isOneToOne: false
+            referencedRelation: "backlog_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "backlog_item_modules_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "backlog_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      backlog_items: {
+        Row: {
+          category: Database["public"]["Enums"]["backlog_category"]
+          completion_date: string | null
+          created_at: string
+          depends_on_credits: boolean
+          description: string | null
+          effort_estimate: Database["public"]["Enums"]["backlog_effort"]
+          expected_impact: Database["public"]["Enums"]["backlog_impact"]
+          id: string
+          priority: Database["public"]["Enums"]["backlog_priority"]
+          project_id: string
+          release_date: string | null
+          responsible_product: string | null
+          responsible_tech: string | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["backlog_status"]
+          title: string
+          updated_at: string
+          validation_date: string | null
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["backlog_category"]
+          completion_date?: string | null
+          created_at?: string
+          depends_on_credits?: boolean
+          description?: string | null
+          effort_estimate?: Database["public"]["Enums"]["backlog_effort"]
+          expected_impact?: Database["public"]["Enums"]["backlog_impact"]
+          id?: string
+          priority?: Database["public"]["Enums"]["backlog_priority"]
+          project_id: string
+          release_date?: string | null
+          responsible_product?: string | null
+          responsible_tech?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["backlog_status"]
+          title: string
+          updated_at?: string
+          validation_date?: string | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["backlog_category"]
+          completion_date?: string | null
+          created_at?: string
+          depends_on_credits?: boolean
+          description?: string | null
+          effort_estimate?: Database["public"]["Enums"]["backlog_effort"]
+          expected_impact?: Database["public"]["Enums"]["backlog_impact"]
+          id?: string
+          priority?: Database["public"]["Enums"]["backlog_priority"]
+          project_id?: string
+          release_date?: string | null
+          responsible_product?: string | null
+          responsible_tech?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["backlog_status"]
+          title?: string
+          updated_at?: string
+          validation_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backlog_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "backlog_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      backlog_modules: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backlog_modules_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "backlog_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      backlog_projects: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      backlog_validations: {
+        Row: {
+          backlog_item_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          updated_at: string
+          validated: boolean
+          validated_by: string | null
+          validation_date: string | null
+          validation_type:
+            | Database["public"]["Enums"]["backlog_validation_type"]
+            | null
+        }
+        Insert: {
+          backlog_item_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          validated?: boolean
+          validated_by?: string | null
+          validation_date?: string | null
+          validation_type?:
+            | Database["public"]["Enums"]["backlog_validation_type"]
+            | null
+        }
+        Update: {
+          backlog_item_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          validated?: boolean
+          validated_by?: string | null
+          validation_date?: string | null
+          validation_type?:
+            | Database["public"]["Enums"]["backlog_validation_type"]
+            | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backlog_validations_backlog_item_id_fkey"
+            columns: ["backlog_item_id"]
+            isOneToOne: false
+            referencedRelation: "backlog_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_plans: {
         Row: {
           active: boolean
@@ -811,6 +1147,46 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      backlog_category:
+        | "NOVA_FUNCIONALIDADE"
+        | "MELHORIA_EXISTENTE"
+        | "CORRECAO_BUG"
+        | "AJUSTE_TECNICO"
+        | "UX_UI_VISUAL"
+        | "RELATORIOS_INDICADORES"
+        | "SEGURANCA_PERMISSOES"
+        | "INFRAESTRUTURA_CREDITOS"
+      backlog_effort: "PEQUENO" | "MEDIO" | "GRANDE"
+      backlog_event_type:
+        | "CRIADO"
+        | "STATUS_ALTERADO"
+        | "ANEXO_ADICIONADO"
+        | "ANEXO_REMOVIDO"
+        | "PRIORIDADE_ALTERADA"
+        | "DATA_ALTERADA"
+        | "IMPLEMENTADO"
+        | "LANCADO"
+        | "VALIDADO"
+        | "ARQUIVADO"
+      backlog_impact: "ALTO" | "MEDIO" | "BAIXO"
+      backlog_implementation_status: "EXECUTADO" | "NAO_EXECUTADO"
+      backlog_priority: "ALTA" | "MEDIA" | "BAIXA"
+      backlog_status:
+        | "IDEIA"
+        | "EM_ANALISE"
+        | "REFINADO"
+        | "AGUARDANDO_RECURSOS"
+        | "EM_IMPLEMENTACAO"
+        | "EM_TESTES"
+        | "IMPLEMENTADO"
+        | "LANCADO"
+        | "VALIDADO"
+        | "ARQUIVADO"
+      backlog_validation_type:
+        | "TESTE_FUNCIONAL"
+        | "VALIDACAO_VISUAL"
+        | "VALIDACAO_TECNICA"
+        | "VALIDACAO_REGRA_NEGOCIO"
       documento_tipo: "NF" | "RECIBO" | "NOTA_DEBITO" | "SEM_DOCUMENTO"
       expense_category_type: "FIXA" | "VARIAVEL" | "IMPOSTO"
       history_evento: "CRIADO" | "MARCADO_PAGO" | "ESTORNADO" | "ALTERADO"
@@ -949,6 +1325,50 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      backlog_category: [
+        "NOVA_FUNCIONALIDADE",
+        "MELHORIA_EXISTENTE",
+        "CORRECAO_BUG",
+        "AJUSTE_TECNICO",
+        "UX_UI_VISUAL",
+        "RELATORIOS_INDICADORES",
+        "SEGURANCA_PERMISSOES",
+        "INFRAESTRUTURA_CREDITOS",
+      ],
+      backlog_effort: ["PEQUENO", "MEDIO", "GRANDE"],
+      backlog_event_type: [
+        "CRIADO",
+        "STATUS_ALTERADO",
+        "ANEXO_ADICIONADO",
+        "ANEXO_REMOVIDO",
+        "PRIORIDADE_ALTERADA",
+        "DATA_ALTERADA",
+        "IMPLEMENTADO",
+        "LANCADO",
+        "VALIDADO",
+        "ARQUIVADO",
+      ],
+      backlog_impact: ["ALTO", "MEDIO", "BAIXO"],
+      backlog_implementation_status: ["EXECUTADO", "NAO_EXECUTADO"],
+      backlog_priority: ["ALTA", "MEDIA", "BAIXA"],
+      backlog_status: [
+        "IDEIA",
+        "EM_ANALISE",
+        "REFINADO",
+        "AGUARDANDO_RECURSOS",
+        "EM_IMPLEMENTACAO",
+        "EM_TESTES",
+        "IMPLEMENTADO",
+        "LANCADO",
+        "VALIDADO",
+        "ARQUIVADO",
+      ],
+      backlog_validation_type: [
+        "TESTE_FUNCIONAL",
+        "VALIDACAO_VISUAL",
+        "VALIDACAO_TECNICA",
+        "VALIDACAO_REGRA_NEGOCIO",
+      ],
       documento_tipo: ["NF", "RECIBO", "NOTA_DEBITO", "SEM_DOCUMENTO"],
       expense_category_type: ["FIXA", "VARIAVEL", "IMPOSTO"],
       history_evento: ["CRIADO", "MARCADO_PAGO", "ESTORNADO", "ALTERADO"],
