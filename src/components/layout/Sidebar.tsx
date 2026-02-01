@@ -12,7 +12,8 @@ import {
   LogOut,
   Menu,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  ClipboardList
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -37,6 +38,7 @@ const menuItems: MenuItemType[] = [
   { id: 'recurring-contracts', label: 'Contratos', icon: RefreshCw },
   { id: 'reports', label: 'Relatórios', icon: BarChart3 },
   { id: 'clients', label: 'Clientes', icon: Users },
+  { id: 'backlog', label: 'Backlog', icon: ClipboardList, badge: 'new' },
   { id: 'config', label: 'Configuração', icon: Settings },
   { id: 'import', label: 'Importar/Exportar', icon: FileSpreadsheet },
 ];

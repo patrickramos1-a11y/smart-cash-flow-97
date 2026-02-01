@@ -10,6 +10,7 @@ import { ReportsView } from '@/components/reports/ReportsView';
 import { RecurringContractsView } from '@/components/contracts/RecurringContractsView';
 import { FinancialConfigView } from '@/components/config/FinancialConfigView';
 import { OpenPaymentsView } from '@/components/open-payments/OpenPaymentsView';
+import { BacklogView } from '@/components/backlog/BacklogView';
 import { cn } from '@/lib/utils';
 
 const tabConfig: Record<string, { title: string; subtitle?: string }> = {
@@ -20,6 +21,7 @@ const tabConfig: Record<string, { title: string; subtitle?: string }> = {
   'recurring-contracts': { title: 'Contratos Recorrentes', subtitle: 'Gestão de contratos por salário mínimo' },
   reports: { title: 'Relatórios', subtitle: 'Análises, DRE e exportações' },
   clients: { title: 'Clientes', subtitle: 'Gerencie sua carteira' },
+  backlog: { title: 'Backlog de Produto', subtitle: 'Planejamento e controle de melhorias' },
   config: { title: 'Configuração Financeira', subtitle: 'Estrutura do sistema financeiro' },
   import: { title: 'Importar / Exportar', subtitle: 'Dados em lote' },
 };
@@ -43,6 +45,8 @@ const Index = () => {
         return <ReportsView />;
       case 'clients':
         return <ClientsView />;
+      case 'backlog':
+        return <BacklogView />;
       case 'config':
         return <FinancialConfigView />;
       case 'import':
