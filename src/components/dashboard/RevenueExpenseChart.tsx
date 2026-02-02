@@ -15,8 +15,12 @@ const formatCurrency = (value: number) => {
 
 const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-export function RevenueExpenseChart() {
-  const currentYear = new Date().getFullYear();
+interface RevenueExpenseChartProps {
+  year?: number;
+}
+
+export function RevenueExpenseChart({ year }: RevenueExpenseChartProps) {
+  const currentYear = year || new Date().getFullYear();
 
   // Fetch transactions for the last 6 months
   const { data: transactions, isLoading } = useQuery({

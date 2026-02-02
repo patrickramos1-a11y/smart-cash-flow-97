@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -17,6 +18,7 @@ import { ClientRankingChart } from './ClientRankingChart';
 import { ProjectionChart } from './ProjectionChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useTransactionKPIs, useTransactions } from '@/hooks/useTransactions';
 import { useRecurringContracts } from '@/hooks/useRecurringContracts';
 import { useAccounts } from '@/hooks/useFinancialConfig';
@@ -31,26 +33,46 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
+const months = [
+  { value: 1, label: 'Janeiro' },
+  { value: 2, label: 'Fevereiro' },
+  { value: 3, label: 'Março' },
+  { value: 4, label: 'Abril' },
+  { value: 5, label: 'Maio' },
+  { value: 6, label: 'Junho' },
+  { value: 7, label: 'Julho' },
+  { value: 8, label: 'Agosto' },
+  { value: 9, label: 'Setembro' },
+  { value: 10, label: 'Outubro' },
+  { value: 11, label: 'Novembro' },
+  { value: 12, label: 'Dezembro' },
+];
+
 export function Dashboard() {
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
 
-  // Real data from hooks
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+
+  // Real data from hooks with selected period
   const { kpis: entryKpis, isLoading: entryLoading } = useTransactionKPIs({ 
     tipo_movimento: 'ENTRADA',
-    competencia_mes: currentMonth,
-    competencia_ano: currentYear
+    competencia_mes: selectedMonth,
+    competencia_ano: selectedYear
   });
   
   const { kpis: exitKpis, isLoading: exitLoading } = useTransactionKPIs({ 
     tipo_movimento: 'SAIDA',
-    competencia_mes: currentMonth,
-    competencia_ano: currentYear
+    competencia_mes: selectedMonth,
+    competencia_ano: selectedYear
   });
 
   const { data: transactions, isLoading: transactionsLoading } = useTransactions({
-    competencia_mes: currentMonth,
-    competencia_ano: currentYear
+    competencia_mes: selectedMonth,
+    competencia_ano: selectedYear
   });
 
   const { data: contracts } = useRecurringContracts();
@@ -149,8 +171,36 @@ export function Dashboard() {
     );
   }
 
+  const periodLabel = `${months.find(m => m.value === selectedMonth)?.label} ${selectedYear}`;
+
   return (
     <div className="space-y-6">
+      {/* Period Selector */}
+      <div className="flex flex-wrap gap-3 items-center bg-card border border-border rounded-xl px-4 py-3">
+        <span className="text-sm font-medium text-muted-foreground">Período:</span>
+        <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(Number(v))}>
+          <SelectTrigger className="w-36">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {months.map(m => (
+              <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        
+        <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+          <SelectTrigger className="w-24">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {years.map(y => (
+              <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* KPI Cards - Row 1 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
@@ -158,20 +208,21 @@ export function Dashboard() {
           value={totalRevenue}
           icon={TrendingUp}
           type="income"
-          subtitle="Este mês"
+          subtitle={periodLabel}
         />
         <KPICard
           title="Despesas Totais"
           value={totalExpenses}
           icon={TrendingDown}
           type="expense"
-          subtitle="Este mês"
+          subtitle={periodLabel}
         />
         <KPICard
           title="Resultado Líquido"
           value={netResult}
           icon={Wallet}
           type={netResult >= 0 ? 'income' : 'expense'}
+          subtitle={periodLabel}
         />
         <KPICard
           title="Saldo em Conta"
@@ -255,12 +306,12 @@ export function Dashboard() {
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RevenueExpenseChart />
-        <RecurringVsPontualChart />
+        <RevenueExpenseChart year={selectedYear} />
+        <RecurringVsPontualChart month={selectedMonth} year={selectedYear} />
       </div>
 
       {/* Projection Chart */}
-      <ProjectionChart />
+      <ProjectionChart year={selectedYear} />
 
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 gap-6">
