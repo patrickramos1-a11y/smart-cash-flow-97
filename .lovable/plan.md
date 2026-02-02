@@ -1,5 +1,126 @@
+# Planos de Implementação SISRAMOS FIN
 
-# Plano de Implementação: Backlog de Produto
+---
+
+# PLANO 1: Reestruturação do Painel Financeiro
+
+## Status: 🎯 EM PLANEJAMENTO
+
+### Visão Geral
+
+Evolução do Painel Financeiro para transformá-lo em um **sistema de inteligência financeira**, capaz de explicar:
+- De onde o dinheiro vem
+- Por onde ele passa
+- Como ele sai
+- Como isso impacta o DRE
+- Onde estão os gargalos, excessos e oportunidades
+
+---
+
+## 1. DIAGNÓSTICO DA SITUAÇÃO ATUAL
+
+### ✅ O que já existe e funciona bem:
+- **TransactionsHub** com abas (Visão Geral, Entradas, Saídas) e sub-filtros (Recorrentes/Avulsas, Fixas/Pontuais)
+- **FinancialConfigView** unificada com abas de Empresas, Contas, Categorias de Conta, Centros de Custo, Categorias de Transação, Formas de Pagamento, e Salário Mínimo
+- **OpenPaymentsView** dedicado para pagamentos em aberto com indicadores de tendência
+- **RecurringContractsView** para contratos baseados em Salário Mínimo
+- **Seletor de período** em Transações (mês/ano)
+- **Hooks robustos** com TanStack Query integrados ao Supabase
+
+### ⚠️ Gaps identificados:
+1. **Dashboard** não tem seletor de período (CRÍTICO!)
+2. **Tripé Conta × Categoria × Centro de Custo** existe no banco mas falta visualização clara
+3. Falta análise estratégica por categoria e conta (onde gastar menos?)
+4. Falta gráfico anual de projeções em Transações
+5. Categoria IMPOSTOS não está explícita no sistema
+6. Integração Contratos ↔ Transações existe mas UX pode melhorar
+
+---
+
+## 2. ARQUITETURA DO TRIPÉ (LÓGICA BASE)
+
+```
+FONTE FINANCEIRA (Ramos Engenharia)
+    │
+    └── CONTAS (Banco, Caixa, Cartão, Digital, Investimentos)
+            │   └── Onde o dinheiro está
+            │   └── Saldo próprio + Histórico
+            │
+            └── TRANSAÇÕES
+                    │
+                    └── CATEGORIAS DE TRANSAÇÃO
+                            │   └── Vinculada a Centro de Custo
+                            │   └── Define "como" o dinheiro sai/entra
+                            │
+                            └── CENTROS DE CUSTO
+                                    │
+                                    └── DRE (15 grupos)
+```
+
+### Regras:
+- Uma conta pode ter várias categorias
+- Uma categoria pertence a um único centro de custo
+- O centro de custo define o impacto no DRE
+- Transferências entre contas NÃO afetam DRE
+
+---
+
+## 3. FASES DE IMPLEMENTAÇÃO
+
+### 📌 FASE 1: FILTRO GLOBAL DE PERÍODO NO DASHBOARD (CRÍTICO)
+**Status**: ⏳ Próximo
+- Adicionar seletores mês/ano no Dashboard
+- Todos os KPIs e gráficos respeitam o período selecionado
+
+### 📌 FASE 2: ANÁLISE ESTRATÉGICA EM TRANSAÇÕES
+- Indicadores de formas de pagamento
+- Despesas por categoria com percentual
+- Despesas por conta
+- Gráficos de distribuição
+
+### 📌 FASE 3: GRÁFICO ANUAL EM TRANSAÇÕES
+- Gráfico fixo no topo mostrando despesas/receitas anuais
+- Comparativo entrada × saída por mês
+- Filtros aplicáveis (só recorrente, só avulso, etc.)
+
+### 📌 FASE 4: CATEGORIA IMPOSTOS
+- Criar/destacar categoria para impostos
+- Possivelmente adicionar aba "Impostos" em Saídas
+
+### 📌 FASE 5: VISUALIZAÇÃO DO TRIPÉ
+- Drill-down: DRE → Centro de Custo → Categoria → Conta → Transações
+- Análise cruzada
+
+### 📌 FASE 6: MELHORIAS UX CONTRATOS
+- Wizard mais guiado
+- Mostrar transações geradas automaticamente
+- Indicador de % nota fiscal
+
+---
+
+## 4. PERGUNTAS QUE O SISTEMA DEVE RESPONDER
+
+- Quais categorias mais gastam?
+- Quais contas mais gastam?
+- Onde estão os maiores gastos?
+- Como reduzir custos? (ex: Transporte)
+- Quantos SM a carteira gera?
+- Inadimplência por cliente
+- Projeção vs Realizado
+
+---
+
+## 5. CRITÉRIOS DE SUCESSO
+
+✅ Dashboard com período selecionável
+✅ Análise por categoria/conta/centro de custo
+✅ Gráfico anual de projeções
+✅ Drill-down DRE → Transações funcionando
+✅ Usuário responde "onde estou gastando mais?"
+
+---
+
+# PLANO 2: Backlog de Produto (IMPLEMENTADO ✅)
 
 ## Visão Geral
 
