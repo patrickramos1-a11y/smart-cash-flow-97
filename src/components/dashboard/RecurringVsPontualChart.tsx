@@ -12,9 +12,14 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export function RecurringVsPontualChart() {
-  const currentMonth = new Date().getMonth() + 1;
-  const currentYear = new Date().getFullYear();
+interface RecurringVsPontualChartProps {
+  month?: number;
+  year?: number;
+}
+
+export function RecurringVsPontualChart({ month, year }: RecurringVsPontualChartProps) {
+  const currentMonth = month || new Date().getMonth() + 1;
+  const currentYear = year || new Date().getFullYear();
 
   const { data: transactions, isLoading } = useTransactions({
     competencia_mes: currentMonth,

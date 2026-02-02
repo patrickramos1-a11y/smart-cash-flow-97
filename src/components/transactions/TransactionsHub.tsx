@@ -7,10 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { 
   ArrowDownCircle, ArrowUpCircle, Plus, RefreshCw, 
   TrendingUp, TrendingDown, Clock, AlertTriangle, CheckCircle,
-  FileText
+  FileText, BarChart3
 } from 'lucide-react';
 import { TransactionsList } from './TransactionsList';
 import { NewTransactionWizard } from './NewTransactionWizard';
+import { TransactionAnalytics } from './TransactionAnalytics';
+import { TransactionsAnnualChart } from './TransactionsAnnualChart';
 import { useTransactionKPIs } from '@/hooks/useTransactions';
 import { formatCurrency } from '@/data/mockData';
 
@@ -253,9 +255,12 @@ export function TransactionsHub() {
       {/* KPI Cards */}
       {renderKPICards()}
 
+      {/* Annual Chart */}
+      <TransactionsAnnualChart year={selectedYear} />
+
       {/* Main Tabs */}
       <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
           <TabsTrigger value="all" className="gap-2">
             <RefreshCw className="w-4 h-4" />
             Visão Geral
@@ -268,6 +273,10 @@ export function TransactionsHub() {
             <ArrowUpCircle className="w-4 h-4 text-expense" />
             Saídas
           </TabsTrigger>
+          <TabsTrigger value="analise" className="gap-2">
+            <BarChart3 className="w-4 h-4" />
+            Análise
+          </TabsTrigger>
         </TabsList>
 
         {/* All Transactions */}
@@ -277,6 +286,14 @@ export function TransactionsHub() {
               competencia_mes: selectedMonth, 
               competencia_ano: selectedYear 
             }}
+          />
+        </TabsContent>
+
+        {/* Analysis Tab */}
+        <TabsContent value="analise" className="mt-6">
+          <TransactionAnalytics 
+            month={selectedMonth}
+            year={selectedYear}
           />
         </TabsContent>
 
