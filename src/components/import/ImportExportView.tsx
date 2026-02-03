@@ -1,11 +1,12 @@
 import { useState, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, Download, FileSpreadsheet, FileText, History, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, Download, FileSpreadsheet, FileText, History, CheckCircle, AlertCircle, Sparkles, FolderSync } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { SmartImportWizard } from './SmartImportWizard';
 
 const importHistory = [
   { id: '1', date: new Date(), fileName: 'transacoes_jan.xlsx', total: 150, success: 148, error: 2, status: 'CONCLUIDO' },
@@ -15,7 +16,10 @@ const importHistory = [
 export function ImportExportView() {
   const [dragActive, setDragActive] = useState(false);
   const [selectedType, setSelectedType] = useState<string>('Transações');
+  const [smartImportOpen, setSmartImportOpen] = useState(false);
+  const [smartImportBuffer, setSmartImportBuffer] = useState<ArrayBuffer | undefined>();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const smartFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -25,6 +29,20 @@ export function ImportExportView() {
       setTimeout(() => {
         toast.success(`Importação de ${selectedType} concluída!`);
       }, 2000);
+    }
+  };
+
+  const handleSmartFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      toast.info(`Processando arquivo "${file.name}"...`);
+      
+      const reader = new FileReader();
+      reader.onload = () => {
+        setSmartImportBuffer(reader.result as ArrayBuffer);
+        setSmartImportOpen(true);
+      };
+      reader.readAsArrayBuffer(file);
     }
   };
 
@@ -53,9 +71,76 @@ export function ImportExportView() {
 
   return (
     <div className="space-y-6">
+      {/* Smart Import Wizard */}
+      <SmartImportWizard 
+        open={smartImportOpen} 
+        onOpenChange={setSmartImportOpen}
+        fileBuffer={smartImportBuffer}
+      />
+      
+      <input
+        type="file"
+        ref={smartFileInputRef}
+        onChange={handleSmartFileSelect}
+        accept=".xlsx,.xls,.csv"
+        className="hidden"
+      />
+
+      {/* Smart Import Card - Prominent */}
+      <Card className="border-primary/50 bg-gradient-to-r from-primary/5 to-transparent">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Sparkles className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  Importação Inteligente por Período
+                  <Badge variant="secondary" className="text-xs">Novo</Badge>
+                </CardTitle>
+                <CardDescription>
+                  Reset opcional, detecção de duplicados, importação incremental por ano
+                </CardDescription>
+              </div>
+            </div>
+            <Button 
+              onClick={() => {
+                setSmartImportBuffer(undefined);
+                setSmartImportOpen(true);
+              }}
+              className="gap-2"
+            >
+              <FolderSync className="w-4 h-4" />
+              Iniciar Wizard
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <CheckCircle className="w-4 h-4 text-primary" />
+              <span>Zerar ou Incremental</span>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <CheckCircle className="w-4 h-4 text-primary" />
+              <span>Detecção de Períodos</span>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <CheckCircle className="w-4 h-4 text-primary" />
+              <span>Análise de Duplicados</span>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <CheckCircle className="w-4 h-4 text-primary" />
+              <span>Auditoria Completa</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Tabs defaultValue="import">
         <TabsList>
-          <TabsTrigger value="import"><Upload className="w-4 h-4 mr-2" /> Importar</TabsTrigger>
+          <TabsTrigger value="import"><Upload className="w-4 h-4 mr-2" /> Importação Simples</TabsTrigger>
           <TabsTrigger value="export"><Download className="w-4 h-4 mr-2" /> Exportar</TabsTrigger>
           <TabsTrigger value="history"><History className="w-4 h-4 mr-2" /> Histórico</TabsTrigger>
         </TabsList>
@@ -63,7 +148,10 @@ export function ImportExportView() {
         <TabsContent value="import" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Importar Dados</CardTitle>
+              <CardTitle>Importar Dados (Modo Simples)</CardTitle>
+              <CardDescription>
+                Importação direta por tipo de dado. Para importação completa com análise, use o Wizard acima.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <input
