@@ -13,7 +13,11 @@ import {
   Menu,
   RefreshCw,
   AlertCircle,
-  ClipboardList
+  ClipboardList,
+  ChevronDown,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -23,16 +27,34 @@ interface SidebarProps {
   onTabChange: (tab: string) => void;
 }
 
+type SubMenuItem = {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+};
+
 type MenuItemType = {
   id: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: 'new' | 'critical';
+  subItems?: SubMenuItem[];
 };
 
 const menuItems: MenuItemType[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'transactions', label: 'Transações', icon: ArrowDownUp },
+  { 
+    id: 'transactions', 
+    label: 'Transações', 
+    icon: ArrowDownUp,
+    subItems: [
+      { id: 'transactions', label: 'Visão Geral', icon: ArrowDownUp },
+      { id: 'entradas-recorrentes', label: 'Entradas Recorrentes', icon: RefreshCw },
+      { id: 'entradas-avulsas', label: 'Entradas Avulsas', icon: ArrowDownCircle },
+      { id: 'despesas-fixas', label: 'Despesas Fixas', icon: RefreshCw },
+      { id: 'despesas-variaveis', label: 'Despesas Variáveis', icon: ArrowUpCircle },
+    ]
+  },
   { id: 'accounts', label: 'Contas', icon: Wallet },
   { id: 'open-payments', label: 'Em Aberto', icon: AlertCircle, badge: 'critical' },
   { id: 'recurring-contracts', label: 'Contratos', icon: RefreshCw },
@@ -54,8 +76,24 @@ function SidebarContent({
   setCollapsed: (v: boolean) => void; 
   isMobile?: boolean 
 }) {
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(['transactions']);
+
+  const toggleExpanded = (id: string) => {
+    setExpandedMenus(prev => 
+      prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]
+    );
+  };
+
   const handleMenuClick = (item: MenuItemType) => {
-    onTabChange(item.id);
+    if (item.subItems && !collapsed) {
+      toggleExpanded(item.id);
+    } else {
+      onTabChange(item.id);
+    }
+  };
+
+  const isTransactionPage = (id: string) => {
+    return ['transactions', 'entradas-recorrentes', 'entradas-avulsas', 'despesas-fixas', 'despesas-variaveis'].includes(id);
   };
 
   return (
@@ -77,36 +115,70 @@ function SidebarContent({
       <nav className="flex-1 p-3 lg:p-4 space-y-1 overflow-y-auto custom-scrollbar">
         {menuItems.map((item) => {
           const Icon = item.icon;
-          const isActive = activeTab === item.id;
+          const isActive = activeTab === item.id || (item.subItems && item.subItems.some(s => s.id === activeTab));
+          const isExpanded = expandedMenus.includes(item.id);
+          const hasSubItems = item.subItems && item.subItems.length > 0;
           
           return (
-            <button
-              key={item.id}
-              onClick={() => handleMenuClick(item)}
-              className={cn(
-                "nav-item w-full relative",
-                isActive && "active"
+            <div key={item.id}>
+              <button
+                onClick={() => handleMenuClick(item)}
+                className={cn(
+                  "nav-item w-full relative",
+                  isActive && !hasSubItems && "active",
+                  hasSubItems && isActive && "bg-sidebar-accent/50"
+                )}
+                title={collapsed && !isMobile ? item.label : undefined}
+              >
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                {(!collapsed || isMobile) && (
+                  <>
+                    <span className="flex-1 text-left">{item.label}</span>
+                    {item.badge === 'critical' && (
+                      <span className="w-2 h-2 bg-expense rounded-full animate-pulse" />
+                    )}
+                    {item.badge === 'new' && (
+                      <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
+                        Novo
+                      </span>
+                    )}
+                    {hasSubItems && (
+                      <ChevronDown className={cn(
+                        "w-4 h-4 transition-transform",
+                        isExpanded && "rotate-180"
+                      )} />
+                    )}
+                  </>
+                )}
+                {collapsed && !isMobile && item.badge === 'critical' && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-expense rounded-full animate-pulse" />
+                )}
+              </button>
+
+              {/* Sub-items */}
+              {hasSubItems && isExpanded && (!collapsed || isMobile) && (
+                <div className="ml-4 mt-1 space-y-1 border-l-2 border-sidebar-border pl-3">
+                  {item.subItems!.map((subItem) => {
+                    const SubIcon = subItem.icon;
+                    const isSubActive = activeTab === subItem.id;
+                    
+                    return (
+                      <button
+                        key={subItem.id}
+                        onClick={() => onTabChange(subItem.id)}
+                        className={cn(
+                          "nav-item w-full text-sm py-2",
+                          isSubActive && "active"
+                        )}
+                      >
+                        <SubIcon className="w-4 h-4 flex-shrink-0" />
+                        <span className="flex-1 text-left">{subItem.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               )}
-              title={collapsed && !isMobile ? item.label : undefined}
-            >
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              {(!collapsed || isMobile) && (
-                <>
-                  <span className="flex-1 text-left">{item.label}</span>
-                  {item.badge === 'critical' && (
-                    <span className="w-2 h-2 bg-expense rounded-full animate-pulse" />
-                  )}
-                  {item.badge === 'new' && (
-                    <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
-                      Novo
-                    </span>
-                  )}
-                </>
-              )}
-              {collapsed && !isMobile && item.badge === 'critical' && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-expense rounded-full animate-pulse" />
-              )}
-            </button>
+            </div>
           );
         })}
       </nav>

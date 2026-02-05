@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 // Types
 export interface MinimumWageConfig {
@@ -322,4 +323,279 @@ export function useRecurringKPIs(year: number = 2025) {
   }
 
   return { kpis, isLoading };
+}
+
+// =============================================
+// CREATE CONTRACT WITH AUTO-GENERATED INSTALLMENTS
+// =============================================
+
+export interface CreateContractInput {
+  client_id: string;
+  plan_id?: string;
+  custom_minimum_wage_factor?: number;
+  fixed_value?: number; // New: support fixed R$ value instead of SM
+  start_date: string;
+  end_date?: string;
+  notes?: string;
+  discount_type?: 'factor' | 'value' | 'percent';
+  discount_amount?: number;
+  discount_until?: string; // Date or number of months
+  discount_months?: number;
+  default_account_id?: string;
+  year?: number;
+}
+
+export function useCreateContractWithInstallments() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: CreateContractInput) => {
+      const year = input.year || new Date().getFullYear();
+      
+      // 1. Get minimum wage for the year
+      const { data: mwConfig } = await supabase
+        .from('minimum_wage_config')
+        .select('value')
+        .eq('year', year)
+        .single();
+      
+      const minimumWageValue = mwConfig?.value || 1518;
+
+      // 2. Get plan details if plan_id is provided
+      let planFactor = 1;
+      let planName = 'Personalizado';
+      if (input.plan_id) {
+        const { data: plan } = await supabase
+          .from('contract_plans')
+          .select('*')
+          .eq('id', input.plan_id)
+          .single();
+        
+        if (plan) {
+          planFactor = plan.minimum_wage_factor;
+          planName = plan.name;
+        }
+      }
+
+      // 3. Get client name for description
+      const { data: client } = await supabase
+        .from('recurring_clients')
+        .select('name')
+        .eq('id', input.client_id)
+        .single();
+
+      const clientName = client?.name || 'Cliente';
+
+      // 4. Create the contract
+      const { data: contract, error: contractError } = await supabase
+        .from('recurring_contracts')
+        .insert({
+          client_id: input.client_id,
+          plan_id: input.plan_id || null,
+          custom_minimum_wage_factor: input.custom_minimum_wage_factor || null,
+          start_date: input.start_date,
+          end_date: input.end_date || null,
+          notes: input.notes || null,
+          active: true,
+        })
+        .select()
+        .single();
+
+      if (contractError) throw contractError;
+
+      // 5. Determine factor to use
+      const effectiveFactor = input.custom_minimum_wage_factor || planFactor;
+
+      // 6. Generate 12 installments for the year
+      const installments = [];
+      const startDate = new Date(input.start_date);
+      const startMonth = startDate.getMonth() + 1;
+
+      for (let month = startMonth; month <= 12; month++) {
+        // Calculate value for this month
+        let monthlyValue: number;
+        
+        if (input.fixed_value) {
+          // Fixed R$ value mode
+          monthlyValue = input.fixed_value;
+        } else {
+          // SM factor mode
+          monthlyValue = effectiveFactor * minimumWageValue;
+        }
+
+        // Apply discount if applicable
+        let discountApplies = false;
+        const monthIndex = month - startMonth;
+        
+        if (input.discount_months && monthIndex < input.discount_months) {
+          discountApplies = true;
+        } else if (input.discount_until) {
+          const discountEndDate = new Date(input.discount_until);
+          const currentMonthDate = new Date(year, month - 1, 1);
+          discountApplies = currentMonthDate <= discountEndDate;
+        }
+
+        if (discountApplies && input.discount_amount) {
+          switch (input.discount_type) {
+            case 'factor':
+              // Reduce the SM factor
+              monthlyValue = (effectiveFactor - input.discount_amount) * minimumWageValue;
+              break;
+            case 'value':
+              // Subtract fixed value
+              monthlyValue -= input.discount_amount;
+              break;
+            case 'percent':
+              // Apply percentage discount
+              monthlyValue *= (1 - input.discount_amount / 100);
+              break;
+          }
+        }
+
+        // Due date: 10th of each month (configurable in future)
+        const dueDate = new Date(year, month - 1, 10);
+
+        installments.push({
+          contract_id: contract.id,
+          competence_month: month,
+          competence_year: year,
+          minimum_wage_value: minimumWageValue,
+          minimum_wage_factor: input.fixed_value ? 0 : effectiveFactor,
+          expected_value: Math.max(0, monthlyValue),
+          due_date: dueDate.toISOString().split('T')[0],
+          status: 'EM_ABERTO',
+        });
+      }
+
+      // 7. Insert all installments
+      const { error: installmentsError } = await supabase
+        .from('recurring_installments')
+        .insert(installments);
+
+      if (installmentsError) throw installmentsError;
+
+      // 8. The trigger sync_installment_to_transaction will create transactions automatically
+      // But let's ensure they have proper descriptions
+
+      return {
+        contract,
+        installmentsCount: installments.length,
+      };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['recurring-contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['recurring-installments'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      toast.success(`Contrato criado com ${result.installmentsCount} competências!`);
+    },
+    onError: (error: Error) => {
+      console.error('Error creating contract:', error);
+      toast.error('Erro ao criar contrato: ' + error.message);
+    },
+  });
+}
+
+// Create a client and contract together
+export function useCreateClientWithContract() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      clientName: string;
+      clientEmail?: string;
+      clientPhone?: string;
+      clientDocument?: string;
+      plan_id?: string;
+      custom_minimum_wage_factor?: number;
+      fixed_value?: number;
+      start_date: string;
+      year?: number;
+    }) => {
+      // 1. Create the client
+      const { data: client, error: clientError } = await supabase
+        .from('recurring_clients')
+        .insert({
+          name: input.clientName,
+          email: input.clientEmail || null,
+          phone: input.clientPhone || null,
+          document: input.clientDocument || null,
+          active: true,
+        })
+        .select()
+        .single();
+
+      if (clientError) throw clientError;
+
+      // 2. Now create the contract using the existing logic
+      const year = input.year || new Date().getFullYear();
+      
+      const { data: mwConfig } = await supabase
+        .from('minimum_wage_config')
+        .select('value')
+        .eq('year', year)
+        .single();
+      
+      const minimumWageValue = mwConfig?.value || 1518;
+
+      let planFactor = 1;
+      if (input.plan_id) {
+        const { data: plan } = await supabase
+          .from('contract_plans')
+          .select('*')
+          .eq('id', input.plan_id)
+          .single();
+        if (plan) planFactor = plan.minimum_wage_factor;
+      }
+
+      const { data: contract, error: contractError } = await supabase
+        .from('recurring_contracts')
+        .insert({
+          client_id: client.id,
+          plan_id: input.plan_id || null,
+          custom_minimum_wage_factor: input.custom_minimum_wage_factor || null,
+          start_date: input.start_date,
+          active: true,
+        })
+        .select()
+        .single();
+
+      if (contractError) throw contractError;
+
+      const effectiveFactor = input.custom_minimum_wage_factor || planFactor;
+      const startDate = new Date(input.start_date);
+      const startMonth = startDate.getMonth() + 1;
+
+      const installments = [];
+      for (let month = startMonth; month <= 12; month++) {
+        const monthlyValue = input.fixed_value || (effectiveFactor * minimumWageValue);
+        const dueDate = new Date(year, month - 1, 10);
+
+        installments.push({
+          contract_id: contract.id,
+          competence_month: month,
+          competence_year: year,
+          minimum_wage_value: minimumWageValue,
+          minimum_wage_factor: input.fixed_value ? 0 : effectiveFactor,
+          expected_value: monthlyValue,
+          due_date: dueDate.toISOString().split('T')[0],
+          status: 'EM_ABERTO',
+        });
+      }
+
+      await supabase.from('recurring_installments').insert(installments);
+
+      return { client, contract, installmentsCount: installments.length };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['recurring-clients'] });
+      queryClient.invalidateQueries({ queryKey: ['recurring-contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['recurring-installments'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      toast.success(`Cliente "${result.client.name}" criado com contrato e ${result.installmentsCount} competências!`);
+    },
+    onError: (error: Error) => {
+      console.error('Error creating client with contract:', error);
+      toast.error('Erro ao criar cliente: ' + error.message);
+    },
+  });
 }
