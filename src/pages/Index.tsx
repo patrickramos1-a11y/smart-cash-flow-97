@@ -4,6 +4,10 @@ import { Header } from '@/components/layout/Header';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import { AccountsView } from '@/components/accounts/AccountsView';
 import { TransactionsHub } from '@/components/transactions/TransactionsHub';
+import { EntradasRecorrentesPage } from '@/components/transactions/EntradasRecorrentesPage';
+import { EntradasAvulsasPage } from '@/components/transactions/EntradasAvulsasPage';
+import { DespesasFixasPage } from '@/components/transactions/DespesasFixasPage';
+import { DespesasVariaveisPage } from '@/components/transactions/DespesasVariaveisPage';
 import { ClientsView } from '@/components/clients/ClientsView';
 import { ImportExportView } from '@/components/import/ImportExportView';
 import { ReportsView } from '@/components/reports/ReportsView';
@@ -17,6 +21,10 @@ const tabConfig: Record<string, { title: string; subtitle?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Visão geral financeira' },
   accounts: { title: 'Contas', subtitle: 'Gestão de contas e saldos' },
   transactions: { title: 'Transações', subtitle: 'Lançamentos e movimentações' },
+  'entradas-recorrentes': { title: 'Entradas Recorrentes', subtitle: 'Receita de contratos mensais' },
+  'entradas-avulsas': { title: 'Entradas Avulsas', subtitle: 'Receitas pontuais e serviços' },
+  'despesas-fixas': { title: 'Despesas Fixas', subtitle: 'Custos recorrentes mensais' },
+  'despesas-variaveis': { title: 'Despesas Variáveis', subtitle: 'Gastos pontuais e variáveis' },
   'open-payments': { title: 'Pagamentos Em Aberto', subtitle: 'Controle de inadimplência e contas a pagar' },
   'recurring-contracts': { title: 'Contratos Recorrentes', subtitle: 'Gestão de contratos por salário mínimo' },
   reports: { title: 'Relatórios', subtitle: 'Análises, DRE e exportações' },
@@ -37,6 +45,14 @@ const Index = () => {
         return <AccountsView />;
       case 'transactions':
         return <TransactionsHub />;
+      case 'entradas-recorrentes':
+        return <EntradasRecorrentesPage />;
+      case 'entradas-avulsas':
+        return <EntradasAvulsasPage />;
+      case 'despesas-fixas':
+        return <DespesasFixasPage />;
+      case 'despesas-variaveis':
+        return <DespesasVariaveisPage />;
       case 'open-payments':
         return <OpenPaymentsView />;
       case 'recurring-contracts':
