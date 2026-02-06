@@ -219,11 +219,11 @@ export function AccountsView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 lg:space-y-6">
       {/* Period Filter */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
         <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
-          <SelectTrigger className="w-24">
+          <SelectTrigger className="w-20 lg:w-24 h-8 lg:h-10 text-xs lg:text-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -233,24 +233,27 @@ export function AccountsView() {
           </SelectContent>
         </Select>
         
-        <div className="flex gap-1">
+        <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1">
           <Button 
             variant={periodFilter === '12m' ? 'default' : 'outline'} 
             size="sm"
+            className="text-xs whitespace-nowrap h-8"
             onClick={() => setPeriodFilter('12m')}
           >
-            Últimos 12 meses
+            12 meses
           </Button>
           <Button 
             variant={periodFilter === 'year' ? 'default' : 'outline'} 
             size="sm"
+            className="text-xs whitespace-nowrap h-8"
             onClick={() => setPeriodFilter('year')}
           >
-            Ano Selecionado
+            Ano
           </Button>
           <Button 
             variant={periodFilter === 'month' ? 'default' : 'outline'} 
             size="sm"
+            className="text-xs whitespace-nowrap h-8"
             onClick={() => setPeriodFilter('month')}
           >
             Mês Atual
@@ -260,54 +263,56 @@ export function AccountsView() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
-          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-          <TabsTrigger value="evolution">Evolução 12 Meses</TabsTrigger>
-          <TabsTrigger value="projection">Projeção</TabsTrigger>
-          <TabsTrigger value="transfers">Transferências</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-3 px-3 lg:mx-0 lg:px-0">
+          <TabsList className="inline-flex w-auto min-w-full lg:min-w-0 h-9 lg:h-10">
+            <TabsTrigger value="overview" className="text-xs lg:text-sm">Visão Geral</TabsTrigger>
+            <TabsTrigger value="evolution" className="text-xs lg:text-sm">Evolução</TabsTrigger>
+            <TabsTrigger value="projection" className="text-xs lg:text-sm">Projeção</TabsTrigger>
+            <TabsTrigger value="transfers" className="text-xs lg:text-sm">Transferências</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Overview Tab */}
-        <TabsContent value="overview" className="mt-6 space-y-6">
+        <TabsContent value="overview" className="mt-4 lg:mt-6 space-y-4 lg:space-y-6">
           {/* Saldo Total */}
           <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-            <CardContent className="p-6">
+            <CardContent className="p-4 lg:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Saldo Consolidado</p>
-                  <p className="text-3xl font-bold text-foreground">{formatCurrency(totalBalance)}</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {accounts?.length || 0} contas ativas • {categoryBalances.length} categorias
+                  <p className="text-xs lg:text-sm text-muted-foreground">Saldo Consolidado</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-foreground">{formatCurrency(totalBalance)}</p>
+                  <p className="text-xs lg:text-sm text-muted-foreground mt-0.5 lg:mt-1">
+                    {accounts?.length || 0} contas • {categoryBalances.length} categorias
                   </p>
                 </div>
-                <Wallet className="w-12 h-12 text-primary/60" />
+                <Wallet className="w-8 h-8 lg:w-12 lg:h-12 text-primary/60" />
               </div>
             </CardContent>
           </Card>
 
           {/* Saldo por Categoria */}
           <div>
-            <h2 className="text-lg font-semibold mb-4">Saldo por Categoria</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <h2 className="text-sm lg:text-lg font-semibold mb-3 lg:mb-4">Saldo por Categoria</h2>
+            <div className="flex gap-2 overflow-x-auto pb-2 lg:grid lg:grid-cols-6 lg:gap-4 lg:overflow-visible -mx-1 px-1 lg:mx-0 lg:px-0">
               {categoryBalances.map(cat => (
                 <Card 
                   key={cat.id}
                   className={cn(
-                    "cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02]",
+                    "cursor-pointer transition-all hover:shadow-lg flex-shrink-0 w-36 lg:w-auto",
                     selectedCategory === cat.id && "ring-2 ring-primary"
                   )}
                   onClick={() => setSelectedCategory(
                     selectedCategory === cat.id ? null : cat.id
                   )}
                 >
-                  <CardContent className="p-4">
+                  <CardContent className="p-3 lg:p-4">
                     <div 
-                      className="w-3 h-3 rounded-full mb-2"
+                      className="w-3 h-3 rounded-full mb-1.5"
                       style={{ backgroundColor: cat.color || '#64748B' }}
                     />
-                    <p className="text-xs text-muted-foreground truncate">{cat.name}</p>
-                    <p className="text-lg font-bold">{formatCurrency(cat.totalBalance)}</p>
-                    <p className="text-xs text-muted-foreground">{cat.accounts.length} contas</p>
+                    <p className="text-[10px] lg:text-xs text-muted-foreground truncate">{cat.name}</p>
+                    <p className="text-sm lg:text-lg font-bold">{formatCurrency(cat.totalBalance)}</p>
+                    <p className="text-[10px] lg:text-xs text-muted-foreground">{cat.accounts.length} contas</p>
                   </CardContent>
                 </Card>
               ))}
@@ -316,19 +321,19 @@ export function AccountsView() {
 
           {/* Lista de Contas */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-4">
-              <CardTitle className="text-lg">Contas</CardTitle>
+            <CardHeader className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between pb-3 lg:pb-4">
+              <CardTitle className="text-sm lg:text-lg">Contas</CardTitle>
               <div className="flex items-center gap-2">
-                <div className="relative">
+                <div className="relative flex-1 sm:flex-initial">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input 
-                    placeholder="Buscar conta..." 
+                    placeholder="Buscar..." 
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="pl-9 w-64"
+                    className="pl-9 h-8 lg:h-10 text-xs lg:text-sm w-full sm:w-48 lg:w-64"
                   />
                 </div>
-                <Button size="sm"><Plus className="w-4 h-4 mr-1" /> Nova Conta</Button>
+                <Button size="sm" className="h-8 text-xs lg:text-sm whitespace-nowrap"><Plus className="w-3.5 h-3.5 mr-1" /> Nova</Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -342,31 +347,31 @@ export function AccountsView() {
                       <div 
                         key={acc.id}
                         className={cn(
-                          "flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all hover:bg-muted/50",
+                          "flex items-center justify-between p-3 lg:p-4 rounded-lg border cursor-pointer transition-all active:bg-muted/50 hover:bg-muted/50",
                           selectedAccount === acc.id && "bg-muted border-primary"
                         )}
                         onClick={() => setSelectedAccount(selectedAccount === acc.id ? null : acc.id)}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2.5 lg:gap-3 min-w-0 flex-1">
                           <div 
-                            className="w-10 h-10 rounded-lg flex items-center justify-center"
+                            className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                             style={{ backgroundColor: (category?.color || '#64748B') + '20' }}
                           >
-                            <Wallet className="w-5 h-5" style={{ color: category?.color || '#64748B' }} />
+                            <Wallet className="w-4 h-4 lg:w-5 lg:h-5" style={{ color: category?.color || '#64748B' }} />
                           </div>
-                          <div>
-                            <p className="font-medium">{acc.name}</p>
-                            <p className="text-sm text-muted-foreground">{category?.name || 'Sem categoria'}</p>
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">{acc.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{category?.name || 'Sem categoria'}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 lg:gap-4 flex-shrink-0">
                           <p className={cn(
-                            "font-semibold text-lg",
+                            "font-semibold text-sm lg:text-lg",
                             Number(acc.current_balance) >= 0 ? "text-income" : "text-expense"
                           )}>
                             {formatCurrency(Number(acc.current_balance))}
                           </p>
-                          <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                          <ChevronRight className="w-4 h-4 lg:w-5 lg:h-5 text-muted-foreground hidden sm:block" />
                         </div>
                       </div>
                     );

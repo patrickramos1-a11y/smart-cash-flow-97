@@ -25,6 +25,8 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  mobileOpen?: boolean;
+  setMobileOpen?: (v: boolean) => void;
 }
 
 type SubMenuItem = {
@@ -71,7 +73,9 @@ function SidebarContent({
   collapsed, 
   setCollapsed, 
   isMobile = false 
-}: SidebarProps & { 
+}: { 
+  activeTab: string;
+  onTabChange: (tab: string) => void;
   collapsed: boolean; 
   setCollapsed: (v: boolean) => void; 
   isMobile?: boolean 
@@ -90,10 +94,6 @@ function SidebarContent({
     } else {
       onTabChange(item.id);
     }
-  };
-
-  const isTransactionPage = (id: string) => {
-    return ['transactions', 'entradas-recorrentes', 'entradas-avulsas', 'despesas-fixas', 'despesas-variaveis'].includes(id);
   };
 
   return (
@@ -228,35 +228,39 @@ function SidebarContent({
   );
 }
 
-export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
+export function Sidebar({ activeTab, onTabChange, mobileOpen, setMobileOpen }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const isControlled = mobileOpen !== undefined && setMobileOpen !== undefined;
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  const open = isControlled ? mobileOpen : internalOpen;
+  const setOpen = isControlled ? setMobileOpen : setInternalOpen;
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background border-b border-border p-3 flex items-center gap-3">
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+      {/* Mobile Menu Button - top bar */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border h-14 flex items-center px-3 gap-3">
+        <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <button className="p-2 hover:bg-muted rounded-lg">
-              <Menu className="w-6 h-6" />
+              <Menu className="w-5 h-5" />
             </button>
           </SheetTrigger>
           <SheetContent side="left" className="w-72 p-0 bg-sidebar">
             <SidebarContent 
               activeTab={activeTab} 
-              onTabChange={(tab) => { onTabChange(tab); setMobileOpen(false); }}
+              onTabChange={(tab) => { onTabChange(tab); setOpen(false); }}
               collapsed={false}
               setCollapsed={setCollapsed}
               isMobile
             />
           </SheetContent>
         </Sheet>
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-            <span className="text-white font-bold text-sm">SR</span>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="w-7 h-7 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0">
+            <span className="text-white font-bold text-xs">SR</span>
           </div>
-          <span className="font-semibold text-foreground">Sisramos Financeiro</span>
+          <span className="font-semibold text-foreground text-sm truncate">Sisramos Financeiro</span>
         </div>
       </div>
 

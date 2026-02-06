@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import { AccountsView } from '@/components/accounts/AccountsView';
 import { TransactionsHub } from '@/components/transactions/TransactionsHub';
@@ -25,17 +26,18 @@ const tabConfig: Record<string, { title: string; subtitle?: string }> = {
   'entradas-avulsas': { title: 'Entradas Avulsas', subtitle: 'Receitas pontuais e serviços' },
   'despesas-fixas': { title: 'Despesas Fixas', subtitle: 'Custos recorrentes mensais' },
   'despesas-variaveis': { title: 'Despesas Variáveis', subtitle: 'Gastos pontuais e variáveis' },
-  'open-payments': { title: 'Pagamentos Em Aberto', subtitle: 'Controle de inadimplência e contas a pagar' },
-  'recurring-contracts': { title: 'Contratos Recorrentes', subtitle: 'Gestão de contratos por salário mínimo' },
-  reports: { title: 'Relatórios', subtitle: 'Análises, DRE e exportações' },
+  'open-payments': { title: 'Em Aberto', subtitle: 'Controle de inadimplência' },
+  'recurring-contracts': { title: 'Contratos', subtitle: 'Gestão por salário mínimo' },
+  reports: { title: 'Relatórios', subtitle: 'Análises e DRE' },
   clients: { title: 'Clientes', subtitle: 'Gerencie sua carteira' },
-  backlog: { title: 'Backlog de Produto', subtitle: 'Planejamento e controle de melhorias' },
-  config: { title: 'Configuração Financeira', subtitle: 'Estrutura do sistema financeiro' },
-  import: { title: 'Importar / Exportar', subtitle: 'Dados em lote' },
+  backlog: { title: 'Backlog', subtitle: 'Melhorias do produto' },
+  config: { title: 'Configuração', subtitle: 'Estrutura financeira' },
+  import: { title: 'Importar', subtitle: 'Dados em lote' },
 };
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -76,19 +78,32 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <Sidebar 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab} 
+        mobileOpen={mobileMenuOpen}
+        setMobileOpen={setMobileMenuOpen}
+      />
       
       <main className={cn(
         "transition-all duration-300",
-        "pt-16 lg:pt-0",
+        "pt-14 lg:pt-0",
+        "pb-16 lg:pb-0",
         "lg:ml-64"
       )}>
         <Header title={title} subtitle={subtitle} />
         
-        <div className="p-4 lg:p-8">
+        <div className="p-3 lg:p-8">
           {renderContent()}
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab}
+        onMenuOpen={() => setMobileMenuOpen(true)}
+      />
     </div>
   );
 };
