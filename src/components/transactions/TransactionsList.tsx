@@ -22,6 +22,8 @@ import {
 import { formatCurrency } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { ConfirmModal } from '@/components/modals/ConfirmModal';
+import { MobileTransactionCard } from './MobileTransactionCard';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 
 const statusConfig: Record<TransactionStatusType, { label: string; color: string; icon: React.ComponentType<{className?: string}> }> = {
@@ -44,8 +46,8 @@ export function TransactionsList({ filters }: TransactionsListProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingTransaction, setDeletingTransaction] = useState<TransactionWithClient | null>(null);
+  const isMobile = useIsMobile();
 
-  // Combine prop filters with local filters
   const combinedFilters: TransactionFilters = {
     ...filters,
     search,
@@ -114,143 +116,179 @@ export function TransactionsList({ filters }: TransactionsListProps) {
   return (
     <>
       {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="flex flex-col sm:flex-row gap-2 mb-4">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
-            placeholder="Buscar por descrição ou cliente..." 
+            placeholder="Buscar..." 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+            className="pl-9 h-9"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="PAGO">Pago</SelectItem>
-            <SelectItem value="EM_ABERTO">Em Aberto</SelectItem>
-            <SelectItem value="ATRASADO">Atrasado</SelectItem>
-          </SelectContent>
-        </Select>
+        {/* Status filter pills on mobile */}
+        {isMobile ? (
+          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+            {['all', 'PAGO', 'EM_ABERTO', 'ATRASADO'].map(s => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={cn(
+                  "filter-pill whitespace-nowrap text-xs",
+                  statusFilter === s && "active"
+                )}
+              >
+                {s === 'all' ? 'Todos' : s === 'PAGO' ? 'Pago' : s === 'EM_ABERTO' ? 'Aberto' : 'Atrasado'}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="PAGO">Pago</SelectItem>
+              <SelectItem value="EM_ABERTO">Em Aberto</SelectItem>
+              <SelectItem value="ATRASADO">Atrasado</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
-      {/* Transactions Table */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="text-left p-4 text-sm font-medium">Tipo</th>
-                  <th className="text-left p-4 text-sm font-medium">Descrição</th>
-                  <th className="text-left p-4 text-sm font-medium hidden md:table-cell">Cliente</th>
-                  <th className="text-left p-4 text-sm font-medium hidden lg:table-cell">Natureza</th>
-                  <th className="text-left p-4 text-sm font-medium hidden lg:table-cell">Vencimento</th>
-                  <th className="text-left p-4 text-sm font-medium">Status</th>
-                  <th className="text-right p-4 text-sm font-medium">Valor</th>
-                  <th className="text-center p-4 text-sm font-medium w-16">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {transactions && transactions.length > 0 ? (
-                  transactions.map(t => {
-                    const status = statusConfig[t.status];
-                    const StatusIcon = status.icon;
-                    const natureza = naturezaLabels[t.natureza];
-                    const NaturezaIcon = natureza.icon;
-                    
-                    return (
-                      <tr key={t.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="p-4">{getNatureIcon(t.tipo_movimento)}</td>
-                        <td className="p-4">
-                          <p className="font-medium text-sm">{t.descricao || '-'}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {t.competencia_mes.toString().padStart(2, '0')}/{t.competencia_ano}
-                          </p>
-                        </td>
-                        <td className="p-4 hidden md:table-cell">
-                          <span className="text-sm">{t.recurring_clients?.name || '-'}</span>
-                        </td>
-                        <td className="p-4 hidden lg:table-cell">
-                          <Badge variant="outline" className="text-xs">
-                            <NaturezaIcon className="w-3 h-3 mr-1" />
-                            {natureza.label}
-                          </Badge>
-                        </td>
-                        <td className="p-4 hidden lg:table-cell">
-                          <span className="text-sm">{formatDate(t.data_vencimento)}</span>
-                        </td>
-                        <td className="p-4">
-                          <Badge variant="outline" className={cn("text-xs", status.color)}>
-                            <StatusIcon className="w-3 h-3 mr-1" />
-                            {status.label}
-                          </Badge>
-                        </td>
-                        <td className="p-4 text-right">
-                          <span className={cn(
-                            "font-semibold",
-                            t.tipo_movimento === 'ENTRADA' && "text-income",
-                            t.tipo_movimento === 'SAIDA' && "text-expense"
-                          )}>
-                            {formatCurrency(Number(t.valor))}
-                          </span>
-                          {t.valor_pago && t.status === 'PAGO' && Number(t.valor_pago) !== Number(t.valor) && (
-                            <p className="text-xs text-muted-foreground">
-                              Pago: {formatCurrency(Number(t.valor_pago))}
-                            </p>
-                          )}
-                        </td>
-                        <td className="p-4">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreVertical className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleDuplicate(t)}>
-                                <Copy className="w-4 h-4 mr-2" /> Duplicar
-                              </DropdownMenuItem>
-                              {t.status !== 'PAGO' && (
-                                <DropdownMenuItem onClick={() => handleMarkPaid(t)}>
-                                  <CheckCircle className="w-4 h-4 mr-2" /> Marcar Pago
-                                </DropdownMenuItem>
-                              )}
-                              {t.tipo_movimento === 'ENTRADA' && t.status !== 'PAGO' && (
-                                <DropdownMenuItem onClick={() => handleSendCollection(t)}>
-                                  <Send className="w-4 h-4 mr-2" /> Enviar Cobrança
-                                </DropdownMenuItem>
-                              )}
-                              {/* Only allow delete for manual/single transactions */}
-                              {t.natureza === 'AVULSA' && (
-                                <DropdownMenuItem 
-                                  className="text-destructive"
-                                  onClick={() => confirmDelete(t)}
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" /> Excluir
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
+      {/* Mobile Card List */}
+      {isMobile ? (
+        <div className="space-y-2">
+          {transactions && transactions.length > 0 ? (
+            transactions.map(t => (
+              <MobileTransactionCard
+                key={t.id}
+                transaction={t}
+                onMarkPaid={handleMarkPaid}
+                onDuplicate={handleDuplicate}
+                onSendCollection={handleSendCollection}
+                onDelete={confirmDelete}
+              />
+            ))
+          ) : (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground text-sm">
+                Nenhuma transação encontrada.
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      ) : (
+        /* Desktop Table */
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted/50">
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-muted-foreground">
-                      Nenhuma transação encontrada para os filtros selecionados.
-                    </td>
+                    <th className="text-left p-4 text-sm font-medium">Tipo</th>
+                    <th className="text-left p-4 text-sm font-medium">Descrição</th>
+                    <th className="text-left p-4 text-sm font-medium">Cliente</th>
+                    <th className="text-left p-4 text-sm font-medium">Natureza</th>
+                    <th className="text-left p-4 text-sm font-medium">Vencimento</th>
+                    <th className="text-left p-4 text-sm font-medium">Status</th>
+                    <th className="text-right p-4 text-sm font-medium">Valor</th>
+                    <th className="text-center p-4 text-sm font-medium w-16">Ações</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                </thead>
+                <tbody className="divide-y">
+                  {transactions && transactions.length > 0 ? (
+                    transactions.map(t => {
+                      const status = statusConfig[t.status];
+                      const StatusIcon = status.icon;
+                      const natureza = naturezaLabels[t.natureza];
+                      const NaturezaIcon = natureza.icon;
+                      
+                      return (
+                        <tr key={t.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="p-4">{getNatureIcon(t.tipo_movimento)}</td>
+                          <td className="p-4">
+                            <p className="font-medium text-sm">{t.descricao || '-'}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {t.competencia_mes.toString().padStart(2, '0')}/{t.competencia_ano}
+                            </p>
+                          </td>
+                          <td className="p-4">
+                            <span className="text-sm">{t.recurring_clients?.name || '-'}</span>
+                          </td>
+                          <td className="p-4">
+                            <Badge variant="outline" className="text-xs">
+                              <NaturezaIcon className="w-3 h-3 mr-1" />
+                              {natureza.label}
+                            </Badge>
+                          </td>
+                          <td className="p-4">
+                            <span className="text-sm">{formatDate(t.data_vencimento)}</span>
+                          </td>
+                          <td className="p-4">
+                            <Badge variant="outline" className={cn("text-xs", status.color)}>
+                              <StatusIcon className="w-3 h-3 mr-1" />
+                              {status.label}
+                            </Badge>
+                          </td>
+                          <td className="p-4 text-right">
+                            <span className={cn(
+                              "font-semibold",
+                              t.tipo_movimento === 'ENTRADA' && "text-income",
+                              t.tipo_movimento === 'SAIDA' && "text-expense"
+                            )}>
+                              {formatCurrency(Number(t.valor))}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleDuplicate(t)}>
+                                  <Copy className="w-4 h-4 mr-2" /> Duplicar
+                                </DropdownMenuItem>
+                                {t.status !== 'PAGO' && (
+                                  <DropdownMenuItem onClick={() => handleMarkPaid(t)}>
+                                    <CheckCircle className="w-4 h-4 mr-2" /> Marcar Pago
+                                  </DropdownMenuItem>
+                                )}
+                                {t.tipo_movimento === 'ENTRADA' && t.status !== 'PAGO' && (
+                                  <DropdownMenuItem onClick={() => handleSendCollection(t)}>
+                                    <Send className="w-4 h-4 mr-2" /> Enviar Cobrança
+                                  </DropdownMenuItem>
+                                )}
+                                {t.natureza === 'AVULSA' && (
+                                  <DropdownMenuItem 
+                                    className="text-destructive"
+                                    onClick={() => confirmDelete(t)}
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                        Nenhuma transação encontrada para os filtros selecionados.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Delete Confirmation Modal */}
       <ConfirmModal

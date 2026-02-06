@@ -15,6 +15,8 @@ import { TransactionAnalytics } from './TransactionAnalytics';
 import { TransactionsAnnualChart } from './TransactionsAnnualChart';
 import { useTransactionKPIs } from '@/hooks/useTransactions';
 import { formatCurrency } from '@/data/mockData';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
 const months = [
   { value: 1, label: 'Janeiro' },
@@ -34,6 +36,7 @@ const months = [
 export function TransactionsHub() {
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
+  const isMobile = useIsMobile();
   
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
@@ -42,7 +45,6 @@ export function TransactionsHub() {
   const [exitSubTab, setExitSubTab] = useState('fixas');
   const [showWizard, setShowWizard] = useState(false);
 
-  // KPIs for current view
   const getFiltersForTab = () => {
     const baseFilters = { 
       competencia_mes: selectedMonth, 
@@ -67,14 +69,11 @@ export function TransactionsHub() {
   };
 
   const { kpis, isLoading: kpisLoading } = useTransactionKPIs(getFiltersForTab());
-
-  // KPIs specifically for entries and exits (for main overview)
   const { kpis: entryKpis } = useTransactionKPIs({ 
     competencia_mes: selectedMonth, 
     competencia_ano: selectedYear,
     tipo_movimento: 'ENTRADA'
   });
-  
   const { kpis: exitKpis } = useTransactionKPIs({ 
     competencia_mes: selectedMonth, 
     competencia_ano: selectedYear,
@@ -86,64 +85,56 @@ export function TransactionsHub() {
   const renderKPICards = () => {
     if (mainTab === 'all') {
       return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4 mb-4 lg:mb-6">
           <Card className="border-l-4 border-l-income">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-income" />
-                Total Entradas
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-income">{formatCurrency(entryKpis.totalEsperado)}</p>
-              <p className="text-xs text-muted-foreground mt-1">
+            <CardContent className="p-3 lg:p-6 pt-3 lg:pt-6">
+              <div className="flex items-center gap-1.5 mb-1">
+                <TrendingUp className="w-3.5 h-3.5 text-income" />
+                <span className="text-[10px] lg:text-sm font-medium text-muted-foreground">Total Entradas</span>
+              </div>
+              <p className="text-lg lg:text-2xl font-bold text-income">{formatCurrency(entryKpis.totalEsperado)}</p>
+              <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5">
                 {entryKpis.quantidadeTotal} lançamentos
               </p>
             </CardContent>
           </Card>
 
           <Card className="border-l-4 border-l-expense">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <TrendingDown className="w-4 h-4 text-expense" />
-                Total Saídas
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-expense">{formatCurrency(exitKpis.totalEsperado)}</p>
-              <p className="text-xs text-muted-foreground mt-1">
+            <CardContent className="p-3 lg:p-6 pt-3 lg:pt-6">
+              <div className="flex items-center gap-1.5 mb-1">
+                <TrendingDown className="w-3.5 h-3.5 text-expense" />
+                <span className="text-[10px] lg:text-sm font-medium text-muted-foreground">Total Saídas</span>
+              </div>
+              <p className="text-lg lg:text-2xl font-bold text-expense">{formatCurrency(exitKpis.totalEsperado)}</p>
+              <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5">
                 {exitKpis.quantidadeTotal} lançamentos
               </p>
             </CardContent>
           </Card>
 
           <Card className="border-l-4 border-l-primary">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-primary" />
-                Saldo Previsto
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className={`text-2xl font-bold ${entryKpis.totalEsperado - exitKpis.totalEsperado >= 0 ? 'text-income' : 'text-expense'}`}>
+            <CardContent className="p-3 lg:p-6 pt-3 lg:pt-6">
+              <div className="flex items-center gap-1.5 mb-1">
+                <CheckCircle className="w-3.5 h-3.5 text-primary" />
+                <span className="text-[10px] lg:text-sm font-medium text-muted-foreground">Saldo Previsto</span>
+              </div>
+              <p className={`text-lg lg:text-2xl font-bold ${entryKpis.totalEsperado - exitKpis.totalEsperado >= 0 ? 'text-income' : 'text-expense'}`}>
                 {formatCurrency(entryKpis.totalEsperado - exitKpis.totalEsperado)}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">Entradas - Saídas</p>
+              <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5">Entradas - Saídas</p>
             </CardContent>
           </Card>
 
           <Card className="border-l-4 border-l-warning">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-warning" />
-                Em Aberto
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-warning">
+            <CardContent className="p-3 lg:p-6 pt-3 lg:pt-6">
+              <div className="flex items-center gap-1.5 mb-1">
+                <AlertTriangle className="w-3.5 h-3.5 text-warning" />
+                <span className="text-[10px] lg:text-sm font-medium text-muted-foreground">Em Aberto</span>
+              </div>
+              <p className="text-lg lg:text-2xl font-bold text-warning">
                 {formatCurrency(entryKpis.totalEmAberto + exitKpis.totalEmAberto)}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5">
                 {entryKpis.quantidadeEmAberto + exitKpis.quantidadeEmAberto} pendentes
               </p>
             </CardContent>
@@ -152,66 +143,49 @@ export function TransactionsHub() {
       );
     }
 
-    // Specific KPIs for entries or exits
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4 mb-4 lg:mb-6">
         <Card className="border-l-4 border-l-primary">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Total Esperado
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(kpis.totalEsperado)}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {kpis.quantidadeTotal} lançamentos
-            </p>
+          <CardContent className="p-3 lg:p-6 pt-3 lg:pt-6">
+            <div className="flex items-center gap-1.5 mb-1">
+              <FileText className="w-3.5 h-3.5" />
+              <span className="text-[10px] lg:text-sm font-medium text-muted-foreground">Total Esperado</span>
+            </div>
+            <p className="text-lg lg:text-2xl font-bold">{formatCurrency(kpis.totalEsperado)}</p>
+            <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5">{kpis.quantidadeTotal} lançamentos</p>
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-income">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-income" />
-              Pago
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-income">{formatCurrency(kpis.totalPago)}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {kpis.quantidadePago} de {kpis.quantidadeTotal}
-            </p>
+          <CardContent className="p-3 lg:p-6 pt-3 lg:pt-6">
+            <div className="flex items-center gap-1.5 mb-1">
+              <CheckCircle className="w-3.5 h-3.5 text-income" />
+              <span className="text-[10px] lg:text-sm font-medium text-muted-foreground">Pago</span>
+            </div>
+            <p className="text-lg lg:text-2xl font-bold text-income">{formatCurrency(kpis.totalPago)}</p>
+            <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5">{kpis.quantidadePago} de {kpis.quantidadeTotal}</p>
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-warning">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Clock className="w-4 h-4 text-warning" />
-              Em Aberto
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-warning">{formatCurrency(kpis.totalEmAberto)}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {kpis.quantidadeEmAberto} pendentes
-            </p>
+          <CardContent className="p-3 lg:p-6 pt-3 lg:pt-6">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Clock className="w-3.5 h-3.5 text-warning" />
+              <span className="text-[10px] lg:text-sm font-medium text-muted-foreground">Em Aberto</span>
+            </div>
+            <p className="text-lg lg:text-2xl font-bold text-warning">{formatCurrency(kpis.totalEmAberto)}</p>
+            <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5">{kpis.quantidadeEmAberto} pendentes</p>
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-expense">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-expense" />
-              Atrasado
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-expense">{formatCurrency(kpis.totalAtrasado)}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {kpis.quantidadeAtrasado} atrasados
-            </p>
+          <CardContent className="p-3 lg:p-6 pt-3 lg:pt-6">
+            <div className="flex items-center gap-1.5 mb-1">
+              <AlertTriangle className="w-3.5 h-3.5 text-expense" />
+              <span className="text-[10px] lg:text-sm font-medium text-muted-foreground">Atrasado</span>
+            </div>
+            <p className="text-lg lg:text-2xl font-bold text-expense">{formatCurrency(kpis.totalAtrasado)}</p>
+            <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5">{kpis.quantidadeAtrasado} atrasados</p>
           </CardContent>
         </Card>
       </div>
@@ -219,12 +193,12 @@ export function TransactionsHub() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 lg:space-y-6">
       {/* Header with filters and new button */}
-      <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-        <div className="flex flex-wrap gap-2 items-center">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex gap-2 items-center">
           <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(Number(v))}>
-            <SelectTrigger className="w-36">
+            <SelectTrigger className="w-28 lg:w-36 h-8 lg:h-10 text-xs lg:text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -235,7 +209,7 @@ export function TransactionsHub() {
           </Select>
           
           <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
-            <SelectTrigger className="w-24">
+            <SelectTrigger className="w-20 lg:w-24 h-8 lg:h-10 text-xs lg:text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -244,43 +218,47 @@ export function TransactionsHub() {
               ))}
             </SelectContent>
           </Select>
-        </div>
 
-        <Button onClick={() => setShowWizard(true)} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Novo Lançamento
-        </Button>
+          <Button onClick={() => setShowWizard(true)} size={isMobile ? "sm" : "default"} className="gap-1.5 ml-auto lg:ml-0">
+            <Plus className="w-4 h-4" />
+            {!isMobile && 'Novo Lançamento'}
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}
       {renderKPICards()}
 
-      {/* Annual Chart */}
-      <TransactionsAnnualChart year={selectedYear} />
+      {/* Annual Chart - hidden on mobile to save space, shown in a collapsible */}
+      {!isMobile && <TransactionsAnnualChart year={selectedYear} />}
 
       {/* Main Tabs */}
       <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
-          <TabsTrigger value="all" className="gap-2">
-            <RefreshCw className="w-4 h-4" />
-            Visão Geral
-          </TabsTrigger>
-          <TabsTrigger value="entradas" className="gap-2">
-            <ArrowDownCircle className="w-4 h-4 text-income" />
-            Entradas
-          </TabsTrigger>
-          <TabsTrigger value="saidas" className="gap-2">
-            <ArrowUpCircle className="w-4 h-4 text-expense" />
-            Saídas
-          </TabsTrigger>
-          <TabsTrigger value="analise" className="gap-2">
-            <BarChart3 className="w-4 h-4" />
-            Análise
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-3 px-3 lg:mx-0 lg:px-0">
+          <TabsList className={cn(
+            "inline-flex w-auto min-w-full lg:min-w-0",
+            isMobile ? "h-9" : ""
+          )}>
+            <TabsTrigger value="all" className="gap-1.5 text-xs lg:text-sm">
+              <RefreshCw className="w-3.5 h-3.5" />
+              Geral
+            </TabsTrigger>
+            <TabsTrigger value="entradas" className="gap-1.5 text-xs lg:text-sm">
+              <ArrowDownCircle className="w-3.5 h-3.5 text-income" />
+              Entradas
+            </TabsTrigger>
+            <TabsTrigger value="saidas" className="gap-1.5 text-xs lg:text-sm">
+              <ArrowUpCircle className="w-3.5 h-3.5 text-expense" />
+              Saídas
+            </TabsTrigger>
+            <TabsTrigger value="analise" className="gap-1.5 text-xs lg:text-sm">
+              <BarChart3 className="w-3.5 h-3.5" />
+              Análise
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-        {/* All Transactions */}
-        <TabsContent value="all" className="mt-6">
+        <TabsContent value="all" className="mt-4 lg:mt-6">
           <TransactionsList 
             filters={{ 
               competencia_mes: selectedMonth, 
@@ -289,28 +267,26 @@ export function TransactionsHub() {
           />
         </TabsContent>
 
-        {/* Analysis Tab */}
-        <TabsContent value="analise" className="mt-6">
+        <TabsContent value="analise" className="mt-4 lg:mt-6">
           <TransactionAnalytics 
             month={selectedMonth}
             year={selectedYear}
           />
         </TabsContent>
 
-        {/* Entries with sub-tabs */}
-        <TabsContent value="entradas" className="mt-6 space-y-4">
-          <div className="flex gap-2">
+        <TabsContent value="entradas" className="mt-4 lg:mt-6 space-y-3">
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
             <Badge 
               variant={entrySubTab === 'recorrentes' ? 'default' : 'outline'}
-              className="cursor-pointer px-4 py-2"
+              className="cursor-pointer px-3 py-1.5 text-xs whitespace-nowrap"
               onClick={() => setEntrySubTab('recorrentes')}
             >
               <RefreshCw className="w-3 h-3 mr-1" />
-              Recorrentes (Contratos)
+              Recorrentes
             </Badge>
             <Badge 
               variant={entrySubTab === 'avulsas' ? 'default' : 'outline'}
-              className="cursor-pointer px-4 py-2"
+              className="cursor-pointer px-3 py-1.5 text-xs whitespace-nowrap"
               onClick={() => setEntrySubTab('avulsas')}
             >
               <FileText className="w-3 h-3 mr-1" />
@@ -328,20 +304,19 @@ export function TransactionsHub() {
           />
         </TabsContent>
 
-        {/* Exits with sub-tabs */}
-        <TabsContent value="saidas" className="mt-6 space-y-4">
-          <div className="flex gap-2">
+        <TabsContent value="saidas" className="mt-4 lg:mt-6 space-y-3">
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
             <Badge 
               variant={exitSubTab === 'fixas' ? 'default' : 'outline'}
-              className="cursor-pointer px-4 py-2"
+              className="cursor-pointer px-3 py-1.5 text-xs whitespace-nowrap"
               onClick={() => setExitSubTab('fixas')}
             >
               <RefreshCw className="w-3 h-3 mr-1" />
-              Fixas (Recorrentes)
+              Fixas
             </Badge>
             <Badge 
               variant={exitSubTab === 'pontuais' ? 'default' : 'outline'}
-              className="cursor-pointer px-4 py-2"
+              className="cursor-pointer px-3 py-1.5 text-xs whitespace-nowrap"
               onClick={() => setExitSubTab('pontuais')}
             >
               <FileText className="w-3 h-3 mr-1" />
@@ -360,7 +335,6 @@ export function TransactionsHub() {
         </TabsContent>
       </Tabs>
 
-      {/* New Transaction Wizard */}
       <NewTransactionWizard 
         open={showWizard} 
         onClose={() => setShowWizard(false)}

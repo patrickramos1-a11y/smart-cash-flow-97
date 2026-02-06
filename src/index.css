@@ -138,9 +138,14 @@
 }
 
 @layer components {
+  /* Safe area for bottom nav */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
   /* KPI Card styles */
   .kpi-card {
-    @apply relative overflow-hidden rounded-xl bg-card p-6 shadow-sm border border-border/50 transition-all duration-300;
+    @apply relative overflow-hidden rounded-xl bg-card shadow-sm border border-border/50 transition-all duration-300;
   }
 
   .kpi-card:hover {

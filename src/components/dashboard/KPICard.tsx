@@ -46,12 +46,12 @@ export function KPICard({
   };
 
   return (
-    <div className={cn('kpi-card', typeClasses[type])}>
+    <div className={cn('kpi-card p-3 lg:p-6', typeClasses[type])}>
       <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-muted-foreground mb-1">{title}</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs lg:text-sm font-medium text-muted-foreground mb-0.5 lg:mb-1 truncate">{title}</p>
           <p className={cn(
-            "text-2xl font-bold",
+            "text-lg lg:text-2xl font-bold truncate",
             type === 'income' && "text-income",
             type === 'expense' && "text-expense",
             type === 'warning' && "text-warning",
@@ -60,31 +60,31 @@ export function KPICard({
             {formatValue()}
           </p>
           {subtitle && (
-            <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+            <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5 lg:mt-1 truncate">{subtitle}</p>
           )}
         </div>
         <div className={cn(
-          "w-12 h-12 rounded-xl flex items-center justify-center",
+          "w-8 h-8 lg:w-12 lg:h-12 rounded-lg lg:rounded-xl flex items-center justify-center flex-shrink-0 ml-2",
           iconBgClasses[type]
         )}>
-          <Icon className="w-6 h-6" />
+          <Icon className="w-4 h-4 lg:w-6 lg:h-6" />
         </div>
       </div>
       
       {trend !== undefined && (
-        <div className="flex items-center gap-1 mt-3 pt-3 border-t border-border/50">
+        <div className="flex items-center gap-1 mt-2 lg:mt-3 pt-2 lg:pt-3 border-t border-border/50">
           {trend >= 0 ? (
-            <TrendingUp className="w-4 h-4 text-income" />
+            <TrendingUp className="w-3 h-3 lg:w-4 lg:h-4 text-income" />
           ) : (
-            <TrendingDown className="w-4 h-4 text-expense" />
+            <TrendingDown className="w-3 h-3 lg:w-4 lg:h-4 text-expense" />
           )}
           <span className={cn(
-            "text-sm font-medium",
+            "text-xs lg:text-sm font-medium",
             trend >= 0 ? "text-income" : "text-expense"
           )}>
             {trend >= 0 ? '+' : ''}{trend.toFixed(1)}%
           </span>
-          <span className="text-xs text-muted-foreground">vs mês anterior</span>
+          <span className="text-[10px] lg:text-xs text-muted-foreground">vs mês anterior</span>
         </div>
       )}
     </div>

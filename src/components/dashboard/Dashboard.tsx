@@ -174,12 +174,12 @@ export function Dashboard() {
   const periodLabel = `${months.find(m => m.value === selectedMonth)?.label} ${selectedYear}`;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 lg:space-y-6">
       {/* Period Selector */}
-      <div className="flex flex-wrap gap-3 items-center bg-card border border-border rounded-xl px-4 py-3">
-        <span className="text-sm font-medium text-muted-foreground">Período:</span>
+      <div className="flex flex-wrap gap-2 items-center bg-card border border-border rounded-xl px-3 py-2.5 lg:px-4 lg:py-3">
+        <span className="text-xs lg:text-sm font-medium text-muted-foreground">Período:</span>
         <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(Number(v))}>
-          <SelectTrigger className="w-36">
+          <SelectTrigger className="w-28 lg:w-36 h-8 lg:h-10 text-xs lg:text-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -190,7 +190,7 @@ export function Dashboard() {
         </Select>
         
         <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
-          <SelectTrigger className="w-24">
+          <SelectTrigger className="w-20 lg:w-24 h-8 lg:h-10 text-xs lg:text-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -202,7 +202,7 @@ export function Dashboard() {
       </div>
 
       {/* KPI Cards - Row 1 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
         <KPICard
           title="Receita Total"
           value={totalRevenue}
@@ -234,7 +234,7 @@ export function Dashboard() {
       </div>
 
       {/* KPI Cards - Row 2 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
         <KPICard
           title="A Receber"
           value={receivable}
@@ -269,7 +269,7 @@ export function Dashboard() {
       </div>
 
       {/* KPI Cards - Row 3 (New) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
         <KPICard
           title="% Despesas Fixas"
           value={fixedExpensePercentage}
@@ -305,7 +305,7 @@ export function Dashboard() {
       </div>
 
       {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-6">
         <RevenueExpenseChart year={selectedYear} />
         <RecurringVsPontualChart month={selectedMonth} year={selectedYear} />
       </div>
