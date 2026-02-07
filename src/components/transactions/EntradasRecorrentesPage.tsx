@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   TrendingUp, Users, CheckCircle, Clock, AlertTriangle, RefreshCw,
-  DollarSign, BarChart3
+  DollarSign, BarChart3, Plus
 } from 'lucide-react';
 import { useTransactions, useTransactionKPIs } from '@/hooks/useTransactions';
 import { useRecurringContracts, useRecurringKPIs } from '@/hooks/useRecurringContracts';
 import { TransactionsList } from './TransactionsList';
+import { NewRecurringContractModal } from '@/components/contracts/NewRecurringContractModal';
 import { formatCurrency } from '@/data/mockData';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
@@ -35,6 +37,7 @@ export function EntradasRecorrentesPage() {
   
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [showContractModal, setShowContractModal] = useState(false);
 
   const { kpis: recurringKpis } = useRecurringKPIs(selectedYear);
   const { data: contracts } = useRecurringContracts();
@@ -112,6 +115,11 @@ export function EntradasRecorrentesPage() {
               ))}
             </SelectContent>
           </Select>
+
+          <Button onClick={() => setShowContractModal(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Novo Contrato
+          </Button>
         </div>
       </div>
 
@@ -292,6 +300,13 @@ export function EntradasRecorrentesPage() {
           />
         </CardContent>
       </Card>
+
+      {/* Dedicated Contract Modal */}
+      <NewRecurringContractModal
+        open={showContractModal}
+        onClose={() => setShowContractModal(false)}
+        defaultYear={selectedYear}
+      />
     </div>
   );
 }
