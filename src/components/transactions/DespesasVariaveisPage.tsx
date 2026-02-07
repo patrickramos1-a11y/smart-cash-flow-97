@@ -9,7 +9,7 @@ import {
 import { useTransactions, useTransactionKPIs } from '@/hooks/useTransactions';
 import { useAccounts, useCostCenters, useTransactionCategories } from '@/hooks/useFinancialConfig';
 import { TransactionsList } from './TransactionsList';
-import { NewTransactionWizard } from './NewTransactionWizard';
+import { QuickTransactionModal } from './QuickTransactionModal';
 import { formatCurrency } from '@/data/mockData';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Legend } from 'recharts';
 
@@ -37,7 +37,7 @@ export function DespesasVariaveisPage() {
   
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
-  const [showWizard, setShowWizard] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   const { data: accounts } = useAccounts();
   const { data: categories } = useTransactionCategories();
@@ -153,7 +153,7 @@ export function DespesasVariaveisPage() {
             </SelectContent>
           </Select>
 
-          <Button onClick={() => setShowWizard(true)} className="gap-2">
+          <Button onClick={() => setShowModal(true)} className="gap-2">
             <Plus className="w-4 h-4" />
             Nova Despesa
           </Button>
@@ -347,10 +347,12 @@ export function DespesasVariaveisPage() {
         </CardContent>
       </Card>
 
-      {/* Wizard */}
-      <NewTransactionWizard 
-        open={showWizard} 
-        onClose={() => setShowWizard(false)}
+      {/* Quick Transaction Modal - pre-configured for Saída Avulsa */}
+      <QuickTransactionModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        tipo="SAIDA"
+        natureza="AVULSA"
         defaultMonth={selectedMonth}
         defaultYear={selectedYear}
       />

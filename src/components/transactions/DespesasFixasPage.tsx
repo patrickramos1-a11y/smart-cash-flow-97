@@ -11,6 +11,7 @@ import { useTransactions, useTransactionKPIs } from '@/hooks/useTransactions';
 import { useFixedExpenses, useGenerateFixedExpenseTransactions } from '@/hooks/useFixedExpenses';
 import { useAccounts } from '@/hooks/useFinancialConfig';
 import { TransactionsList } from './TransactionsList';
+import { NewFixedExpenseModal } from './NewFixedExpenseModal';
 import { formatCurrency } from '@/data/mockData';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { toast } from 'sonner';
@@ -38,6 +39,7 @@ export function DespesasFixasPage() {
   
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
 
   const { data: fixedExpenses } = useFixedExpenses();
   const { data: accounts } = useAccounts();
@@ -111,7 +113,7 @@ export function DespesasFixasPage() {
           <Badge variant="outline" className="ml-2">Recorrentes</Badge>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(Number(v))}>
             <SelectTrigger className="w-36">
               <SelectValue />
@@ -137,6 +139,11 @@ export function DespesasFixasPage() {
           <Button variant="outline" onClick={handleGenerateTransactions} disabled={generateMutation.isPending}>
             <RefreshCw className={`w-4 h-4 mr-2 ${generateMutation.isPending ? 'animate-spin' : ''}`} />
             Gerar Lançamentos
+          </Button>
+
+          <Button onClick={() => setShowExpenseModal(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Nova Despesa Fixa
           </Button>
         </div>
       </div>
@@ -318,6 +325,14 @@ export function DespesasFixasPage() {
           />
         </CardContent>
       </Card>
+
+      {/* Dedicated Fixed Expense Modal */}
+      <NewFixedExpenseModal
+        open={showExpenseModal}
+        onClose={() => setShowExpenseModal(false)}
+        defaultMonth={selectedMonth}
+        defaultYear={selectedYear}
+      />
     </div>
   );
 }

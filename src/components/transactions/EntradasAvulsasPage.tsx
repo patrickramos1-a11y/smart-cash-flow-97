@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { useTransactions, useTransactionKPIs } from '@/hooks/useTransactions';
 import { TransactionsList } from './TransactionsList';
-import { NewTransactionWizard } from './NewTransactionWizard';
+import { QuickTransactionModal } from './QuickTransactionModal';
 import { formatCurrency } from '@/data/mockData';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Legend } from 'recharts';
 
@@ -37,7 +37,7 @@ export function EntradasAvulsasPage() {
   
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
-  const [showWizard, setShowWizard] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   const { kpis } = useTransactionKPIs({
     competencia_ano: selectedYear,
@@ -122,7 +122,7 @@ export function EntradasAvulsasPage() {
             </SelectContent>
           </Select>
 
-          <Button onClick={() => setShowWizard(true)} className="gap-2">
+          <Button onClick={() => setShowModal(true)} className="gap-2">
             <Plus className="w-4 h-4" />
             Nova Entrada
           </Button>
@@ -265,10 +265,12 @@ export function EntradasAvulsasPage() {
         </CardContent>
       </Card>
 
-      {/* Wizard */}
-      <NewTransactionWizard 
-        open={showWizard} 
-        onClose={() => setShowWizard(false)}
+      {/* Quick Transaction Modal - pre-configured for Entrada Avulsa */}
+      <QuickTransactionModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        tipo="ENTRADA"
+        natureza="AVULSA"
         defaultMonth={selectedMonth}
         defaultYear={selectedYear}
       />
