@@ -599,3 +599,62 @@ export function useCreateClientWithContract() {
     },
   });
 }
+
+// =============================================
+// CONTRACT PLANS CRUD
+// =============================================
+
+export function useCreateContractPlan() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: { name: string; minimum_wage_factor: number; description?: string }) => {
+      const { data, error } = await supabase
+        .from('contract_plans')
+        .insert({
+          name: input.name,
+          minimum_wage_factor: input.minimum_wage_factor,
+          description: input.description || null,
+          active: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contract-plans'] });
+      toast.success('Plano criado com sucesso!');
+    },
+    onError: (error: Error) => {
+      toast.error('Erro ao criar plano: ' + error.message);
+    },
+  });
+}
+
+export function useUpdateContractPlan() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: { id: string; name?: string; minimum_wage_factor?: number; description?: string; active?: boolean }) => {
+      const { id, ...updates } = input;
+      const { data, error } = await supabase
+        .from('contract_plans')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contract-plans'] });
+      toast.success('Plano atualizado!');
+    },
+    onError: (error: Error) => {
+      toast.error('Erro ao atualizar plano: ' + error.message);
+    },
+  });
+}

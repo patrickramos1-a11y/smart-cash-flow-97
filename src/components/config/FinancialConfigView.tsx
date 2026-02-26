@@ -41,7 +41,8 @@ import {
   Pencil,
   Trash2,
   DollarSign,
-  Loader2
+  Loader2,
+  Users
 } from 'lucide-react';
 import { 
   useCompanies,
@@ -73,7 +74,7 @@ import {
   type TransactionCategory,
   type PaymentMethod,
 } from '@/hooks/useFinancialConfig';
-import { useRecurringContracts } from '@/hooks/useRecurringContracts';
+import { useRecurringContracts, useContractPlans, useCreateContractPlan, useUpdateContractPlan, type ContractPlan } from '@/hooks/useRecurringContracts';
 import { MinimumWageConfigModal } from '@/components/contracts/MinimumWageConfigModal';
 
 const formatCurrency = (value: number) => {
@@ -1124,6 +1125,162 @@ function MinimumWageTab() {
 }
 
 // =============================================
+// CONTRACT PLANS TAB
+// =============================================
+
+function ContractPlansTab() {
+  const { data: plans, isLoading } = useContractPlans();
+  const createPlan = useCreateContractPlan();
+  const updatePlan = useUpdateContractPlan();
+  const [editingPlan, setEditingPlan] = useState<ContractPlan | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({ name: '', minimum_wage_factor: 1, description: '', active: true });
+
+  const handleSubmit = () => {
+    if (editingPlan) {
+      updatePlan.mutate({ id: editingPlan.id, ...formData }, {
+        onSuccess: () => {
+          setIsDialogOpen(false);
+          setEditingPlan(null);
+        }
+      });
+    } else {
+      createPlan.mutate(formData, {
+        onSuccess: () => {
+          setIsDialogOpen(false);
+          setFormData({ name: '', minimum_wage_factor: 1, description: '', active: true });
+        }
+      });
+    }
+  };
+
+  const openEdit = (plan: ContractPlan) => {
+    setEditingPlan(plan);
+    setFormData({
+      name: plan.name,
+      minimum_wage_factor: plan.minimum_wage_factor,
+      description: plan.description || '',
+      active: plan.active,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const openNew = () => {
+    setEditingPlan(null);
+    setFormData({ name: '', minimum_wage_factor: 1, description: '', active: true });
+    setIsDialogOpen(true);
+  };
+
+  if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <p className="text-muted-foreground">Planos de contrato com fator de salário mínimo para vincular aos contratos recorrentes.</p>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" />Novo Plano</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingPlan ? 'Editar Plano' : 'Novo Plano'}</DialogTitle>
+              <DialogDescription>Defina o nome e o fator de salário mínimo do plano.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Nome do Plano *</Label>
+                <Input
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Ex: Básico, VIP, Premium, Master"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Fator de Salário Mínimo *</Label>
+                <Input
+                  type="number"
+                  step="0.25"
+                  min="0.25"
+                  value={formData.minimum_wage_factor}
+                  onChange={(e) => setFormData({ ...formData, minimum_wage_factor: parseFloat(e.target.value) || 0 })}
+                  placeholder="Ex: 0.75, 1.5, 2, 3"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Quantos salários mínimos este plano representa (ex: 1.5 = 1,5 SM)
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Descrição</Label>
+                <Input
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Descrição opcional do plano"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={formData.active}
+                  onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
+                />
+                <Label>Ativo</Label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+              <Button onClick={handleSubmit} disabled={!formData.name || formData.minimum_wage_factor <= 0}>
+                {editingPlan ? 'Salvar' : 'Criar'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Plano</TableHead>
+            <TableHead>Fator SM</TableHead>
+            <TableHead>Descrição</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="w-[100px]">Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {plans?.map((plan) => (
+            <TableRow key={plan.id}>
+              <TableCell className="font-medium">{plan.name}</TableCell>
+              <TableCell>
+                <Badge variant="outline" className="font-mono">
+                  {plan.minimum_wage_factor} SM
+                </Badge>
+              </TableCell>
+              <TableCell className="text-muted-foreground">{plan.description || '-'}</TableCell>
+              <TableCell>
+                <Badge variant={plan.active ? 'default' : 'secondary'}>
+                  {plan.active ? 'Ativo' : 'Inativo'}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <Button variant="ghost" size="icon" onClick={() => openEdit(plan)}>
+                  <Pencil className="w-4 h-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+          {plans?.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                Nenhum plano cadastrado. Crie planos como Básico, VIP, Premium e Master.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+// =============================================
 // MAIN COMPONENT
 // =============================================
 
@@ -1139,7 +1296,7 @@ export function FinancialConfigView() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="companies" className="w-full">
-            <TabsList className="grid w-full grid-cols-7 mb-6">
+            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 mb-6">
               <TabsTrigger value="companies" className="flex items-center gap-2">
                 <Building2 className="w-4 h-4" />
                 <span className="hidden lg:inline">Empresas</span>
@@ -1164,6 +1321,10 @@ export function FinancialConfigView() {
                 <CreditCard className="w-4 h-4" />
                 <span className="hidden lg:inline">Pagamentos</span>
               </TabsTrigger>
+              <TabsTrigger value="contract-plans" className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                <span className="hidden lg:inline">Planos</span>
+              </TabsTrigger>
               <TabsTrigger value="minimum-wage" className="flex items-center gap-2">
                 <DollarSign className="w-4 h-4" />
                 <span className="hidden lg:inline">Salário Mínimo</span>
@@ -1187,6 +1348,9 @@ export function FinancialConfigView() {
             </TabsContent>
             <TabsContent value="payment-methods">
               <PaymentMethodsTab />
+            </TabsContent>
+            <TabsContent value="contract-plans">
+              <ContractPlansTab />
             </TabsContent>
             <TabsContent value="minimum-wage">
               <MinimumWageTab />
