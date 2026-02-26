@@ -665,6 +665,7 @@ export type Database = {
           active: boolean
           categoria_id: string | null
           centro_custo_id: string | null
+          cliente_id: string | null
           conta_id: string | null
           created_at: string
           data_fim: string | null
@@ -681,6 +682,7 @@ export type Database = {
           active?: boolean
           categoria_id?: string | null
           centro_custo_id?: string | null
+          cliente_id?: string | null
           conta_id?: string | null
           created_at?: string
           data_fim?: string | null
@@ -697,6 +699,7 @@ export type Database = {
           active?: boolean
           categoria_id?: string | null
           centro_custo_id?: string | null
+          cliente_id?: string | null
           conta_id?: string | null
           created_at?: string
           data_fim?: string | null
@@ -709,7 +712,15 @@ export type Database = {
           updated_at?: string
           valor?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fixed_expenses_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       minimum_wage_config: {
         Row: {
@@ -997,6 +1008,52 @@ export type Database = {
             columns: ["default_account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transaction_entities: {
+        Row: {
+          created_at: string
+          entity_id: string
+          fixed_expense_id: string | null
+          id: string
+          transaction_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          fixed_expense_id?: string | null
+          id?: string
+          transaction_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          fixed_expense_id?: string | null
+          id?: string
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_entities_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "financial_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_entities_fixed_expense_id_fkey"
+            columns: ["fixed_expense_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_entities_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
         ]

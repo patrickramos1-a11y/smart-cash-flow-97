@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Users, UserCheck, Building2, Briefcase, UsersRound,
   Plus, Search, Edit, Trash2, MoreVertical
@@ -66,6 +68,9 @@ export function EntitiesView() {
   const [formData, setFormData] = useState<EntityFormData>(emptyForm);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Group member selection
+  const [groupMemberIds, setGroupMemberIds] = useState<string[]>([]);
+  const [groupSearchTerm, setGroupSearchTerm] = useState('');
 
   const { data: entities, isLoading } = useFinancialEntities();
   const { data: costCenters } = useCostCenters();
@@ -89,9 +94,28 @@ export function EntitiesView() {
     GRUPO: entities?.filter(e => e.type === 'GRUPO').length || 0,
   };
 
-  const openNew = () => {
+  // Get members that can be part of a group (non-group entities)
+  const availableMembers = (entities || []).filter(e => e.type !== 'GRUPO' && e.active);
+  const filteredMembers = availableMembers.filter(e =>
+    e.name.toLowerCase().includes(groupSearchTerm.toLowerCase())
+  );
+
+  // Parse group notes to get member IDs (stored as JSON)
+  const getGroupMembers = (entity: FinancialEntity): string[] => {
+    if (entity.type !== 'GRUPO' || !entity.notes) return [];
+    try {
+      const parsed = JSON.parse(entity.notes);
+      return Array.isArray(parsed.members) ? parsed.members : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const openNew = (type?: EntityType) => {
     setEditingEntity(null);
-    setFormData(emptyForm);
+    setFormData({ ...emptyForm, type: type || 'COLABORADOR' });
+    setGroupMemberIds([]);
+    setGroupSearchTerm('');
     setShowModal(true);
   };
 
@@ -107,11 +131,28 @@ export function EntitiesView() {
       notes: entity.notes || '',
       active: entity.active,
     });
+    setGroupMemberIds(getGroupMembers(entity));
+    setGroupSearchTerm('');
     setShowModal(true);
   };
 
   const handleSave = async () => {
     if (!formData.name.trim()) return;
+
+    // For groups, store member IDs in notes as JSON
+    let notes = formData.notes;
+    if (formData.type === 'GRUPO') {
+      const existingNotes = formData.notes;
+      let userNotes = '';
+      try {
+        const parsed = JSON.parse(existingNotes);
+        userNotes = parsed.userNotes || '';
+      } catch {
+        userNotes = existingNotes;
+      }
+      notes = JSON.stringify({ members: groupMemberIds, userNotes });
+    }
+
     const payload = {
       name: formData.name.trim(),
       type: formData.type,
@@ -119,7 +160,7 @@ export function EntitiesView() {
       phone: formData.phone || null,
       document: formData.document || null,
       cost_center_id: formData.cost_center_id || null,
-      notes: formData.notes || null,
+      notes: notes || null,
       active: formData.active,
     };
 
@@ -141,6 +182,38 @@ export function EntitiesView() {
   const getCostCenterName = (id: string | null) => {
     if (!id) return null;
     return costCenters?.find(c => c.id === id)?.name || null;
+  };
+
+  // Get user-facing notes for groups (exclude JSON metadata)
+  const getDisplayNotes = (entity: FinancialEntity): string => {
+    if (entity.type === 'GRUPO' && entity.notes) {
+      try {
+        const parsed = JSON.parse(entity.notes);
+        return parsed.userNotes || '';
+      } catch {
+        return entity.notes;
+      }
+    }
+    return entity.notes || '';
+  };
+
+  // For editing groups, extract userNotes
+  const getGroupUserNotes = (): string => {
+    if (formData.type !== 'GRUPO') return formData.notes;
+    try {
+      const parsed = JSON.parse(formData.notes);
+      return parsed.userNotes || '';
+    } catch {
+      return formData.notes;
+    }
+  };
+
+  const setGroupUserNotes = (val: string) => {
+    if (formData.type === 'GRUPO') {
+      setFormData({ ...formData, notes: JSON.stringify({ members: groupMemberIds, userNotes: val }) });
+    } else {
+      setFormData({ ...formData, notes: val });
+    }
   };
 
   return (
@@ -199,10 +272,25 @@ export function EntitiesView() {
             className="pl-9"
           />
         </div>
-        <Button onClick={openNew} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Nova Entidade
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
+              Nova Entidade
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {(['COLABORADOR', 'SOCIO', 'FORNECEDOR', 'GRUPO'] as EntityType[]).map(t => {
+              const Icon = ENTITY_ICONS[t];
+              return (
+                <DropdownMenuItem key={t} onClick={() => openNew(t)}>
+                  <Icon className="w-4 h-4 mr-2" />
+                  Novo {ENTITY_TYPE_LABELS[t]}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Entities Grid */}
@@ -210,6 +298,9 @@ export function EntitiesView() {
         {filtered.map(entity => {
           const Icon = ENTITY_ICONS[entity.type as EntityType] || Users;
           const ccName = getCostCenterName(entity.cost_center_id);
+          const memberIds = getGroupMembers(entity);
+          const memberEntities = memberIds.map(id => (entities || []).find(e => e.id === id)).filter(Boolean);
+          const displayNotes = getDisplayNotes(entity);
           
           return (
             <Card key={entity.id} className={cn("transition-all hover:shadow-md", !entity.active && "opacity-60")}>
@@ -217,7 +308,7 @@ export function EntitiesView() {
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className={cn("w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm", ENTITY_BG[entity.type as EntityType])}>
-                      {entity.name.charAt(0).toUpperCase()}
+                      {entity.type === 'GRUPO' ? <UsersRound className="w-5 h-5" /> : entity.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <h3 className="font-semibold text-sm">{entity.name}</h3>
@@ -257,10 +348,27 @@ export function EntitiesView() {
                       {ccName}
                     </p>
                   )}
+                  {displayNotes && <p className="italic">💬 {displayNotes}</p>}
                   {!entity.active && (
                     <Badge variant="outline" className="text-[10px] text-expense border-expense/30 mt-1">Inativo</Badge>
                   )}
                 </div>
+
+                {/* Group members */}
+                {entity.type === 'GRUPO' && memberEntities.length > 0 && (
+                  <div className="mt-3 pt-3 border-t">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5">
+                      Membros ({memberEntities.length})
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {memberEntities.map(m => m && (
+                        <Badge key={m.id} variant="outline" className={cn("text-[10px]", ENTITY_COLORS[m.type as EntityType])}>
+                          {m.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           );
@@ -276,9 +384,15 @@ export function EntitiesView() {
 
       {/* Entity Modal */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingEntity ? 'Editar Entidade' : 'Nova Entidade'}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {formData.type && ENTITY_ICONS[formData.type] && (() => {
+                const Icon = ENTITY_ICONS[formData.type];
+                return <Icon className="w-5 h-5" />;
+              })()}
+              {editingEntity ? `Editar ${ENTITY_TYPE_LABELS[formData.type]}` : `Novo ${ENTITY_TYPE_LABELS[formData.type]}`}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -288,7 +402,10 @@ export function EntitiesView() {
               </div>
               <div>
                 <Label>Tipo *</Label>
-                <Select value={formData.type} onValueChange={v => setFormData({ ...formData, type: v as EntityType })}>
+                <Select value={formData.type} onValueChange={v => {
+                  setFormData({ ...formData, type: v as EntityType });
+                  if (v !== 'GRUPO') setGroupMemberIds([]);
+                }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {(['COLABORADOR', 'FORNECEDOR', 'SOCIO', 'GRUPO'] as EntityType[]).map(t => (
@@ -299,38 +416,99 @@ export function EntitiesView() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>E-mail</Label>
-                <Input value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="email@exemplo.com" />
-              </div>
-              <div>
-                <Label>Telefone</Label>
-                <Input value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="(00) 00000-0000" />
-              </div>
-            </div>
+            {formData.type !== 'GRUPO' && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>E-mail</Label>
+                    <Input value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="email@exemplo.com" />
+                  </div>
+                  <div>
+                    <Label>Telefone</Label>
+                    <Input value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="(00) 00000-0000" />
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>CPF / CNPJ</Label>
-                <Input value={formData.document} onChange={e => setFormData({ ...formData, document: e.target.value })} placeholder="Documento" />
-              </div>
-              <div>
-                <Label>Centro de Custo</Label>
-                <Select value={formData.cost_center_id} onValueChange={v => setFormData({ ...formData, cost_center_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                  <SelectContent>
-                    {costCenters?.filter(c => c.active).map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>CPF / CNPJ</Label>
+                    <Input value={formData.document} onChange={e => setFormData({ ...formData, document: e.target.value })} placeholder="Documento" />
+                  </div>
+                  <div>
+                    <Label>Centro de Custo</Label>
+                    <Select value={formData.cost_center_id} onValueChange={v => setFormData({ ...formData, cost_center_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                      <SelectContent>
+                        {costCenters?.filter(c => c.active).map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Group Members */}
+            {formData.type === 'GRUPO' && (
+              <div className="border rounded-lg p-4 space-y-3">
+                <Label className="font-semibold flex items-center gap-2">
+                  <UsersRound className="w-4 h-4 text-info" />
+                  Membros do Grupo ({groupMemberIds.length})
+                </Label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar membros..."
+                    value={groupSearchTerm}
+                    onChange={e => setGroupSearchTerm(e.target.value)}
+                    className="pl-8 h-8 text-sm"
+                  />
+                </div>
+                <ScrollArea className="max-h-48">
+                  <div className="space-y-1">
+                    {filteredMembers.map(m => (
+                      <div
+                        key={m.id}
+                        className="flex items-center gap-2 px-2 py-1.5 hover:bg-accent rounded-sm cursor-pointer"
+                        onClick={() => {
+                          setGroupMemberIds(prev =>
+                            prev.includes(m.id) ? prev.filter(i => i !== m.id) : [...prev, m.id]
+                          );
+                        }}
+                      >
+                        <Checkbox checked={groupMemberIds.includes(m.id)} className="pointer-events-none" />
+                        <span className="text-sm flex-1">{m.name}</span>
+                        <Badge variant="outline" className={cn("text-[9px]", ENTITY_COLORS[m.type as EntityType])}>
+                          {ENTITY_TYPE_LABELS[m.type as EntityType]}
+                        </Badge>
+                      </div>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </div>
+                </ScrollArea>
+                {groupMemberIds.length > 0 && (
+                  <div className="flex flex-wrap gap-1 pt-2 border-t">
+                    {groupMemberIds.map(id => {
+                      const m = availableMembers.find(e => e.id === id);
+                      return m ? (
+                        <Badge key={id} variant="outline" className={cn("text-[10px] gap-1", ENTITY_COLORS[m.type as EntityType])}>
+                          {m.name}
+                          <button onClick={() => setGroupMemberIds(prev => prev.filter(i => i !== id))} className="hover:text-destructive">×</button>
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
+            )}
 
             <div>
               <Label>Observações</Label>
-              <Textarea value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} rows={2} />
+              <Textarea
+                value={formData.type === 'GRUPO' ? getGroupUserNotes() : formData.notes}
+                onChange={e => formData.type === 'GRUPO' ? setGroupUserNotes(e.target.value) : setFormData({ ...formData, notes: e.target.value })}
+                rows={2}
+              />
             </div>
 
             <div className="flex items-center justify-between">

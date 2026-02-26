@@ -6,11 +6,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Check, Loader2, Building2, Info } from 'lucide-react';
 import { useCreateFixedExpense, useGenerateFixedExpenseTransactions } from '@/hooks/useFixedExpenses';
 import { useAccounts, useTransactionCategories, useCostCenters, usePaymentMethods } from '@/hooks/useFinancialConfig';
+import { useClients } from '@/hooks/useTransactions';
+import { useSaveTransactionEntities } from '@/hooks/useTransactionEntities';
 import { formatCurrency } from '@/data/mockData';
+import { MultiEntitySelector } from './MultiEntitySelector';
+import { CategoryFilteredSelector } from './CategoryFilteredSelector';
 
 interface NewFixedExpenseModalProps {
   open: boolean;
@@ -21,32 +24,33 @@ interface NewFixedExpenseModalProps {
 
 export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear }: NewFixedExpenseModalProps) {
   const currentYear = defaultYear || new Date().getFullYear();
-  const currentMonth = defaultMonth || new Date().getMonth() + 1;
 
   const [formData, setFormData] = useState({
     nome: '',
     valor: '',
     dia_vencimento: 10,
-    conta_id: '',
     categoria_id: '',
     forma_pagamento_id: '',
+    cliente_id: '',
     data_inicio: `${currentYear}-01-01`,
     data_fim: '',
     notes: '',
   });
 
+  const [entityIds, setEntityIds] = useState<string[]>([]);
+  const [filterAccountId, setFilterAccountId] = useState('');
+  const [filterCostCenterId, setFilterCostCenterId] = useState('');
+
   const { data: accounts } = useAccounts();
   const { data: categories } = useTransactionCategories();
   const { data: costCenters } = useCostCenters();
   const { data: paymentMethods } = usePaymentMethods();
+  const { data: clients } = useClients();
   
   const createFixedExpense = useCreateFixedExpense();
   const generateTransactions = useGenerateFixedExpenseTransactions();
+  const saveEntities = useSaveTransactionEntities();
 
-  // Filter categories to SAIDA + FIXA subtype
-  const expenseCategories = categories?.filter(c => c.type === 'SAIDA' && (c as any).subtype === 'FIXA' && c.active) || [];
-  
-  // Get linked cost center and account from selected category
   const selectedCategory = categories?.find(c => c.id === formData.categoria_id);
   const linkedCostCenter = costCenters?.find(cc => cc.id === selectedCategory?.cost_center_id);
   const linkedAccount = accounts?.find(a => a.id === selectedCategory?.default_account_id);
@@ -55,44 +59,42 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
 
   const resetForm = () => {
     setFormData({
-      nome: '',
-      valor: '',
-      dia_vencimento: 10,
-      conta_id: '',
-      categoria_id: '',
-      forma_pagamento_id: '',
-      data_inicio: `${currentYear}-01-01`,
-      data_fim: '',
-      notes: '',
+      nome: '', valor: '', dia_vencimento: 10, categoria_id: '',
+      forma_pagamento_id: '', cliente_id: '',
+      data_inicio: `${currentYear}-01-01`, data_fim: '', notes: '',
     });
+    setEntityIds([]);
+    setFilterAccountId('');
+    setFilterCostCenterId('');
   };
 
-  const handleClose = () => {
-    resetForm();
-    onClose();
-  };
+  const handleClose = () => { resetForm(); onClose(); };
 
   const handleSubmit = async () => {
-    // 1. Create the fixed expense
-    await createFixedExpense.mutateAsync({
+    const result = await createFixedExpense.mutateAsync({
       nome: formData.nome,
       valor,
       dia_vencimento: formData.dia_vencimento,
       categoria_id: formData.categoria_id || null,
       centro_custo_id: selectedCategory?.cost_center_id || null,
-      conta_id: selectedCategory?.default_account_id || formData.conta_id || null,
+      conta_id: selectedCategory?.default_account_id || null,
       forma_pagamento_id: formData.forma_pagamento_id || null,
       data_inicio: formData.data_inicio,
       data_fim: formData.data_fim || null,
       notes: formData.notes || null,
     });
 
-    // 2. Generate transactions for ALL remaining months of the year
-    for (let m = 1; m <= 12; m++) {
-      await generateTransactions.mutateAsync({
-        year: currentYear,
-        month: m,
+    // Save multi-entity links
+    if (entityIds.length > 0 && result?.id) {
+      await saveEntities.mutateAsync({
+        fixedExpenseId: result.id,
+        entityIds,
       });
+    }
+
+    // Generate transactions
+    for (let m = 1; m <= 12; m++) {
+      await generateTransactions.mutateAsync({ year: currentYear, month: m });
     }
 
     handleClose();
@@ -101,7 +103,6 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
   const isSubmitting = createFixedExpense.isPending || generateTransactions.isPending;
   const canSubmit = formData.nome.trim().length > 0 && valor > 0 && formData.dia_vencimento >= 1 && formData.dia_vencimento <= 31;
 
-  // Calculate annual projection
   const startDate = new Date(formData.data_inicio);
   const startMonth = startDate.getMonth() + 1;
   const monthsInYear = 12 - startMonth + 1;
@@ -118,7 +119,6 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Basic info */}
           <div>
             <Label>Nome / Fornecedor *</Label>
             <Input 
@@ -140,37 +140,26 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
             <div>
               <Label>Dia do Vencimento *</Label>
               <Input 
-                type="number"
-                min={1}
-                max={31}
+                type="number" min={1} max={31}
                 value={formData.dia_vencimento}
                 onChange={(e) => setFormData({ ...formData, dia_vencimento: parseInt(e.target.value) || 10 })}
               />
             </div>
           </div>
 
-          {/* Category - Primary field */}
-          <div>
-            <Label>Categoria *</Label>
-            <Select value={formData.categoria_id} onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecionar categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                {expenseCategories.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedCategory && (
-              <div className="text-xs text-muted-foreground mt-1 flex gap-3">
-                <span>Conta: <strong>{linkedAccount?.name || '—'}</strong></span>
-                <span>C. Custo: <strong>{linkedCostCenter?.name || '—'}</strong></span>
-              </div>
-            )}
-          </div>
+          {/* Category with account/cost center pre-filters */}
+          <CategoryFilteredSelector
+            tipo="SAIDA"
+            subtype="FIXA"
+            selectedCategoryId={formData.categoria_id}
+            onCategoryChange={(v) => setFormData({ ...formData, categoria_id: v })}
+            filterAccountId={filterAccountId}
+            onFilterAccountChange={(v) => setFilterAccountId(v === 'all' ? '' : v)}
+            filterCostCenterId={filterCostCenterId}
+            onFilterCostCenterChange={(v) => setFilterCostCenterId(v === 'all' ? '' : v)}
+          />
 
-          {/* Inherited info + Payment Method */}
+          {/* Inherited info */}
           {selectedCategory && (
             <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1">
               <div className="flex justify-between">
@@ -183,36 +172,54 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
               </div>
             </div>
           )}
-          <div className="grid grid-cols-1 gap-4">
-            <div>
-              <Label>Forma de Pagamento</Label>
-              <Select value={formData.forma_pagamento_id} onValueChange={(v) => setFormData({ ...formData, forma_pagamento_id: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecionar" />
-                </SelectTrigger>
-                <SelectContent>
-                  {paymentMethods?.filter(p => p.active).map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+
+          <div>
+            <Label>Forma de Pagamento</Label>
+            <Select value={formData.forma_pagamento_id} onValueChange={(v) => setFormData({ ...formData, forma_pagamento_id: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecionar" />
+              </SelectTrigger>
+              <SelectContent>
+                {paymentMethods?.filter(p => p.active).map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          {/* Dates */}
+
+          {/* Client */}
+          <div>
+            <Label>Cliente (opcional)</Label>
+            <Select value={formData.cliente_id} onValueChange={(v) => setFormData({ ...formData, cliente_id: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Vincular a um cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                {clients?.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Multi-Entity Selector */}
+          <MultiEntitySelector
+            selectedIds={entityIds}
+            onChange={setEntityIds}
+          />
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Data de Início</Label>
               <Input 
-                type="date"
-                value={formData.data_inicio}
+                type="date" value={formData.data_inicio}
                 onChange={(e) => setFormData({ ...formData, data_inicio: e.target.value })}
               />
             </div>
             <div>
               <Label>Data de Fim (opcional)</Label>
               <Input 
-                type="date"
-                value={formData.data_fim}
+                type="date" value={formData.data_fim}
                 onChange={(e) => setFormData({ ...formData, data_fim: e.target.value })}
               />
             </div>
@@ -223,12 +230,10 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
             <Textarea 
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="Notas adicionais..."
-              rows={2}
+              placeholder="Notas adicionais..." rows={2}
             />
           </div>
 
-          {/* Summary */}
           {valor > 0 && (
             <Card className="bg-expense/5 border-expense/20">
               <CardContent className="p-3 text-sm space-y-1">
@@ -248,32 +253,21 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
                   <span className="text-muted-foreground">Projeção Anual:</span>
                   <span className="font-medium">{formatCurrency(annualProjection)}</span>
                 </div>
-                <div className="flex justify-between text-xs pt-1 border-t">
-                  <span className="text-muted-foreground">Descrição gerada:</span>
-                  <Badge variant="outline" className="text-xs font-mono">
-                    {formData.nome || '...'} — MM/{currentYear}
-                  </Badge>
-                </div>
+                {entityIds.length > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Responsáveis:</span>
+                    <span className="font-medium">{entityIds.length} vinculado(s)</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
         </div>
 
-        {/* Actions */}
         <div className="flex gap-2 pt-4 border-t">
-          <Button variant="outline" onClick={handleClose} className="flex-1">
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleSubmit} 
-            disabled={!canSubmit || isSubmitting}
-            className="flex-1"
-          >
-            {isSubmitting ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Check className="w-4 h-4 mr-2" />
-            )}
+          <Button variant="outline" onClick={handleClose} className="flex-1">Cancelar</Button>
+          <Button onClick={handleSubmit} disabled={!canSubmit || isSubmitting} className="flex-1">
+            {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
             Criar Despesa e Gerar Lançamentos
           </Button>
         </div>
