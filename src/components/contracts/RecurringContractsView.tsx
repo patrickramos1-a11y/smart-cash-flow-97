@@ -9,18 +9,21 @@ import {
   ChevronDown,
   ChevronUp,
   Filter,
-  Settings2
+  Settings2,
+  Trash2
 } from 'lucide-react';
 import { 
   useRecurringContracts, 
   useRecurringInstallments, 
   useRecurringKPIs,
   useMarkInstallmentPaid,
+  useCancelContract,
   RecurringInstallment
 } from '@/hooks/useRecurringContracts';
 import { formatCurrency } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { MinimumWageConfigModal } from './MinimumWageConfigModal';
+import { ConfirmModal } from '@/components/modals/ConfirmModal';
 import { toast } from 'sonner';
 
 const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -35,7 +38,7 @@ export function RecurringContractsView({ activeSection }: RecurringContractsView
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
-
+  const [cancelTarget, setCancelTarget] = useState<{ contractId: string; clientName: string } | null>(null);
   const { kpis, isLoading: loadingKPIs } = useRecurringKPIs(selectedYear);
   const { data: contracts, isLoading: loadingContracts } = useRecurringContracts();
   const { data: installments, isLoading: loadingInstallments } = useRecurringInstallments({
@@ -44,6 +47,7 @@ export function RecurringContractsView({ activeSection }: RecurringContractsView
     status: statusFilter || undefined,
   });
   const markPaidMutation = useMarkInstallmentPaid();
+  const cancelContract = useCancelContract();
 
   const isLoading = loadingKPIs || loadingContracts || loadingInstallments;
 
@@ -302,15 +306,26 @@ export function RecurringContractsView({ activeSection }: RecurringContractsView
                       </td>
                       <td className="text-center">{getStatusBadge(inst.status)}</td>
                       <td className="text-right">
-                        {inst.status !== 'PAGO' && (
-                          <button
-                            onClick={() => handleMarkPaid(inst)}
-                            disabled={markPaidMutation.isPending}
-                            className="btn-primary text-xs py-1 px-2"
-                          >
-                            Marcar Pago
-                          </button>
-                        )}
+                        <div className="flex items-center justify-end gap-1">
+                          {inst.status !== 'PAGO' && (
+                            <button
+                              onClick={() => handleMarkPaid(inst)}
+                              disabled={markPaidMutation.isPending}
+                              className="btn-primary text-xs py-1 px-2"
+                            >
+                              Marcar Pago
+                            </button>
+                          )}
+                          {idx === 0 && (
+                            <button
+                              onClick={() => setCancelTarget({ contractId: data.contract?.id, clientName: data.client?.name || 'N/A' })}
+                              className="p-1.5 rounded hover:bg-expense/10 text-muted-foreground hover:text-expense transition-colors"
+                              title="Cancelar contrato"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -325,6 +340,22 @@ export function RecurringContractsView({ activeSection }: RecurringContractsView
       <MinimumWageConfigModal
         open={showConfigModal}
         onClose={() => setShowConfigModal(false)}
+      />
+
+      {/* Cancel Contract Confirm */}
+      <ConfirmModal
+        open={!!cancelTarget}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={async () => {
+          if (cancelTarget) {
+            await cancelContract.mutateAsync({ contractId: cancelTarget.contractId, deleteTransactions: true });
+            setCancelTarget(null);
+          }
+        }}
+        title="Cancelar Contrato"
+        message={`Deseja cancelar o contrato de "${cancelTarget?.clientName}"? Todas as parcelas em aberto e suas transações serão removidas. Parcelas já pagas serão mantidas.`}
+        confirmText="Sim, cancelar contrato"
+        type="danger"
       />
     </div>
   );

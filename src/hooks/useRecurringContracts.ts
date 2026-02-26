@@ -607,6 +607,68 @@ export function useCreateClientWithContract() {
 }
 
 // =============================================
+// CANCEL / DELETE CONTRACT
+// =============================================
+
+export function useCancelContract() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ contractId, deleteTransactions }: { contractId: string; deleteTransactions?: boolean }) => {
+      // 1. Mark contract as inactive
+      const { error: contractError } = await supabase
+        .from('recurring_contracts')
+        .update({ active: false })
+        .eq('id', contractId);
+
+      if (contractError) throw contractError;
+
+      // 2. Cancel all non-paid installments
+      const { data: openInstallments, error: fetchError } = await supabase
+        .from('recurring_installments')
+        .select('id')
+        .eq('contract_id', contractId)
+        .neq('status', 'PAGO');
+
+      if (fetchError) throw fetchError;
+
+      if (openInstallments && openInstallments.length > 0) {
+        const installmentIds = openInstallments.map(i => i.id);
+
+        // Delete related transactions for open installments
+        if (deleteTransactions) {
+          const { error: txError } = await supabase
+            .from('transactions')
+            .delete()
+            .in('installment_id', installmentIds);
+
+          if (txError) throw txError;
+        }
+
+        // Delete open installments
+        const { error: deleteError } = await supabase
+          .from('recurring_installments')
+          .delete()
+          .in('id', installmentIds);
+
+        if (deleteError) throw deleteError;
+      }
+
+      return { cancelledInstallments: openInstallments?.length || 0 };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['recurring-contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['recurring-installments'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      toast.success(`Contrato cancelado! ${result.cancelledInstallments} parcela(s) em aberto removida(s).`);
+    },
+    onError: (error: Error) => {
+      toast.error('Erro ao cancelar contrato: ' + error.message);
+    },
+  });
+}
+
+// =============================================
 // CONTRACT PLANS CRUD
 // =============================================
 
