@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Check, Loader2, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { useCreateTransaction, useClients } from '@/hooks/useTransactions';
-import { useAccounts, useTransactionCategories, useCostCenters, usePaymentMethods } from '@/hooks/useFinancialConfig';
+import { useTransactionCategories, usePaymentMethods, type CategorySubtype } from '@/hooks/useFinancialConfig';
 
 interface QuickTransactionModalProps {
   open: boolean;
@@ -17,10 +17,11 @@ interface QuickTransactionModalProps {
   natureza: 'AVULSA';
   defaultMonth?: number;
   defaultYear?: number;
+  filterSubtype?: CategorySubtype;
 }
 
 export function QuickTransactionModal({ 
-  open, onClose, tipo, natureza, defaultMonth, defaultYear 
+  open, onClose, tipo, natureza, defaultMonth, defaultYear, filterSubtype
 }: QuickTransactionModalProps) {
   const currentDate = new Date();
   const month = defaultMonth || currentDate.getMonth() + 1;
@@ -31,7 +32,6 @@ export function QuickTransactionModal({
     valor: '',
     cliente_id: '',
     categoria_id: '',
-    conta_id: '',
     forma_pagamento_id: '',
     data_vencimento: currentDate.toISOString().split('T')[0],
     competencia_mes: month,
@@ -40,18 +40,16 @@ export function QuickTransactionModal({
   });
 
   const { data: clients } = useClients();
-  const { data: accounts } = useAccounts();
   const { data: categories } = useTransactionCategories();
-  const { data: costCenters } = useCostCenters();
   const { data: paymentMethods } = usePaymentMethods();
   const createTransaction = useCreateTransaction();
 
-  // Filter categories by tipo
-  const filteredCategories = categories?.filter(c => c.type === tipo && c.active) || [];
+  // Filter categories by tipo AND subtype
+  const effectiveSubtype = filterSubtype || (tipo === 'ENTRADA' ? 'AVULSA' : 'VARIAVEL');
+  const filteredCategories = categories?.filter(c => c.type === tipo && c.subtype === effectiveSubtype && c.active) || [];
 
-  // Get cost center from selected category
+  // Get selected category to auto-fill account and cost center
   const selectedCategory = categories?.find(c => c.id === formData.categoria_id);
-  const linkedCostCenter = costCenters?.find(cc => cc.id === selectedCategory?.cost_center_id);
 
   const isEntrada = tipo === 'ENTRADA';
   const label = isEntrada ? 'Nova Entrada Avulsa' : 'Nova Despesa Variável';
@@ -62,7 +60,6 @@ export function QuickTransactionModal({
       valor: '',
       cliente_id: '',
       categoria_id: '',
-      conta_id: '',
       forma_pagamento_id: '',
       data_vencimento: currentDate.toISOString().split('T')[0],
       competencia_mes: month,
@@ -90,8 +87,9 @@ export function QuickTransactionModal({
       data_vencimento: formData.data_vencimento,
       descricao: formData.descricao,
       categoria_id: formData.categoria_id || null,
-      centro_custo_id: linkedCostCenter?.id || null,
-      conta_id: formData.conta_id || null,
+      // Auto-inherit from category
+      centro_custo_id: selectedCategory?.cost_center_id || null,
+      conta_id: selectedCategory?.default_account_id || null,
       forma_pagamento_id: formData.forma_pagamento_id || null,
       notes: formData.notes || null,
     });
@@ -123,6 +121,32 @@ export function QuickTransactionModal({
         </div>
 
         <div className="space-y-4">
+          {/* CATEGORY - Primary field */}
+          <div>
+            <Label>Categoria *</Label>
+            <Select value={formData.categoria_id} onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecionar categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredCategories.map(c => (
+                  <SelectItem key={c.id} value={c.id}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: c.color || '#6366f1' }} />
+                      {c.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedCategory && (
+              <div className="text-xs text-muted-foreground mt-1 flex gap-3">
+                <span>Conta: <strong>{(selectedCategory as any).default_account?.name || '—'}</strong></span>
+                <span>C. Custo: <strong>{selectedCategory.cost_center?.name || '—'}</strong></span>
+              </div>
+            )}
+          </div>
+
           <div>
             <Label>Descrição *</Label>
             <Input 
@@ -167,40 +191,6 @@ export function QuickTransactionModal({
               </Select>
             </div>
           )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Categoria</Label>
-              <Select value={formData.categoria_id} onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecionar" />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredCategories.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {linkedCostCenter && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  C. Custo: {linkedCostCenter.name}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label>Conta</Label>
-              <Select value={formData.conta_id} onValueChange={(v) => setFormData({ ...formData, conta_id: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecionar" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accounts?.filter(a => a.active).map(a => (
-                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>

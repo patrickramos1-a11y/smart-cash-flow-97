@@ -54,12 +54,15 @@ export interface CostCenter {
   updated_at: string;
 }
 
+export type CategorySubtype = 'RECORRENTE' | 'AVULSA' | 'FIXA' | 'VARIAVEL';
+
 export interface TransactionCategory {
   id: string;
   company_id: string | null;
   cost_center_id: string;
   name: string;
   type: 'ENTRADA' | 'SAIDA';
+  subtype: CategorySubtype | null;
   expense_type: 'FIXA' | 'VARIAVEL' | 'IMPOSTO' | null;
   default_account_id: string | null;
   color: string | null;
@@ -67,6 +70,7 @@ export interface TransactionCategory {
   created_at: string;
   updated_at: string;
   cost_center?: CostCenter;
+  default_account?: Account;
 }
 
 export interface PaymentMethod {
@@ -423,7 +427,8 @@ export function useTransactionCategories() {
         .from('transaction_categories')
         .select(`
           *,
-          cost_center:cost_centers(*)
+          cost_center:cost_centers(*),
+          default_account:accounts!transaction_categories_default_account_id_fkey(*)
         `)
         .order('name');
       
@@ -433,11 +438,39 @@ export function useTransactionCategories() {
   });
 }
 
+export function useTransactionCategoriesBySubtype(type: 'ENTRADA' | 'SAIDA', subtype: CategorySubtype) {
+  const { data: categories, ...rest } = useTransactionCategories();
+  const filtered = categories?.filter(c => c.type === type && c.subtype === subtype && c.active) || [];
+  return { data: filtered, ...rest };
+}
+
+export function useBulkUpdateTransactionCategories() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ ids, updates }: { ids: string[]; updates: Partial<{ subtype: CategorySubtype; default_account_id: string; cost_center_id: string; active: boolean }> }) => {
+      const { error } = await supabase
+        .from('transaction_categories')
+        .update(updates as any)
+        .in('id', ids);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transaction-categories'] });
+      toast.success('Categorias atualizadas em massa!');
+    },
+    onError: (error) => {
+      toast.error('Erro ao atualizar categorias: ' + error.message);
+    },
+  });
+}
+
 export function useCreateTransactionCategory() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (category: { name: string; cost_center_id: string; type: 'ENTRADA' | 'SAIDA'; company_id?: string; expense_type?: 'FIXA' | 'VARIAVEL' | 'IMPOSTO' | null; default_account_id?: string | null; color?: string; active?: boolean }) => {
+    mutationFn: async (category: { name: string; cost_center_id: string; type: 'ENTRADA' | 'SAIDA'; subtype?: CategorySubtype | null; company_id?: string; expense_type?: 'FIXA' | 'VARIAVEL' | 'IMPOSTO' | null; default_account_id?: string | null; color?: string; active?: boolean }) => {
       const { data, error } = await supabase
         .from('transaction_categories')
         .insert([category])
