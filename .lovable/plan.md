@@ -1,96 +1,131 @@
 
-# Plano: Formularios Dedicados para Recorrentes e Despesas Fixas
 
-## Problema Identificado
+# Refatoracao Completa: Categoria como Nucleo do Sistema Financeiro
 
-Hoje, quando voce clica em "Novo" nas paginas de **Entradas Recorrentes**, **Entradas Avulsas**, **Despesas Fixas** ou **Despesas Variaveis**, todas abrem o mesmo wizard generico (`NewTransactionWizard`) que:
+## Resumo
 
-1. Pergunta se e Entrada ou Saida
-2. Pergunta se e Recorrente ou Avulsa  
-3. Mostra um formulario padrao com campos manuais (descricao, valor, categoria...)
+Transformar a **Categoria** no elemento central de todo o fluxo financeiro. Ao selecionar uma categoria no lancamento, o sistema automaticamente herda conta, centro de custo e tipo de lancamento -- eliminando preenchimento manual e erros de classificacao.
 
-Isso contradiz toda a logica que voce definiu nas conversas anteriores:
-- **Entradas Recorrentes** deveriam ter um **formulario de contrato** (selecionar cliente, plano, fator SM ou valor fixo, descontos, e o sistema gera tudo automatico)
-- **Despesas Fixas** deveriam ter um **formulario de cadastro de despesa fixa** (fornecedor, valor, dia de vencimento, conta, e o sistema gera lancamentos mensais)
-- **Entradas Avulsas** e **Despesas Variaveis** podem continuar com formulario simples, mas sem as etapas desnecessarias de escolher tipo/natureza (ja que a pagina ja define isso)
+## O que muda
 
-## Solucao Proposta
+### Hoje
+- Categoria tem tipo (Entrada/Saida) e natureza de despesa (Fixa/Variavel), mas **nao tem subtipo para entradas** (Recorrente/Avulsa)
+- Conta e centro de custo sao preenchidos manualmente no lancamento
+- Conta padrao (`default_account_id`) e opcional e pouco usada
+- Nas abas de transacoes, todas as categorias aparecem sem filtragem inteligente
 
-### 1. Criar Modal de Novo Contrato Recorrente (`NewRecurringContractModal`)
+### Depois
+- Cada categoria define **completamente** o tipo de lancamento:
+  - Entrada Recorrente, Entrada Avulsa, Despesa Fixa, Despesa Variavel
+- Conta e centro de custo sao **herdados automaticamente** da categoria
+- No lancamento, o usuario escolhe apenas a categoria -- o resto e preenchido pelo sistema
+- Cada aba de transacao mostra **apenas** as categorias do seu tipo
 
-Formulario dedicado que aparece ao clicar "Novo" na pagina **Entradas Recorrentes**:
+---
 
-- **Cliente**: Selecionar cliente existente OU criar novo (nome, email, telefone, documento)
-- **Modelo de cobranca**: 
-  - Salario Minimo (selecionar plano: Basico 0,75 / VIP 1,5 / Premium 2 / Master 3)
-  - Valor Fixo em R$
-- **Fator customizado**: Permitir alterar o fator SM por cliente (ex: VIP pagando 1,0 em vez de 1,5)
-- **Descontos**:
-  - Tipo: por fator SM / por valor R$ / por percentual
-  - Valor do desconto
-  - Duracao: por periodo (X meses) ou ate data especifica
-- **Conta padrao de recebimento** (opcional)
-- **Data de inicio do contrato**
-- **Ano de geracao**: para qual ano gerar as competencias
+## Etapas de Implementacao
 
-Ao salvar: o sistema usa o hook `useCreateContractWithInstallments` (que ja existe) para criar o contrato + gerar automaticamente as competencias mensais + transacoes com descricao padronizada `[CLIENTE] -- Recorrente -- [PLANO] -- [COMPETENCIA]`.
+### 1. Migracao do Banco de Dados
 
-### 2. Criar Modal de Nova Despesa Fixa (`NewFixedExpenseModal`)
+Adicionar coluna `subtype` a tabela `transaction_categories` para distinguir os 4 tipos completos:
 
-Formulario dedicado que aparece ao clicar "Novo" na pagina **Despesas Fixas**:
+```text
+transaction_categories
+  + subtype TEXT  -- valores: 'RECORRENTE', 'AVULSA', 'FIXA', 'VARIAVEL'
+```
 
-- **Nome/Fornecedor**: Quem recebe o pagamento
-- **Valor mensal** (R$)
-- **Dia de vencimento** (1-31)
-- **Conta de pagamento**: Selecionar conta
-- **Categoria**: Selecionar categoria (filtrada para saidas)
-- **Centro de custo**: Preenchido automaticamente pela categoria selecionada
-- **Forma de pagamento**
-- **Data de inicio** e **Data de fim** (opcional)
-- **Observacoes**
+Logica de preenchimento automatico dos dados existentes:
+- Se `type = 'SAIDA'` e `expense_type = 'FIXA'` → `subtype = 'FIXA'`
+- Se `type = 'SAIDA'` e `expense_type = 'VARIAVEL'` → `subtype = 'VARIAVEL'`
+- Se `type = 'SAIDA'` e sem expense_type → `subtype = 'VARIAVEL'` (padrao)
+- Se `type = 'ENTRADA'` → `subtype = 'AVULSA'` (padrao, usuario ajusta depois)
 
-Ao salvar: usa o hook `useCreateFixedExpense` (que ja existe) + `useGenerateFixedExpenseTransactions` para criar a despesa fixa e gerar os lancamentos mensais automaticamente.
+Tornar `default_account_id` efetivamente obrigatorio na interface (sem alterar constraint no banco para nao quebrar dados antigos).
 
-### 3. Simplificar formularios de Avulsas e Variaveis
+### 2. Refatorar Formulario de Categoria (Configuracoes)
 
-Nas paginas **Entradas Avulsas** e **Despesas Variaveis**, substituir o wizard de 3 etapas por um formulario direto (sem perguntar tipo/natureza, ja que a pagina ja define isso):
+Redesenhar o formulario de cadastro/edicao de categoria:
 
-- Descricao
-- Valor
-- Cliente (para entradas avulsas)
-- Data de vencimento
-- Competencia (mes/ano)
-- Categoria, Conta, Forma de pagamento
-- Observacoes
+**Campos do formulario:**
+- Nome da categoria
+- Tipo principal: **Entrada** ou **Despesa** (radio/select)
+- Subtipo (condicional):
+  - Se Entrada: **Recorrente** ou **Avulsa**
+  - Se Despesa: **Fixa** ou **Variavel**
+- Conta vinculada (obrigatoria) -- select com contas ativas
+- Centro de custo (obrigatorio) -- select com centros ativos
+- Cor (opcional)
+- Status ativo/inativo
 
-### 4. Manter o Wizard generico apenas na Visao Geral
+**Visualizacao da listagem:**
+- Agrupar categorias por tipo (4 grupos visuais com cores):
+  - Entrada Recorrente (verde escuro)
+  - Entrada Avulsa (verde claro)
+  - Despesa Fixa (vermelho escuro)
+  - Despesa Variavel (vermelho claro)
+- Mostrar conta e centro de custo vinculados em cada linha
 
-O `NewTransactionWizard` atual continua existindo **apenas** na pagina "Transacoes > Visao Geral" (`TransactionsHub`), onde faz sentido perguntar o tipo e natureza.
+### 3. Edicao em Massa de Categorias
 
-## Resumo das Mudancas por Arquivo
+Implementar na aba de Categorias (Configuracoes):
 
-### Novos Arquivos
-- `src/components/contracts/NewRecurringContractModal.tsx` -- Modal completo de cadastro de contrato recorrente
-- `src/components/transactions/NewFixedExpenseModal.tsx` -- Modal completo de cadastro de despesa fixa
+- Checkbox de selecao multipla em cada categoria
+- Barra de acoes em massa que aparece ao selecionar 2+ itens:
+  - Alterar conta vinculada
+  - Alterar centro de custo
+  - Alterar subtipo (Recorrente/Avulsa/Fixa/Variavel)
+  - Ativar/Desativar em massa
+
+### 4. Atualizar Hooks e Logica de Lancamento
+
+**No `useFinancialConfig.ts`:**
+- Atualizar tipo `TransactionCategory` para incluir `subtype`
+- Adicionar funcao `useTransactionCategoriesBySubtype(subtype)` para filtrar categorias
+
+**No `useTransactions.ts` / `useCreateTransaction`:**
+- Ao criar transacao, buscar a categoria selecionada
+- Auto-preencher `conta_id`, `centro_custo_id`, `cost_center_id` a partir da categoria
+- Auto-definir `tipo_movimento` e `natureza` com base no tipo/subtipo da categoria
+
+### 5. Atualizar Modais de Lancamento
+
+**QuickTransactionModal (Avulsas e Variaveis):**
+- Remover campos de conta, centro de custo e tipo do formulario
+- Adicionar campo de busca/selecao de categoria como campo principal
+- Filtrar categorias pelo subtipo correto (baseado na aba atual)
+- Ao selecionar categoria, preencher automaticamente os campos ocultos
+
+**NewRecurringContractModal (Entradas Recorrentes):**
+- Adicionar selecao de categoria (filtrada para ENTRADA + RECORRENTE)
+- Herdar conta e centro de custo da categoria selecionada
+
+**NewFixedExpenseModal (Despesas Fixas):**
+- Adicionar selecao de categoria (filtrada para SAIDA + FIXA)
+- Herdar conta e centro de custo da categoria selecionada
+
+**Visao Geral (TransactionsHub):**
+- No wizard generico, adicionar campo de busca inteligente de categoria
+- Ao selecionar uma categoria, detectar o subtipo e redirecionar para o modal correto:
+  - Entrada Recorrente → abre NewRecurringContractModal
+  - Entrada Avulsa → abre QuickTransactionModal (modo entrada)
+  - Despesa Fixa → abre NewFixedExpenseModal
+  - Despesa Variavel → abre QuickTransactionModal (modo despesa)
+
+---
+
+## Arquivos Impactados
+
+### Banco de Dados
+- Nova migracao: adicionar coluna `subtype` em `transaction_categories` + popular dados existentes
 
 ### Arquivos Modificados
-- `src/components/transactions/EntradasRecorrentesPage.tsx` -- Trocar `NewTransactionWizard` por `NewRecurringContractModal`
-- `src/components/transactions/DespesasFixasPage.tsx` -- Trocar `NewTransactionWizard` por `NewFixedExpenseModal`
-- `src/components/transactions/EntradasAvulsasPage.tsx` -- Trocar wizard por formulario direto pre-configurado para Entrada Avulsa
-- `src/components/transactions/DespesasVariaveisPage.tsx` -- Trocar wizard por formulario direto pre-configurado para Saida Variavel
+- `src/hooks/useFinancialConfig.ts` -- atualizar tipo TransactionCategory, adicionar hook de filtragem por subtipo
+- `src/components/config/FinancialConfigView.tsx` -- redesenhar TransactionCategoriesTab com novo formulario, agrupamento visual e edicao em massa
+- `src/components/transactions/QuickTransactionModal.tsx` -- remover campos manuais, adicionar selecao de categoria como campo central
+- `src/components/contracts/NewRecurringContractModal.tsx` -- adicionar selecao de categoria filtrada
+- `src/components/transactions/NewFixedExpenseModal.tsx` -- adicionar selecao de categoria filtrada
+- `src/components/transactions/TransactionsHub.tsx` -- wizard inteligente na visao geral
+- `src/hooks/useTransactions.ts` -- auto-preencher dados da categoria ao criar transacao
 
-### Detalhes Tecnicos
-
-**NewRecurringContractModal**:
-- Usa os hooks existentes: `useRecurringClients`, `useContractPlans`, `useCreateContractWithInstallments`, `useCreateClientWithContract`
-- Busca dados reais do banco (clientes, planos, salario minimo configurado)
-- Formulario em etapas visuais: Selecionar Cliente → Definir Plano/Valor → Configurar Descontos → Confirmar e Gerar
-
-**NewFixedExpenseModal**:
-- Usa os hooks existentes: `useCreateFixedExpense`, `useGenerateFixedExpenseTransactions`
-- Busca contas e categorias do banco via `useAccounts`, `useTransactionCategories`
-- Formulario unico (sem etapas), direto ao ponto
-
-**Formularios simplificados (Avulsas/Variaveis)**:
-- Reutiliza o mesmo componente `NewTransactionWizard` mas com nova prop `skipSteps` que pula direto para o formulario com tipo e natureza pre-definidos
-- Alternativa: criar um componente `QuickTransactionModal` mais enxuto
+### Nenhum arquivo novo necessario
+Toda a logica se encaixa nos componentes e hooks existentes.
