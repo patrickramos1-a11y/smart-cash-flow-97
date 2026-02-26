@@ -3,10 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
-  TrendingDown, FileText, Plus, Wallet, BarChart3, PieChart
+  TrendingDown, FileText, Plus, Wallet, BarChart3, PieChart, Users
 } from 'lucide-react';
 import { useTransactions, useTransactionKPIs } from '@/hooks/useTransactions';
 import { useAccounts, useCostCenters, useTransactionCategories } from '@/hooks/useFinancialConfig';
+import { useFinancialEntities, ENTITY_TYPE_LABELS, EntityType } from '@/hooks/useFinancialEntities';
 import { TransactionsList } from './TransactionsList';
 import { QuickTransactionModal } from './QuickTransactionModal';
 import { MonthYearNavigator } from '@/components/ui/month-year-navigator';
@@ -27,6 +28,7 @@ export function DespesasVariaveisPage() {
   const { data: accounts } = useAccounts();
   const { data: categories } = useTransactionCategories();
   const { data: costCenters } = useCostCenters();
+  const { data: entities } = useFinancialEntities();
 
   const { kpis } = useTransactionKPIs({
     competencia_ano: selectedYear,
@@ -96,6 +98,23 @@ export function DespesasVariaveisPage() {
       value
     }))
     .sort((a, b) => b.value - a.value);
+
+  // Entity breakdown
+  const byEntity = yearlyTransactions?.reduce((acc, t) => {
+    const entId = (t as any).entity_id || 'sem-entidade';
+    if (!acc[entId]) acc[entId] = 0;
+    acc[entId] += Number(t.valor);
+    return acc;
+  }, {} as Record<string, number>) || {};
+
+  const entityData = Object.entries(byEntity)
+    .map(([id, value]) => ({
+      name: entities?.find(e => e.id === id)?.name || 'Sem entidade',
+      type: entities?.find(e => e.id === id)?.type as EntityType | undefined,
+      value
+    }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8);
 
   return (
     <div className="space-y-6">
@@ -286,6 +305,38 @@ export function DespesasVariaveisPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* By Entity */}
+      {entityData.length > 0 && entityData[0].name !== 'Sem entidade' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Por Entidade / Responsável
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {entityData.filter(e => e.name !== 'Sem entidade').map((ent, idx) => (
+                <div key={ent.name} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
+                      {idx + 1}
+                    </span>
+                    <div>
+                      <span className="font-medium text-sm">{ent.name}</span>
+                      {ent.type && (
+                        <span className="text-[10px] text-muted-foreground ml-2">{ENTITY_TYPE_LABELS[ent.type]}</span>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-sm font-semibold text-expense">{formatCurrency(ent.value)}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

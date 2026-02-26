@@ -10,6 +10,7 @@ import { EntradasAvulsasPage } from '@/components/transactions/EntradasAvulsasPa
 import { DespesasFixasPage } from '@/components/transactions/DespesasFixasPage';
 import { DespesasVariaveisPage } from '@/components/transactions/DespesasVariaveisPage';
 import { ClientsView } from '@/components/clients/ClientsView';
+import { EntitiesView } from '@/components/entities/EntitiesView';
 import { ImportExportView } from '@/components/import/ImportExportView';
 import { ReportsView } from '@/components/reports/ReportsView';
 import { RecurringContractsView } from '@/components/contracts/RecurringContractsView';
@@ -30,6 +31,7 @@ const tabConfig: Record<string, { title: string; subtitle?: string }> = {
   'recurring-contracts': { title: 'Contratos', subtitle: 'Gestão por salário mínimo' },
   reports: { title: 'Relatórios', subtitle: 'Análises e DRE' },
   clients: { title: 'Clientes', subtitle: 'Gerencie sua carteira' },
+  entities: { title: 'Entidades', subtitle: 'Pessoas, fornecedores e grupos' },
   backlog: { title: 'Backlog', subtitle: 'Melhorias do produto' },
   config: { title: 'Configuração', subtitle: 'Estrutura financeira' },
   import: { title: 'Importar', subtitle: 'Dados em lote' },
@@ -63,6 +65,8 @@ const Index = () => {
         return <ReportsView />;
       case 'clients':
         return <ClientsView />;
+      case 'entities':
+        return <EntitiesView />;
       case 'backlog':
         return <BacklogView />;
       case 'config':

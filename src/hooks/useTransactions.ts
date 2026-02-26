@@ -34,6 +34,7 @@ export interface TransactionRow {
   documento_tipo: DocumentoTipo | null;
   documento_numero: string | null;
   notes: string | null;
+  entity_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -266,6 +267,7 @@ export function useCreateTransaction() {
           documento_tipo: transaction.documento_tipo,
           documento_numero: transaction.documento_numero,
           notes: transaction.notes,
+          entity_id: (transaction as any).entity_id || null,
         })
         .select()
         .single();
