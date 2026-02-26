@@ -1,13 +1,18 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { 
   Search, ArrowUpCircle, ArrowDownCircle, MoreVertical, 
   CheckCircle, Clock, AlertTriangle, Send, Copy, Pencil, Trash2,
-  RefreshCw, FileText, Loader2
+  RefreshCw, FileText, Loader2, DollarSign, ArrowUpDown, Settings2,
+  ArrowUp, ArrowDown
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { 
@@ -37,6 +42,24 @@ const naturezaLabels = {
   AVULSA: { label: 'Avulsa', icon: FileText },
 };
 
+type SortField = 'valor' | 'data_vencimento' | 'descricao';
+type SortDir = 'asc' | 'desc';
+
+const ALL_COLUMNS = [
+  { key: 'tipo', label: 'Tipo', default: true },
+  { key: 'descricao', label: 'Descrição', default: true },
+  { key: 'cliente', label: 'Cliente', default: true },
+  { key: 'natureza', label: 'Natureza', default: true },
+  { key: 'vencimento', label: 'Vencimento', default: true },
+  { key: 'status', label: 'Status', default: true },
+  { key: 'valor', label: 'Valor', default: true },
+  { key: 'categoria', label: 'Categoria', default: false },
+  { key: 'conta', label: 'Conta', default: false },
+  { key: 'centro_custo', label: 'Centro de Custo', default: false },
+] as const;
+
+type ColumnKey = typeof ALL_COLUMNS[number]['key'];
+
 interface TransactionsListProps {
   filters: TransactionFilters;
 }
@@ -46,6 +69,15 @@ export function TransactionsList({ filters }: TransactionsListProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingTransaction, setDeletingTransaction] = useState<TransactionWithClient | null>(null);
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [payingTransaction, setPayingTransaction] = useState<TransactionWithClient | null>(null);
+  const [payDate, setPayDate] = useState(new Date().toISOString().split('T')[0]);
+  const [payValue, setPayValue] = useState('');
+  const [sortField, setSortField] = useState<SortField>('data_vencimento');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(
+    new Set(ALL_COLUMNS.filter(c => c.default).map(c => c.key))
+  );
   const isMobile = useIsMobile();
 
   const combinedFilters: TransactionFilters = {
@@ -59,13 +91,52 @@ export function TransactionsList({ filters }: TransactionsListProps) {
   const duplicateMutation = useDuplicateTransaction();
   const deleteMutation = useDeleteTransaction();
 
+  // Sort transactions
+  const sortedTransactions = useMemo(() => {
+    if (!transactions) return [];
+    return [...transactions].sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case 'valor':
+          cmp = Number(a.valor) - Number(b.valor);
+          break;
+        case 'descricao':
+          cmp = (a.descricao || '').localeCompare(b.descricao || '', 'pt-BR');
+          break;
+        case 'data_vencimento':
+        default:
+          cmp = new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime();
+          break;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [transactions, sortField, sortDir]);
+
   const getNatureIcon = (tipo: string) => {
     if (tipo === 'ENTRADA') return <ArrowDownCircle className="w-5 h-5 text-income" />;
     return <ArrowUpCircle className="w-5 h-5 text-expense" />;
   };
 
+  const handleOpenPay = (t: TransactionWithClient) => {
+    setPayingTransaction(t);
+    setPayDate(new Date().toISOString().split('T')[0]);
+    setPayValue(String(t.valor));
+    setShowPayModal(true);
+  };
+
+  const handleConfirmPay = () => {
+    if (payingTransaction) {
+      markPaidMutation.mutate({ 
+        transactionId: payingTransaction.id,
+        valorPago: parseFloat(payValue) || undefined 
+      });
+      setShowPayModal(false);
+      setPayingTransaction(null);
+    }
+  };
+
   const handleMarkPaid = (transaction: TransactionWithClient) => {
-    markPaidMutation.mutate({ transactionId: transaction.id });
+    handleOpenPay(transaction);
   };
 
   const handleDuplicate = (transaction: TransactionWithClient) => {
@@ -91,6 +162,29 @@ export function TransactionsList({ filters }: TransactionsListProps) {
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('pt-BR');
+  };
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('desc');
+    }
+  };
+
+  const toggleColumn = (key: ColumnKey) => {
+    setVisibleColumns(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
+    return sortDir === 'asc' ? <ArrowUp className="w-3 h-3 ml-1" /> : <ArrowDown className="w-3 h-3 ml-1" />;
   };
 
   if (isLoading) {
@@ -143,25 +237,50 @@ export function TransactionsList({ filters }: TransactionsListProps) {
             ))}
           </div>
         ) : (
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-32">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="PAGO">Pago</SelectItem>
-              <SelectItem value="EM_ABERTO">Em Aberto</SelectItem>
-              <SelectItem value="ATRASADO">Atrasado</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="PAGO">Pago</SelectItem>
+                <SelectItem value="EM_ABERTO">Em Aberto</SelectItem>
+                <SelectItem value="ATRASADO">Atrasado</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Column config */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon" className="h-9 w-9">
+                  <Settings2 className="w-4 h-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48" align="end">
+                <p className="text-xs font-medium mb-2 text-muted-foreground">Colunas visíveis</p>
+                <div className="space-y-2">
+                  {ALL_COLUMNS.map(col => (
+                    <label key={col.key} className="flex items-center gap-2 cursor-pointer text-sm">
+                      <Checkbox 
+                        checked={visibleColumns.has(col.key)}
+                        onCheckedChange={() => toggleColumn(col.key)}
+                      />
+                      {col.label}
+                    </label>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         )}
       </div>
 
       {/* Mobile Card List */}
       {isMobile ? (
         <div className="space-y-2">
-          {transactions && transactions.length > 0 ? (
-            transactions.map(t => (
+          {sortedTransactions.length > 0 ? (
+            sortedTransactions.map(t => (
               <MobileTransactionCard
                 key={t.id}
                 transaction={t}
@@ -187,19 +306,40 @@ export function TransactionsList({ filters }: TransactionsListProps) {
               <table className="w-full">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="text-left p-4 text-sm font-medium">Tipo</th>
-                    <th className="text-left p-4 text-sm font-medium">Descrição</th>
-                    <th className="text-left p-4 text-sm font-medium">Cliente</th>
-                    <th className="text-left p-4 text-sm font-medium">Natureza</th>
-                    <th className="text-left p-4 text-sm font-medium">Vencimento</th>
-                    <th className="text-left p-4 text-sm font-medium">Status</th>
-                    <th className="text-right p-4 text-sm font-medium">Valor</th>
-                    <th className="text-center p-4 text-sm font-medium w-16">Ações</th>
+                    {visibleColumns.has('tipo') && <th className="text-left p-4 text-sm font-medium">Tipo</th>}
+                    {visibleColumns.has('descricao') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <button onClick={() => toggleSort('descricao')} className="flex items-center hover:text-foreground">
+                          Descrição <SortIcon field="descricao" />
+                        </button>
+                      </th>
+                    )}
+                    {visibleColumns.has('cliente') && <th className="text-left p-4 text-sm font-medium">Cliente</th>}
+                    {visibleColumns.has('natureza') && <th className="text-left p-4 text-sm font-medium">Natureza</th>}
+                    {visibleColumns.has('categoria') && <th className="text-left p-4 text-sm font-medium">Categoria</th>}
+                    {visibleColumns.has('conta') && <th className="text-left p-4 text-sm font-medium">Conta</th>}
+                    {visibleColumns.has('centro_custo') && <th className="text-left p-4 text-sm font-medium">C. Custo</th>}
+                    {visibleColumns.has('vencimento') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <button onClick={() => toggleSort('data_vencimento')} className="flex items-center hover:text-foreground">
+                          Vencimento <SortIcon field="data_vencimento" />
+                        </button>
+                      </th>
+                    )}
+                    {visibleColumns.has('status') && <th className="text-left p-4 text-sm font-medium">Status</th>}
+                    {visibleColumns.has('valor') && (
+                      <th className="text-right p-4 text-sm font-medium">
+                        <button onClick={() => toggleSort('valor')} className="flex items-center justify-end hover:text-foreground ml-auto">
+                          Valor <SortIcon field="valor" />
+                        </button>
+                      </th>
+                    )}
+                    <th className="text-center p-4 text-sm font-medium w-24">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {transactions && transactions.length > 0 ? (
-                    transactions.map(t => {
+                  {sortedTransactions.length > 0 ? (
+                    sortedTransactions.map(t => {
                       const status = statusConfig[t.status];
                       const StatusIcon = status.icon;
                       const natureza = naturezaLabels[t.natureza];
@@ -207,78 +347,118 @@ export function TransactionsList({ filters }: TransactionsListProps) {
                       
                       return (
                         <tr key={t.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="p-4">{getNatureIcon(t.tipo_movimento)}</td>
+                          {visibleColumns.has('tipo') && <td className="p-4">{getNatureIcon(t.tipo_movimento)}</td>}
+                          {visibleColumns.has('descricao') && (
+                            <td className="p-4">
+                              <p className="font-medium text-sm">{t.descricao || '-'}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {t.competencia_mes.toString().padStart(2, '0')}/{t.competencia_ano}
+                              </p>
+                            </td>
+                          )}
+                          {visibleColumns.has('cliente') && (
+                            <td className="p-4">
+                              <span className="text-sm">{t.recurring_clients?.name || '-'}</span>
+                            </td>
+                          )}
+                          {visibleColumns.has('natureza') && (
+                            <td className="p-4">
+                              <Badge variant="outline" className="text-xs">
+                                <NaturezaIcon className="w-3 h-3 mr-1" />
+                                {natureza.label}
+                              </Badge>
+                            </td>
+                          )}
+                          {visibleColumns.has('categoria') && (
+                            <td className="p-4">
+                              <span className="text-xs text-muted-foreground">{t.categoria_id || '-'}</span>
+                            </td>
+                          )}
+                          {visibleColumns.has('conta') && (
+                            <td className="p-4">
+                              <span className="text-xs text-muted-foreground">{t.conta_id || '-'}</span>
+                            </td>
+                          )}
+                          {visibleColumns.has('centro_custo') && (
+                            <td className="p-4">
+                              <span className="text-xs text-muted-foreground">{t.centro_custo_id || '-'}</span>
+                            </td>
+                          )}
+                          {visibleColumns.has('vencimento') && (
+                            <td className="p-4">
+                              <span className="text-sm">{formatDate(t.data_vencimento)}</span>
+                            </td>
+                          )}
+                          {visibleColumns.has('status') && (
+                            <td className="p-4">
+                              <Badge variant="outline" className={cn("text-xs", status.color)}>
+                                <StatusIcon className="w-3 h-3 mr-1" />
+                                {status.label}
+                              </Badge>
+                            </td>
+                          )}
+                          {visibleColumns.has('valor') && (
+                            <td className="p-4 text-right">
+                              <span className={cn(
+                                "font-semibold",
+                                t.tipo_movimento === 'ENTRADA' && "text-income",
+                                t.tipo_movimento === 'SAIDA' && "text-expense"
+                              )}>
+                                {formatCurrency(Number(t.valor))}
+                              </span>
+                            </td>
+                          )}
                           <td className="p-4">
-                            <p className="font-medium text-sm">{t.descricao || '-'}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {t.competencia_mes.toString().padStart(2, '0')}/{t.competencia_ano}
-                            </p>
-                          </td>
-                          <td className="p-4">
-                            <span className="text-sm">{t.recurring_clients?.name || '-'}</span>
-                          </td>
-                          <td className="p-4">
-                            <Badge variant="outline" className="text-xs">
-                              <NaturezaIcon className="w-3 h-3 mr-1" />
-                              {natureza.label}
-                            </Badge>
-                          </td>
-                          <td className="p-4">
-                            <span className="text-sm">{formatDate(t.data_vencimento)}</span>
-                          </td>
-                          <td className="p-4">
-                            <Badge variant="outline" className={cn("text-xs", status.color)}>
-                              <StatusIcon className="w-3 h-3 mr-1" />
-                              {status.label}
-                            </Badge>
-                          </td>
-                          <td className="p-4 text-right">
-                            <span className={cn(
-                              "font-semibold",
-                              t.tipo_movimento === 'ENTRADA' && "text-income",
-                              t.tipo_movimento === 'SAIDA' && "text-expense"
-                            )}>
-                              {formatCurrency(Number(t.valor))}
-                            </span>
-                          </td>
-                          <td className="p-4">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreVertical className="w-4 h-4" />
+                            <div className="flex items-center justify-center gap-1">
+                              {t.status !== 'PAGO' && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-7 px-2 text-xs text-income hover:text-income hover:bg-income/10"
+                                  onClick={() => handleOpenPay(t)}
+                                >
+                                  <DollarSign className="w-3.5 h-3.5 mr-0.5" />
+                                  Pagar
                                 </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleDuplicate(t)}>
-                                  <Copy className="w-4 h-4 mr-2" /> Duplicar
-                                </DropdownMenuItem>
-                                {t.status !== 'PAGO' && (
-                                  <DropdownMenuItem onClick={() => handleMarkPaid(t)}>
-                                    <CheckCircle className="w-4 h-4 mr-2" /> Marcar Pago
+                              )}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                                    <MoreVertical className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleDuplicate(t)}>
+                                    <Copy className="w-4 h-4 mr-2" /> Duplicar
                                   </DropdownMenuItem>
-                                )}
-                                {t.tipo_movimento === 'ENTRADA' && t.status !== 'PAGO' && (
-                                  <DropdownMenuItem onClick={() => handleSendCollection(t)}>
-                                    <Send className="w-4 h-4 mr-2" /> Enviar Cobrança
-                                  </DropdownMenuItem>
-                                )}
-                                {t.natureza === 'AVULSA' && (
-                                  <DropdownMenuItem 
-                                    className="text-destructive"
-                                    onClick={() => confirmDelete(t)}
-                                  >
-                                    <Trash2 className="w-4 h-4 mr-2" /> Excluir
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                  {t.status !== 'PAGO' && (
+                                    <DropdownMenuItem onClick={() => handleOpenPay(t)}>
+                                      <CheckCircle className="w-4 h-4 mr-2" /> Marcar Pago
+                                    </DropdownMenuItem>
+                                  )}
+                                  {t.tipo_movimento === 'ENTRADA' && t.status !== 'PAGO' && (
+                                    <DropdownMenuItem onClick={() => handleSendCollection(t)}>
+                                      <Send className="w-4 h-4 mr-2" /> Enviar Cobrança
+                                    </DropdownMenuItem>
+                                  )}
+                                  {t.natureza === 'AVULSA' && (
+                                    <DropdownMenuItem 
+                                      className="text-destructive"
+                                      onClick={() => confirmDelete(t)}
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </td>
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                      <td colSpan={12} className="p-8 text-center text-muted-foreground">
                         Nenhuma transação encontrada para os filtros selecionados.
                       </td>
                     </tr>
@@ -289,6 +469,62 @@ export function TransactionsList({ filters }: TransactionsListProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Pay Modal */}
+      <Dialog open={showPayModal} onOpenChange={(v) => !v && setShowPayModal(false)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-income" />
+              Confirmar Pagamento
+            </DialogTitle>
+          </DialogHeader>
+          {payingTransaction && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/50">
+                <p className="text-sm font-medium">{payingTransaction.descricao || '-'}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {payingTransaction.recurring_clients?.name || 'Sem cliente'} • {formatDate(payingTransaction.data_vencimento)}
+                </p>
+                <p className="text-lg font-bold mt-2">{formatCurrency(Number(payingTransaction.valor))}</p>
+              </div>
+              <div>
+                <Label>Valor Pago</Label>
+                <Input 
+                  value={payValue}
+                  onChange={(e) => setPayValue(e.target.value)}
+                  placeholder="0,00"
+                />
+              </div>
+              <div>
+                <Label>Data de Pagamento</Label>
+                <Input 
+                  type="date"
+                  value={payDate}
+                  onChange={(e) => setPayDate(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setShowPayModal(false)} className="flex-1">
+                  Cancelar
+                </Button>
+                <Button 
+                  onClick={handleConfirmPay} 
+                  disabled={markPaidMutation.isPending}
+                  className="flex-1 bg-income hover:bg-income/90"
+                >
+                  {markPaidMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                  )}
+                  Confirmar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Modal */}
       <ConfirmModal
