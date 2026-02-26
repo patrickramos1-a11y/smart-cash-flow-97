@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Check, Loader2, ArrowDownCircle, ArrowUpCircle, Repeat, Split } from 'lucide-react';
 import { useCreateTransaction, useClients } from '@/hooks/useTransactions';
 import { useTransactionCategories, usePaymentMethods, type CategorySubtype } from '@/hooks/useFinancialConfig';
+import { useFinancialEntities, ENTITY_TYPE_LABELS, EntityType } from '@/hooks/useFinancialEntities';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -35,6 +36,7 @@ export function QuickTransactionModal({
     valor: '',
     cliente_id: '',
     categoria_id: '',
+    entity_id: '',
     forma_pagamento_id: '',
     data_vencimento: currentDate.toISOString().split('T')[0],
     competencia_mes: month,
@@ -50,6 +52,7 @@ export function QuickTransactionModal({
   const { data: clients } = useClients();
   const { data: categories } = useTransactionCategories();
   const { data: paymentMethods } = usePaymentMethods();
+  const { data: entities } = useFinancialEntities();
   const createTransaction = useCreateTransaction();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,6 +71,7 @@ export function QuickTransactionModal({
       valor: '',
       cliente_id: '',
       categoria_id: '',
+      entity_id: '',
       forma_pagamento_id: '',
       data_vencimento: currentDate.toISOString().split('T')[0],
       competencia_mes: month,
@@ -104,6 +108,7 @@ export function QuickTransactionModal({
         conta_id: selectedCategory?.default_account_id || null,
         forma_pagamento_id: formData.forma_pagamento_id || null,
         notes: formData.notes || null,
+        entity_id: formData.entity_id || null,
       } as any);
       handleClose();
       return;
@@ -141,6 +146,7 @@ export function QuickTransactionModal({
           conta_id: selectedCategory?.default_account_id || null,
           forma_pagamento_id: formData.forma_pagamento_id || null,
           notes: formData.notes || null,
+          entity_id: formData.entity_id || null,
         } as any);
 
         // Advance month
@@ -333,6 +339,26 @@ export function QuickTransactionModal({
               </Select>
             </div>
           )}
+
+          {/* Entity / Responsável */}
+          <div>
+            <Label>Responsável / Entidade</Label>
+            <Select value={formData.entity_id} onValueChange={(v) => setFormData({ ...formData, entity_id: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Vincular pessoa ou grupo" />
+              </SelectTrigger>
+              <SelectContent>
+                {entities?.filter(e => e.active).map(e => (
+                  <SelectItem key={e.id} value={e.id}>
+                    <span className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">[{ENTITY_TYPE_LABELS[e.type as EntityType]}]</span>
+                      {e.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
