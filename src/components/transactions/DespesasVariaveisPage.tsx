@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -10,23 +9,9 @@ import { useTransactions, useTransactionKPIs } from '@/hooks/useTransactions';
 import { useAccounts, useCostCenters, useTransactionCategories } from '@/hooks/useFinancialConfig';
 import { TransactionsList } from './TransactionsList';
 import { QuickTransactionModal } from './QuickTransactionModal';
+import { MonthYearNavigator } from '@/components/ui/month-year-navigator';
 import { formatCurrency } from '@/data/mockData';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Legend } from 'recharts';
-
-const months = [
-  { value: 1, label: 'Janeiro' },
-  { value: 2, label: 'Fevereiro' },
-  { value: 3, label: 'Março' },
-  { value: 4, label: 'Abril' },
-  { value: 5, label: 'Maio' },
-  { value: 6, label: 'Junho' },
-  { value: 7, label: 'Julho' },
-  { value: 8, label: 'Agosto' },
-  { value: 9, label: 'Setembro' },
-  { value: 10, label: 'Outubro' },
-  { value: 11, label: 'Novembro' },
-  { value: 12, label: 'Dezembro' },
-];
 
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const COLORS = ['hsl(var(--expense))', 'hsl(var(--warning))', 'hsl(var(--primary))', 'hsl(var(--info))', 'hsl(var(--income))'];
@@ -43,7 +28,6 @@ export function DespesasVariaveisPage() {
   const { data: categories } = useTransactionCategories();
   const { data: costCenters } = useCostCenters();
 
-  // Get variable expenses (SAIDA + AVULSA, excluding DESPESA_FIXA origin)
   const { kpis } = useTransactionKPIs({
     competencia_ano: selectedYear,
     competencia_mes: selectedMonth,
@@ -57,21 +41,18 @@ export function DespesasVariaveisPage() {
     natureza: 'AVULSA'
   });
 
-  // Get yearly data
   const { data: yearlyTransactions } = useTransactions({
     competencia_ano: selectedYear,
     tipo_movimento: 'SAIDA',
     natureza: 'AVULSA'
   });
 
-  // Build chart data by month
   const chartData = MONTH_LABELS.map((label, idx) => {
     const monthTransactions = yearlyTransactions?.filter(t => t.competencia_mes === idx + 1) || [];
     const total = monthTransactions.reduce((sum, t) => sum + Number(t.valor), 0);
     return { month: label, valor: total };
   });
 
-  // Group by category
   const byCategory = yearlyTransactions?.reduce((acc, t) => {
     const catId = t.categoria_id || 'sem-categoria';
     if (!acc[catId]) acc[catId] = 0;
@@ -87,7 +68,6 @@ export function DespesasVariaveisPage() {
     .sort((a, b) => b.value - a.value)
     .slice(0, 8);
 
-  // Group by cost center
   const byCostCenter = yearlyTransactions?.reduce((acc, t) => {
     const ccId = t.centro_custo_id || 'sem-centro';
     if (!acc[ccId]) acc[ccId] = 0;
@@ -103,7 +83,6 @@ export function DespesasVariaveisPage() {
     .sort((a, b) => b.value - a.value)
     .slice(0, 6);
 
-  // Group by account
   const byAccount = yearlyTransactions?.reduce((acc, t) => {
     const accId = t.conta_id || 'sem-conta';
     if (!acc[accId]) acc[accId] = 0;
@@ -118,47 +97,27 @@ export function DespesasVariaveisPage() {
     }))
     .sort((a, b) => b.value - a.value);
 
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
-
   return (
     <div className="space-y-6">
-      {/* Header with filters */}
+      {/* Header */}
       <div className="flex flex-wrap gap-4 items-center justify-between">
         <div className="flex items-center gap-2">
           <FileText className="w-5 h-5 text-expense" />
           <h2 className="text-xl font-bold">Despesas Variáveis</h2>
           <Badge variant="outline" className="ml-2">Pontuais</Badge>
         </div>
-        
-        <div className="flex gap-2">
-          <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(Number(v))}>
-            <SelectTrigger className="w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {months.map(m => (
-                <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
-            <SelectTrigger className="w-24">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {years.map(y => (
-                <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Button onClick={() => setShowModal(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Nova Despesa
-          </Button>
-        </div>
+        <Button onClick={() => setShowModal(true)} className="gap-2">
+          <Plus className="w-4 h-4" />
+          Nova Despesa
+        </Button>
       </div>
+
+      <MonthYearNavigator 
+        month={selectedMonth} 
+        year={selectedYear} 
+        onMonthChange={setSelectedMonth} 
+        onYearChange={setSelectedYear} 
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -184,7 +143,7 @@ export function DespesasVariaveisPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{formatCurrency(yearKpis.totalEsperado)}</p>
-            <p className="text-xs text-muted-foreground">{yearKpis.quantidadeTotal} lançamentos no ano</p>
+            <p className="text-xs text-muted-foreground">{yearKpis.quantidadeTotal} no ano</p>
           </CardContent>
         </Card>
 
@@ -217,7 +176,6 @@ export function DespesasVariaveisPage() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly chart */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -243,7 +201,6 @@ export function DespesasVariaveisPage() {
           </CardContent>
         </Card>
 
-        {/* By Category pie */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -330,7 +287,6 @@ export function DespesasVariaveisPage() {
         </Card>
       </div>
 
-      {/* Transactions List */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Lançamentos do Mês</CardTitle>
@@ -347,7 +303,6 @@ export function DespesasVariaveisPage() {
         </CardContent>
       </Card>
 
-      {/* Quick Transaction Modal - pre-configured for Saída Avulsa */}
       <QuickTransactionModal
         open={showModal}
         onClose={() => setShowModal(false)}

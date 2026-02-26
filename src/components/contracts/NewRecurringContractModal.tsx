@@ -21,7 +21,7 @@ import {
   useCreateClientWithContract,
   type CreateContractInput
 } from '@/hooks/useRecurringContracts';
-import { useAccounts } from '@/hooks/useFinancialConfig';
+import { useTransactionCategories } from '@/hooks/useFinancialConfig';
 import { formatCurrency } from '@/data/mockData';
 
 interface NewRecurringContractModalProps {
@@ -69,14 +69,13 @@ export function NewRecurringContractModal({ open, onClose, defaultYear }: NewRec
   // Contract data
   const [startDate, setStartDate] = useState(`${currentYear}-01-01`);
   const [year, setYear] = useState(currentYear);
-  const [defaultAccountId, setDefaultAccountId] = useState('');
   const [notes, setNotes] = useState('');
   
   // Data hooks
   const { data: clients } = useRecurringClients();
   const { data: plans } = useContractPlans();
   const { data: minimumWageConfigs } = useMinimumWageConfig(year);
-  const { data: accounts } = useAccounts();
+  const { data: categories } = useTransactionCategories();
   
   const createContract = useCreateContractWithInstallments();
   const createClientWithContract = useCreateClientWithContract();
@@ -139,7 +138,6 @@ export function NewRecurringContractModal({ open, onClose, defaultYear }: NewRec
     setDiscountUntil('');
     setStartDate(`${currentYear}-01-01`);
     setYear(currentYear);
-    setDefaultAccountId('');
     setNotes('');
   };
 
@@ -172,7 +170,6 @@ export function NewRecurringContractModal({ open, onClose, defaultYear }: NewRec
         fixed_value: pricingModel === 'FIXED' ? parseFloat(fixedValue.replace(/\./g, '').replace(',', '.')) : undefined,
         start_date: startDate,
         notes: notes || undefined,
-        default_account_id: defaultAccountId || undefined,
         year,
         ...(hasDiscount && discountAmountNum > 0 ? {
           discount_type: discountType,
@@ -453,19 +450,6 @@ export function NewRecurringContractModal({ open, onClose, defaultYear }: NewRec
               </div>
             </div>
 
-            <div>
-              <Label>Conta Padrão de Recebimento</Label>
-              <Select value={defaultAccountId} onValueChange={setDefaultAccountId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecionar conta (opcional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accounts?.filter(a => a.active).map(a => (
-                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
         )}
 

@@ -105,7 +105,7 @@ export function Dashboard() {
   // Active contracts and total SM
   const activeContracts = contracts?.filter(c => c.active).length || 0;
   const totalSM = contracts?.reduce((sum, c) => {
-    const factor = c.custom_minimum_wage_factor || 0;
+    const factor = c.custom_minimum_wage_factor || c.plan?.minimum_wage_factor || 0;
     return sum + factor;
   }, 0) || 0;
 
