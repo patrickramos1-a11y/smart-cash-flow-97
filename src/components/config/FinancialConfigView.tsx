@@ -224,12 +224,26 @@ function CompaniesTab() {
 
 function AccountsTab() {
   const { data: accounts, isLoading } = useAccounts();
-  const { data: categories } = useAccountCategories();
+  const { data: accountCategories } = useAccountCategories();
+  const { data: transactionCategories } = useTransactionCategories();
   const createAccount = useCreateAccount();
   const updateAccount = useUpdateAccount();
   const deleteAccount = useDeleteAccount();
+  const updateTransactionCategory = useUpdateTransactionCategory();
+  const createTransactionCategory = useCreateTransactionCategory();
+  const { data: costCenters } = useCostCenters();
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
+  const [linkDialogAccountId, setLinkDialogAccountId] = useState<string | null>(null);
+  const [newCatDialogAccountId, setNewCatDialogAccountId] = useState<string | null>(null);
+  const [newCatForm, setNewCatForm] = useState({
+    name: '',
+    cost_center_id: '',
+    type: 'SAIDA' as 'ENTRADA' | 'SAIDA',
+    subtype: '' as string,
+    color: '#6366f1',
+  });
   const [formData, setFormData] = useState({
     name: '',
     bank: '',
@@ -237,6 +251,63 @@ function AccountsTab() {
     initial_balance: 0,
     active: true
   });
+
+  const toggleExpand = (id: string) => {
+    setExpandedAccounts(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const getCategoriesForAccount = (accountId: string) => {
+    return transactionCategories?.filter(c => c.default_account_id === accountId) || [];
+  };
+
+  const getUnlinkedCategories = () => {
+    return transactionCategories?.filter(c => !c.default_account_id && c.active) || [];
+  };
+
+  const handleLinkCategory = (categoryId: string, accountId: string) => {
+    updateTransactionCategory.mutate({ id: categoryId, default_account_id: accountId } as any);
+  };
+
+  const handleUnlinkCategory = (categoryId: string) => {
+    updateTransactionCategory.mutate({ id: categoryId, default_account_id: null } as any);
+  };
+
+  const handleCreateAndLink = (accountId: string) => {
+    if (!newCatForm.name || !newCatForm.cost_center_id) return;
+    const subtypeMap: Record<string, string> = {
+      'ENTRADA-RECORRENTE': 'RECORRENTE',
+      'ENTRADA-AVULSA': 'AVULSA',
+      'SAIDA-FIXA': 'FIXA',
+      'SAIDA-VARIAVEL': 'VARIAVEL',
+    };
+    const key = `${newCatForm.type}-${newCatForm.subtype}`;
+    createTransactionCategory.mutate({
+      name: newCatForm.name,
+      cost_center_id: newCatForm.cost_center_id,
+      type: newCatForm.type,
+      subtype: (subtypeMap[key] || newCatForm.subtype) as any,
+      default_account_id: accountId,
+      color: newCatForm.color,
+      active: true,
+    }, {
+      onSuccess: () => {
+        setNewCatDialogAccountId(null);
+        setNewCatForm({ name: '', cost_center_id: '', type: 'SAIDA', subtype: '', color: '#6366f1' });
+      }
+    });
+  };
+
+  const SUBTYPE_LABELS: Record<string, string> = {
+    RECORRENTE: 'Entrada Recorrente',
+    AVULSA: 'Entrada Avulsa',
+    FIXA: 'Despesa Fixa',
+    VARIAVEL: 'Despesa Variável',
+  };
 
   const handleSubmit = () => {
     const payload = {
@@ -284,7 +355,7 @@ function AccountsTab() {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <p className="text-muted-foreground">Contas bancárias e carteiras da empresa.</p>
+        <p className="text-muted-foreground">Contas bancárias e carteiras — expanda para ver categorias vinculadas.</p>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" />Nova Conta</Button>
@@ -317,7 +388,7 @@ function AccountsTab() {
                     <SelectValue placeholder="Selecione uma categoria" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories?.map((cat) => (
+                    {accountCategories?.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -347,56 +418,191 @@ function AccountsTab() {
         </Dialog>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nome</TableHead>
-            <TableHead>Banco</TableHead>
-            <TableHead>Categoria</TableHead>
-            <TableHead className="text-right">Saldo Atual</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="w-[100px]">Ações</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {accounts?.map((account) => (
-            <TableRow key={account.id}>
-              <TableCell className="font-medium">{account.name}</TableCell>
-              <TableCell>{account.bank || '-'}</TableCell>
-              <TableCell>
-                {account.category ? (
-                  <Badge style={{ backgroundColor: account.category.color || undefined }}>
-                    {account.category.name}
-                  </Badge>
-                ) : '-'}
-              </TableCell>
-              <TableCell className="text-right font-mono">
-                {formatCurrency(account.current_balance)}
-              </TableCell>
-              <TableCell>
-                <Badge variant={account.active ? 'default' : 'secondary'}>
-                  {account.active ? 'Ativa' : 'Inativa'}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(account)}>
-                    <Pencil className="w-4 h-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => deleteAccount.mutate(account.id)}
-                    className="text-destructive"
-                  >
-                    <Trash2 className="w-4 h-4" />
+      {/* Link existing category dialog */}
+      <Dialog open={!!linkDialogAccountId} onOpenChange={(open) => !open && setLinkDialogAccountId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Vincular Categoria Existente</DialogTitle>
+            <DialogDescription>Selecione categorias sem vínculo para adicionar a esta conta.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[300px] overflow-y-auto py-2">
+            {getUnlinkedCategories().length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Todas as categorias já estão vinculadas.</p>
+            ) : (
+              getUnlinkedCategories().map(cat => (
+                <div key={cat.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color || '#6366f1' }} />
+                    <span className="text-sm font-medium">{cat.name}</span>
+                    <Badge variant="outline" className="text-xs">
+                      {SUBTYPE_LABELS[cat.subtype || ''] || cat.type}
+                    </Badge>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => {
+                    if (linkDialogAccountId) handleLinkCategory(cat.id, linkDialogAccountId);
+                  }}>
+                    <Plus className="w-3 h-3 mr-1" />Vincular
                   </Button>
                 </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create new category for account dialog */}
+      <Dialog open={!!newCatDialogAccountId} onOpenChange={(open) => !open && setNewCatDialogAccountId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nova Categoria para esta Conta</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nome</Label>
+              <Input value={newCatForm.name} onChange={e => setNewCatForm({ ...newCatForm, name: e.target.value })} placeholder="Nome da categoria" />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <Select value={newCatForm.type} onValueChange={v => setNewCatForm({ ...newCatForm, type: v as any, subtype: '' })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ENTRADA">Entrada</SelectItem>
+                  <SelectItem value="SAIDA">Despesa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Subtipo</Label>
+              <Select value={newCatForm.subtype} onValueChange={v => setNewCatForm({ ...newCatForm, subtype: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {newCatForm.type === 'ENTRADA' ? (
+                    <>
+                      <SelectItem value="RECORRENTE">Recorrente</SelectItem>
+                      <SelectItem value="AVULSA">Avulsa</SelectItem>
+                    </>
+                  ) : (
+                    <>
+                      <SelectItem value="FIXA">Fixa</SelectItem>
+                      <SelectItem value="VARIAVEL">Variável</SelectItem>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Centro de Custo</Label>
+              <Select value={newCatForm.cost_center_id} onValueChange={v => setNewCatForm({ ...newCatForm, cost_center_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {costCenters?.map(cc => (
+                    <SelectItem key={cc.id} value={cc.id}>{cc.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Cor</Label>
+              <Input type="color" value={newCatForm.color} onChange={e => setNewCatForm({ ...newCatForm, color: e.target.value })} className="h-10 w-20" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewCatDialogAccountId(null)}>Cancelar</Button>
+            <Button onClick={() => newCatDialogAccountId && handleCreateAndLink(newCatDialogAccountId)} disabled={!newCatForm.name || !newCatForm.cost_center_id}>
+              Criar e Vincular
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Account cards */}
+      <div className="space-y-3">
+        {accounts?.map((account) => {
+          const linkedCategories = getCategoriesForAccount(account.id);
+          const isExpanded = expandedAccounts.has(account.id);
+          return (
+            <div key={account.id} className="border border-border/50 rounded-xl overflow-hidden">
+              {/* Account header */}
+              <div
+                className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+                onClick={() => toggleExpand(account.id)}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Landmark className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">{account.name}</p>
+                    <p className="text-sm text-muted-foreground">{account.bank || 'Sem banco'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline" className="font-mono">
+                    {formatCurrency(account.current_balance)}
+                  </Badge>
+                  <Badge className="text-xs">
+                    {linkedCategories.length} categoria{linkedCategories.length !== 1 ? 's' : ''}
+                  </Badge>
+                  <Badge variant={account.active ? 'default' : 'secondary'}>
+                    {account.active ? 'Ativa' : 'Inativa'}
+                  </Badge>
+                  <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(account)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => deleteAccount.mutate(account.id)} className="text-destructive">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </div>
+              </div>
+
+              {/* Expanded categories */}
+              {isExpanded && (
+                <div className="border-t border-border/50 bg-muted/20 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-muted-foreground">Categorias vinculadas a esta conta</p>
+                    <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                      <Button size="sm" variant="outline" onClick={() => setLinkDialogAccountId(account.id)}>
+                        <Plus className="w-3 h-3 mr-1" />Vincular Existente
+                      </Button>
+                      <Button size="sm" onClick={() => setNewCatDialogAccountId(account.id)}>
+                        <Plus className="w-3 h-3 mr-1" />Nova Categoria
+                      </Button>
+                    </div>
+                  </div>
+                  {linkedCategories.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic py-2">Nenhuma categoria vinculada a esta conta.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {linkedCategories.map(cat => (
+                        <div key={cat.id} className="flex items-center justify-between p-2.5 rounded-lg bg-background border border-border/30">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color || '#6366f1' }} />
+                            <span className="text-sm font-medium truncate">{cat.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <Badge variant="outline" className="text-[10px] px-1.5">
+                              {SUBTYPE_LABELS[cat.subtype || ''] || cat.type}
+                            </Badge>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => handleUnlinkCategory(cat.id)}>
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {accounts?.length === 0 && (
+          <p className="text-center text-muted-foreground py-8">Nenhuma conta cadastrada</p>
+        )}
+      </div>
     </div>
   );
 }
