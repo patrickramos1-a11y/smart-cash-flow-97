@@ -254,6 +254,11 @@ export function useCreateTransaction() {
           data_vencimento: transaction.data_vencimento!,
           status: transaction.status || 'EM_ABERTO',
           descricao: transaction.descricao,
+          // Use new UUID-based fields alongside legacy text fields
+          transaction_category_id: transaction.categoria_id,
+          account_id: transaction.conta_id,
+          cost_center_id: transaction.centro_custo_id,
+          // Keep legacy fields for backwards compatibility
           categoria_id: transaction.categoria_id,
           centro_custo_id: transaction.centro_custo_id,
           conta_id: transaction.conta_id,
