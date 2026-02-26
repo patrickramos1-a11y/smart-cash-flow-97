@@ -1,214 +1,153 @@
 
-# Plano de Correcao e Evolucao do Modulo Financeiro
 
-## Resumo
+# Plano: Expansao de Categorias para Consultoria Ambiental
 
-Este plano aborda todos os problemas identificados em 4 fases, da correcao critica ate a evolucao de interface. O foco principal esta em: corrigir projecao de contratos recorrentes, garantir heranca automatica categoria-conta, reestruturar a aba de Contas para refletir valores reais, e adicionar novas capacidades como entidades de vinculos e repeticao de despesas variaveis.
+## Contexto Atual
 
----
-
-## FASE 1 -- Correcoes Criticas
-
-### 1.1 Corrigir Projecao de Contratos Recorrentes
-
-**Problema:** Contratos recorrentes aparecem apenas em dezembro e nao impactam dashboards.
-
-**Causa raiz:** No `useCreateContractWithInstallments`, as parcelas sao geradas corretamente a partir do `startMonth`, porem o trigger `sync_installment_to_transaction` pode nao estar sendo disparado corretamente (triggers estao reportados como inexistentes no schema). As transacoes criadas pelo trigger usam `origem = 'CONTRATO_RECORRENTE'` mas a logica de filtro no dashboard e na aba recorrente pode nao estar considerando esse campo.
-
-**Solucao:**
-- Verificar e recriar os triggers `sync_installment_to_transaction` e `sync_transaction_to_installment` caso nao estejam ativos (migracao SQL)
-- No `Dashboard.tsx`, garantir que contratos recorrentes (transacoes com `origem = 'CONTRATO_RECORRENTE'`) sejam contabilizados na projecao anual
-- No `ProjectionChart.tsx`, corrigir a logica: atualmente usa `contracts` e calcula `projectedMonthlyRevenue` para meses futuros, mas para meses passados filtra por `status === 'PAGO'` -- deve incluir `EM_ABERTO` tambem no valor esperado
-- Invalidar queries de transacoes apos criacao de contrato (ja existe, verificar se funciona)
-
-**Arquivos:** `ProjectionChart.tsx`, `Dashboard.tsx`, nova migracao SQL para triggers
-
-### 1.2 Corrigir Heranca Categoria -> Conta -> Centro de Custo
-
-**Problema:** Sistema ainda mostra selecao manual de conta em contratos recorrentes. Categoria exibindo dados incorretos.
-
-**Solucao:**
-- `NewRecurringContractModal.tsx`: Remover campo `defaultAccountId` e select de contas (linhas 72, 457-470). Adicionar campo de selecao de categoria (filtrada para `ENTRADA` + `RECORRENTE`). Herdar `account_id` e `cost_center_id` da categoria selecionada
-- `useCreateContractWithInstallments`: Ao criar transacoes via trigger, garantir que `conta_id` e `centro_custo_id` sejam populados a partir da categoria vinculada
-- `NewFixedExpenseModal.tsx`: Remover campo desabilitado de conta manual (ja herda, mas precisa limpar o campo `conta_id` do formData que ainda aparece)
-
-**Arquivos:** `NewRecurringContractModal.tsx`, `useRecurringContracts.ts`, `NewFixedExpenseModal.tsx`
-
-### 1.3 Regra Clara para Desconto Fixo
-
-**Problema:** Opcao de desconto sem prazo definido pode comprometer projecao.
-
-**Solucao:**
-- No `NewRecurringContractModal.tsx`, step "discount": tornar obrigatoria a selecao de duracao quando desconto estiver ativo
-- Adicionar terceira opcao: "Desconto indefinido (ate encerramento manual)" com aviso visual
-- Na projecao, descontos indefinidos aplicam o desconto em todos os meses ate `end_date` do contrato ou fim do ano
-
-**Arquivos:** `NewRecurringContractModal.tsx`
+O sistema possui **14 contas** (BANCARIA, ALIMENTACAO, TRANSPORTE, UNIFORMES, LIMPEZA, MANUTENCAO, MATERIAL DE ESCRITORIO, etc.) e aproximadamente **35 categorias** de transacao. O objetivo e criar categorias mais granulares que reflitam a realidade operacional de uma consultoria ambiental, vinculando cada uma a sua conta, centro de custo e tipo corretos.
 
 ---
 
-## FASE 2 -- Evolucao Estrutural
+## Novas Categorias Propostas
 
-### 2.1 Criar Modulo de Entidades Financeiras (Responsaveis/Fornecedores)
+### CONTA: ALIMENTACAO (id: 91ad8411)
+Centro de Custo: Despesas administrativas | Tipo: VARIAVEL
 
-**Nova tabela no banco de dados:**
+| Categoria | Subtipo | Justificativa |
+|-----------|---------|---------------|
+| REFEICAO EM CAMPO | VARIAVEL | Alimentacao durante visitas tecnicas e campo |
+| REFEICAO NO ESCRITORIO | VARIAVEL | Marmitas, deliveries, refeitorio |
+| COFFEE BREAK / REUNIAO | VARIAVEL | Cafes, lanches para reunioes com clientes |
+| AGUA MINERAL / BEBIDAS | VARIAVEL | Galoes, garrafas para equipe e campo |
+| CESTA BASICA | VARIAVEL | Beneficio de cesta basica para colaboradores |
 
-```text
-financial_entities
-  id          UUID PK
-  name        TEXT NOT NULL
-  type        TEXT NOT NULL  -- 'COLABORADOR', 'FORNECEDOR', 'SOCIO', 'GRUPO'
-  email       TEXT
-  phone       TEXT
-  document    TEXT
-  cost_center_id  UUID (FK opcional)
-  active      BOOLEAN DEFAULT true
-  notes       TEXT
-  created_at  TIMESTAMPTZ
-  updated_at  TIMESTAMPTZ
-```
+### CONTA: TRANSPORTE (id: 9a80e828)
+Centro de Custo: Despesas com logistica | Tipo: VARIAVEL
 
-**Adicionar coluna na tabela transactions:**
+| Categoria | Subtipo | Justificativa |
+|-----------|---------|---------------|
+| COMBUSTIVEL - GASOLINA | VARIAVEL | Abastecimento gasolina veiculos |
+| COMBUSTIVEL - DIESEL | VARIAVEL | Abastecimento diesel (caminhonetes campo) |
+| PEDAGIO | VARIAVEL | Pedagios em deslocamentos tecnicos |
+| ESTACIONAMENTO | VARIAVEL | Estacionamento em visitas |
+| PASSAGEM AEREA | VARIAVEL | Voos para projetos distantes |
+| PASSAGEM RODOVIARIA | VARIAVEL | Onibus intermunicipais |
+| FRETE / TRANSPORTE DE CARGA | VARIAVEL | Transporte de equipamentos e amostras |
+| ALUGUEL DE VEICULO | VARIAVEL | Locacao para campo |
+| MANUTENCAO VEICULAR | VARIAVEL | Revisoes, pneus, oleo dos veiculos |
+| UBER / TAXI / APP | VARIAVEL | Deslocamentos urbanos por aplicativo |
 
-```text
-transactions
-  + entity_id  UUID (FK para financial_entities, nullable)
-```
+### CONTA: UNIFORMES (id: 8ce81242)
+Centro de Custo: Despesas pessoais | Tipo: VARIAVEL
 
-**Impacto no codigo:**
-- Criar hook `useFinancialEntities.ts` com CRUD
-- Na aba de Configuracoes, adicionar nova tab "Entidades" com gestao de colaboradores, fornecedores, socios e grupos
-- Nos modais de lancamento (`QuickTransactionModal`, `NewFixedExpenseModal`), adicionar campo opcional "Responsavel / Vinculado a" com busca
-- No `TransactionsHub` e `Dashboard`, permitir filtro por entidade
+| Categoria | Subtipo | Justificativa |
+|-----------|---------|---------------|
+| CAMISA / CAMISETA | VARIAVEL | Camisas polo, camisetas com logo |
+| CALCA / BERMUDA | VARIAVEL | Calcas cargo, jeans para campo |
+| CALCADO / BOTA | VARIAVEL | Botas de campo, sapatos de seguranca |
+| EPI - CAPACETE | VARIAVEL | Capacetes de seguranca |
+| EPI - LUVAS | VARIAVEL | Luvas de protecao |
+| EPI - OCULOS / PROTETOR | VARIAVEL | Oculos, protetor auricular, mascaras |
+| CRACHA / IDENTIFICACAO | VARIAVEL | Crachas, cordoes, porta-crachas |
+| COLETE / JAQUETA | VARIAVEL | Coletes refletivos, jaquetas de campo |
+| MOCHILA / BOLSA DE CAMPO | VARIAVEL | Mochilas tecnicas para equipe |
 
-**Arquivos novos:** `src/hooks/useFinancialEntities.ts`
-**Arquivos modificados:** `FinancialConfigView.tsx`, `QuickTransactionModal.tsx`, `NewFixedExpenseModal.tsx`, `TransactionsHub.tsx`, migracao SQL
+### CONTA: LIMPEZA (id: b3412183)
+Centro de Custo: Despesas com manutencao e limpeza | Tipo: VARIAVEL
 
-### 2.2 Despesa Variavel com Repeticao Limitada
+| Categoria | Subtipo | Justificativa |
+|-----------|---------|---------------|
+| PRODUTO DE LIMPEZA | VARIAVEL | Desinfetantes, detergentes, alcool |
+| MATERIAL DE LIMPEZA | VARIAVEL | Vassouras, panos, baldes, rodos |
+| MAO DE OBRA - LIMPEZA | FIXA | Servico de faxineira/empresa terceirizada |
+| DESCARTAVEIS / HIGIENE | VARIAVEL | Papel toalha, papel higienico, sabonete |
 
-**Problema:** Nao existe opcao de repetir despesa variavel X vezes.
+### CONTA: MANUTENCAO (id: 4f454bfc)
+Centro de Custo: Despesas com manutencao e limpeza | Tipo: VARIAVEL
 
-**Solucao:**
-- No `QuickTransactionModal.tsx`, quando `filterSubtype === 'VARIAVEL'`, adicionar secao "Repetir":
-  - Toggle "Repetir este lancamento"
-  - Campo "Quantas vezes" (2 a 24)
-  - Opcao "Parcelamento" (divide o valor) vs "Repeticao" (mesmo valor)
-- Ao submeter, gerar N transacoes com competencias sequenciais
-- Descricao: "Nome - Parcela X/N" ou "Nome - Repeticao X/N"
+| Categoria | Subtipo | Justificativa |
+|-----------|---------|---------------|
+| MANUTENCAO ELETRICA | VARIAVEL | Reparos eletricos, lampadas, fiacoes |
+| MANUTENCAO HIDRAULICA | VARIAVEL | Encanamento, torneiras, caixa dagua |
+| MANUTENCAO CIVIL / PREDIAL | VARIAVEL | Pintura, alvenaria, piso |
+| MANUTENCAO DE EQUIPAMENTOS | VARIAVEL | Reparo de GPS, drones, instrumentos |
+| MANUTENCAO DE TI | VARIAVEL | Reparo de PCs, servidores, rede |
+| MANUTENCAO AR CONDICIONADO | VARIAVEL | Limpeza e reparo de split/central |
+| JARDINAGEM / AREA EXTERNA | VARIAVEL | Corte de grama, poda, paisagismo |
 
-**Arquivos:** `QuickTransactionModal.tsx`, `useTransactions.ts` (nova mutacao `useCreateBatchTransactions`)
+### CONTA: MATERIAL DE ESCRITORIO (id: 7e66769f)
+Centro de Custo: Despesas administrativas | Tipo: VARIAVEL
 
----
+| Categoria | Subtipo | Justificativa |
+|-----------|---------|---------------|
+| PAPELARIA | VARIAVEL | Papel A4, envelopes, pastas, etiquetas |
+| TONER / CARTUCHO | VARIAVEL | Suprimentos de impressao |
+| CANETA / LAPIS / MARCADOR | VARIAVEL | Material de escrita |
+| MATERIAL DE ENCADERNACAO | VARIAVEL | Espirais, capas, grampos - para relatorios tecnicos |
+| SUPRIMENTOS DE INFORMATICA | VARIAVEL | Cabos, mouses, teclados, pen drives |
+| MOBILIARIO | VARIAVEL | Cadeiras, mesas, estantes |
+| CARTORIO / AUTENTICACAO | VARIAVEL | Reconhecimento firma, copias autenticadas |
 
-## FASE 3 -- Reforma de Interface
+### CONTA: BRINDES (id: 770788da)
+Centro de Custo: Despesas pessoais | Tipo: VARIAVEL
 
-### 3.1 Reformular Graficos com Despesas Fixas vs Variaveis
+| Categoria | Subtipo | Justificativa |
+|-----------|---------|---------------|
+| BRINDE CORPORATIVO | VARIAVEL | Canecas, agendas, kits com logo |
+| PRESENTE / PREMIACAO | VARIAVEL | Reconhecimento de equipe |
+| MATERIAL PROMOCIONAL | VARIAVEL | Banners, folders, adesivos |
 
-**Problema:** Graficos nao distinguem visualmente fixas de variaveis.
+### CONTA: MKT (id: 7aae7704)
+Centro de Custo: Despesas comerciais | Tipo: VARIAVEL
 
-**Solucao:**
-- No `RevenueExpenseChart.tsx`, substituir barra unica de despesas por 2 barras empilhadas:
-  - Coluna 1: Despesas Fixas (cor vermelha escura)
-  - Coluna 2: Despesas Variaveis (cor laranja)
-  - Linha: Total consolidado
-- Adicionar toggles para ativar/desativar camadas
+| Categoria | Subtipo | Justificativa |
+|-----------|---------|---------------|
+| MARKETING DIGITAL | VARIAVEL | Google Ads, Meta Ads, LinkedIn |
+| DESIGN / IDENTIDADE VISUAL | VARIAVEL | Criacao de artes, logos, apresentacoes |
+| EVENTO / FEIRA | VARIAVEL | Participacao em feiras ambientais |
+| MIDIA IMPRESSA | VARIAVEL | Flyers, cartoes de visita, catalogos |
 
-**Arquivos:** `RevenueExpenseChart.tsx`, `TransactionsAnnualChart.tsx`
+### CONTA: IMPOSTOS E TAXAS (id: c195d69a)
+Centro de Custo: Impostos e taxas | Tipo: VARIAVEL
 
-### 3.2 Navegacao Mensal Moderna
-
-**Problema:** Selecao de mes com dropdowns antigos em todas as abas.
-
-**Solucao:**
-- Criar componente `MonthYearNavigator` com botoes prev/next, barra horizontal de meses clicaveis e transicao visual
-- Substituir os selects de mes/ano em: `TransactionsHub.tsx`, `DespesasFixasPage.tsx`, `DespesasVariaveisPage.tsx`, `EntradasAvulsasPage.tsx`, `EntradasRecorrentesPage.tsx`
-
-**Arquivo novo:** `src/components/ui/month-year-navigator.tsx`
-**Arquivos modificados:** 5 paginas de transacao
-
-### 3.3 Busca Inteligente de Categoria com Digitacao Progressiva
-
-**Problema:** Lista completa de categorias aparece aberta, sem filtro.
-
-**Solucao:**
-- Nos modais (`QuickTransactionModal`, `NewFixedExpenseModal`), substituir `Select` por componente `Command` (cmdk ja instalado) com:
-  - Input com digitacao progressiva
-  - Filtro automatico
-  - Agrupamento por subtipo
-  - Botao "+" para criar nova categoria inline
-
-**Arquivos:** `QuickTransactionModal.tsx`, `NewFixedExpenseModal.tsx`, `NewRecurringContractModal.tsx`
-
-### 3.4 Botao Rapido para Criar Categoria no Lancamento
-
-**Solucao:**
-- Adicionar botao "+" ao lado do campo de categoria em todos os modais de lancamento
-- Ao clicar, abrir Dialog inline para criar categoria rapida (nome, tipo, subtipo, conta, centro de custo)
-- Ao salvar, selecionar automaticamente a nova categoria
-
-**Arquivos:** `QuickTransactionModal.tsx`, `NewFixedExpenseModal.tsx`
-
----
-
-## FASE 4 -- Reestruturacao da Aba de Contas
-
-### 4.1 Corrigir Saldos das Contas
-
-**Problema:** Contas nao puxam valores e estao inconsistentes.
-
-**Causa raiz:** O campo `current_balance` em `accounts` nao e atualizado automaticamente com base nas transacoes. Ele reflete apenas o `initial_balance` estatico.
-
-**Solucao:**
-- Criar funcao SQL `recalculate_account_balance(account_id)` que:
-  - Soma todas as transacoes PAGO vinculadas a conta (entradas - saidas)
-  - Soma transferencias de/para a conta
-  - Atualiza `current_balance = initial_balance + saldo_transacoes + saldo_transferencias`
-- Criar trigger que dispara apos INSERT/UPDATE/DELETE em `transactions` quando `conta_id` muda ou `status` muda para/de PAGO
-- Criar trigger similar em `account_transfers`
-- Executar recalculo em massa para todas as contas existentes
-
-**Arquivos:** Nova migracao SQL
-
-### 4.2 Melhorar Visualizacao na Aba de Contas (AccountsView)
-
-**Solucao:**
-- Corrigir `AccountsView.tsx` para que o grafico de evolucao use `account_id` (UUID) ao inves de `conta_id` (texto legado) na filtragem de transacoes
-- Garantir que a projecao de meses futuros use as categorias vinculadas a conta para calcular entradas/saidas projetadas
-- Adicionar indicador de categorias vinculadas por conta na listagem
-
-**Arquivos:** `AccountsView.tsx`
+| Categoria | Subtipo | Justificativa |
+|-----------|---------|---------------|
+| TAXA AMBIENTAL / LICENCIAMENTO | VARIAVEL | Taxas de orgaos ambientais (IBAMA, SEMA) |
+| TAXA DE ART / RRT | VARIAVEL | Anotacao de Responsabilidade Tecnica |
+| ANUIDADE CONSELHO (CREA/CRBio) | FIXA | Anuidades de conselhos profissionais |
+| ALVARA / LICENCA MUNICIPAL | FIXA | Alvaras de funcionamento |
+| TAXA BANCARIA / TARIFA | VARIAVEL | Tarifas de conta, TED, DOC |
 
 ---
 
-## Ordem de Execucao
+## Resumo Quantitativo
 
-1. Migracao SQL: triggers de sync, tabela `financial_entities`, coluna `entity_id`, funcao de recalculo de saldo
-2. Corrigir projecao de contratos e heranca categoria-conta (Fase 1)
-3. Reestruturar saldos de contas (Fase 4.1)
-4. Criar hooks e UI de entidades financeiras (Fase 2.1)
-5. Repeticao de despesas variaveis (Fase 2.2)
-6. Reformulacao de graficos e navegacao (Fase 3)
-7. Busca inteligente e botao de criacao rapida (Fase 3.3 e 3.4)
+| Conta | Categorias Novas | Tipo Predominante |
+|-------|-----------------|-------------------|
+| ALIMENTACAO | 5 | Variavel |
+| TRANSPORTE | 10 | Variavel |
+| UNIFORMES | 9 | Variavel |
+| LIMPEZA | 4 | Misto |
+| MANUTENCAO | 7 | Variavel |
+| MATERIAL DE ESCRITORIO | 7 | Variavel |
+| BRINDES | 3 | Variavel |
+| MKT | 4 | Variavel |
+| IMPOSTOS E TAXAS | 5 | Misto |
+| **TOTAL** | **54** | |
 
-## Arquivos Impactados (resumo)
+---
 
-**Novas migracoes SQL:** 1 migracao consolidada com triggers, tabela, colunas e funcoes
-**Novo arquivo:** `src/hooks/useFinancialEntities.ts`, `src/components/ui/month-year-navigator.tsx`
-**Arquivos modificados:**
-- `src/components/dashboard/ProjectionChart.tsx`
-- `src/components/dashboard/Dashboard.tsx`
-- `src/components/dashboard/RevenueExpenseChart.tsx`
-- `src/components/contracts/NewRecurringContractModal.tsx`
-- `src/components/transactions/QuickTransactionModal.tsx`
-- `src/components/transactions/NewFixedExpenseModal.tsx`
-- `src/components/transactions/TransactionsHub.tsx`
-- `src/components/transactions/TransactionsAnnualChart.tsx`
-- `src/components/transactions/DespesasFixasPage.tsx`
-- `src/components/transactions/DespesasVariaveisPage.tsx`
-- `src/components/transactions/EntradasAvulsasPage.tsx`
-- `src/components/transactions/EntradasRecorrentesPage.tsx`
-- `src/components/config/FinancialConfigView.tsx`
-- `src/components/accounts/AccountsView.tsx`
-- `src/hooks/useRecurringContracts.ts`
-- `src/hooks/useTransactions.ts`
-- `src/hooks/useFinancialConfig.ts`
+## Implementacao Tecnica
+
+1. **Migracrao SQL** -- Um unico INSERT em massa na tabela `transaction_categories` com as 54 novas categorias, cada uma ja vinculada a:
+   - `default_account_id` (conta correspondente)
+   - `cost_center_id` (centro de custo adequado)
+   - `type` = SAIDA (todas sao despesas)
+   - `expense_type` = FIXA ou VARIAVEL conforme tabela
+   - `subtype` = FIXA ou VARIAVEL conforme tabela
+   - `color` = cor semantica unica por grupo
+
+2. **Categorias existentes genericas** como COMBUSTIVEL, ALIMENTACAO, COMPRA DE MATERIAL e COLABORADORES serao mantidas (nao serao excluidas), pois podem ter transacoes vinculadas. As novas categorias oferecem o detalhamento sem quebrar dados historicos.
+
+3. **Nenhuma alteracao de schema** -- apenas insercao de dados na tabela `transaction_categories` existente.
+
