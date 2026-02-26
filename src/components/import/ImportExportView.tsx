@@ -2,22 +2,124 @@ import { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, Download, FileSpreadsheet, FileText, History, CheckCircle, AlertCircle, Sparkles, FolderSync } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Upload, Download, FileSpreadsheet, FileText, History, CheckCircle, AlertCircle, Sparkles, FolderSync, Trash2, Loader2, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { SmartImportWizard } from './SmartImportWizard';
+import { useSmartImport } from '@/hooks/useSmartImport';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 const importHistory = [
   { id: '1', date: new Date(), fileName: 'transacoes_jan.xlsx', total: 150, success: 148, error: 2, status: 'CONCLUIDO' },
   { id: '2', date: new Date(Date.now() - 86400000), fileName: 'contas.xlsx', total: 10, success: 10, error: 0, status: 'CONCLUIDO' },
 ];
 
+function ClearTransactionsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const currentYear = new Date().getFullYear();
+  const availableYears = Array.from({ length: 5 }, (_, i) => currentYear - i);
+  const [selectedYears, setSelectedYears] = useState<number[]>([]);
+  const [confirmed, setConfirmed] = useState(false);
+  const { clearTransactionsByYears, isLoading } = useSmartImport();
+
+  const toggleYear = (year: number) => {
+    setSelectedYears(prev =>
+      prev.includes(year) ? prev.filter(y => y !== year) : [...prev, year].sort()
+    );
+    setConfirmed(false);
+  };
+
+  const handleClear = async () => {
+    if (selectedYears.length === 0 || !confirmed) return;
+    const success = await clearTransactionsByYears(selectedYears);
+    if (success) {
+      setSelectedYears([]);
+      setConfirmed(false);
+      onOpenChange(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-destructive">
+            <Trash2 className="w-5 h-5" />
+            Limpar Transações por Ano
+          </DialogTitle>
+          <DialogDescription>
+            Remove apenas as transações dos anos selecionados. Categorias, contas, centros de custo, contratos e demais configurações permanecem intactas.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm font-medium mb-3">Selecione os anos para limpar:</p>
+            <div className="grid grid-cols-3 gap-3">
+              {availableYears.map(year => (
+                <Card
+                  key={year}
+                  className={cn(
+                    "cursor-pointer transition-all",
+                    selectedYears.includes(year)
+                      ? "border-destructive bg-destructive/5"
+                      : "hover:border-muted-foreground"
+                  )}
+                  onClick={() => toggleYear(year)}
+                >
+                  <CardContent className="pt-4 text-center">
+                    <div className="flex items-center justify-center gap-2 mb-1">
+                      <Checkbox checked={selectedYears.includes(year)} onCheckedChange={() => toggleYear(year)} />
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <p className="text-lg font-bold">{year}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {selectedYears.length > 0 && (
+            <Card className="border-destructive/30 bg-destructive/5">
+              <CardContent className="pt-4 space-y-3">
+                <p className="text-sm">
+                  <strong>Anos selecionados:</strong> {selectedYears.join(', ')}
+                </p>
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="confirmClear"
+                    checked={confirmed}
+                    onCheckedChange={(v) => setConfirmed(v as boolean)}
+                  />
+                  <label htmlFor="confirmClear" className="text-sm leading-relaxed cursor-pointer">
+                    <strong className="text-destructive">CONFIRMO</strong> que desejo apagar todas as transações dos anos selecionados. As configurações estruturais serão preservadas.
+                  </label>
+                </div>
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={handleClear}
+                  disabled={!confirmed || isLoading}
+                >
+                  {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                  Limpar {selectedYears.length} ano(s)
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function ImportExportView() {
   const [dragActive, setDragActive] = useState(false);
   const [selectedType, setSelectedType] = useState<string>('Transações');
   const [smartImportOpen, setSmartImportOpen] = useState(false);
   const [smartImportBuffer, setSmartImportBuffer] = useState<ArrayBuffer | undefined>();
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const smartFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -25,7 +127,6 @@ export function ImportExportView() {
     const file = e.target.files?.[0];
     if (file) {
       toast.success(`Arquivo "${file.name}" selecionado para importação de ${selectedType}`);
-      // Simulate import
       setTimeout(() => {
         toast.success(`Importação de ${selectedType} concluída!`);
       }, 2000);
@@ -36,7 +137,6 @@ export function ImportExportView() {
     const file = e.target.files?.[0];
     if (file) {
       toast.info(`Processando arquivo "${file.name}"...`);
-      
       const reader = new FileReader();
       reader.onload = () => {
         setSmartImportBuffer(reader.result as ArrayBuffer);
@@ -57,26 +157,24 @@ export function ImportExportView() {
 
   const handleExport = (type: string, format: 'xlsx' | 'pdf') => {
     toast.success(`Exportando ${type} em ${format.toUpperCase()}...`);
-    
-    // Create dummy CSV
     const csvContent = `${type}\nDados de exemplo\n`;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `${type.toLowerCase().replace(/ /g, '_')}.csv`;
     link.click();
-    
     toast.success('Exportação concluída!');
   };
 
   return (
     <div className="space-y-6">
-      {/* Smart Import Wizard */}
       <SmartImportWizard 
         open={smartImportOpen} 
         onOpenChange={setSmartImportOpen}
         fileBuffer={smartImportBuffer}
       />
+
+      <ClearTransactionsDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen} />
       
       <input
         type="file"
@@ -86,57 +184,82 @@ export function ImportExportView() {
         className="hidden"
       />
 
-      {/* Smart Import Card - Prominent */}
-      <Card className="border-primary/50 bg-gradient-to-r from-primary/5 to-transparent">
-        <CardHeader>
-          <div className="flex items-center justify-between">
+      {/* Smart Import + Clear Transactions Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card className="lg:col-span-2 border-primary/50 bg-gradient-to-r from-primary/5 to-transparent">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Sparkles className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    Importação Inteligente por Categoria
+                    <Badge variant="secondary" className="text-xs">Novo</Badge>
+                  </CardTitle>
+                  <CardDescription>
+                    Categorias vinculam automaticamente conta, centro de custo e tipo
+                  </CardDescription>
+                </div>
+              </div>
+              <Button 
+                onClick={() => {
+                  setSmartImportBuffer(undefined);
+                  setSmartImportOpen(true);
+                }}
+                className="gap-2"
+              >
+                <FolderSync className="w-4 h-4" />
+                Iniciar Wizard
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <CheckCircle className="w-4 h-4 text-primary" />
+                <span>Matching por categoria</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <CheckCircle className="w-4 h-4 text-primary" />
+                <span>Herança automática</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <CheckCircle className="w-4 h-4 text-primary" />
+                <span>Detecção de Períodos</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <CheckCircle className="w-4 h-4 text-primary" />
+                <span>Análise de Duplicados</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Clear Transactions Card */}
+        <Card className="border-destructive/30 hover:border-destructive/60 transition-colors">
+          <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Sparkles className="w-6 h-6 text-primary" />
+              <div className="p-2 bg-destructive/10 rounded-lg">
+                <Trash2 className="w-6 h-6 text-destructive" />
               </div>
               <div>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  Importação Inteligente por Período
-                  <Badge variant="secondary" className="text-xs">Novo</Badge>
-                </CardTitle>
-                <CardDescription>
-                  Reset opcional, detecção de duplicados, importação incremental por ano
+                <CardTitle className="text-base">Limpar Transações</CardTitle>
+                <CardDescription className="text-xs">
+                  Remove transações por ano, preservando configurações
                 </CardDescription>
               </div>
             </div>
-            <Button 
-              onClick={() => {
-                setSmartImportBuffer(undefined);
-                setSmartImportOpen(true);
-              }}
-              className="gap-2"
-            >
-              <FolderSync className="w-4 h-4" />
-              Iniciar Wizard
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" className="w-full gap-2 border-destructive/30 text-destructive hover:bg-destructive/5" onClick={() => setClearDialogOpen(true)}>
+              <Trash2 className="w-4 h-4" />
+              Selecionar Anos
             </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <CheckCircle className="w-4 h-4 text-primary" />
-              <span>Zerar ou Incremental</span>
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <CheckCircle className="w-4 h-4 text-primary" />
-              <span>Detecção de Períodos</span>
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <CheckCircle className="w-4 h-4 text-primary" />
-              <span>Análise de Duplicados</span>
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <CheckCircle className="w-4 h-4 text-primary" />
-              <span>Auditoria Completa</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       <Tabs defaultValue="import">
         <TabsList>
@@ -154,13 +277,7 @@ export function ImportExportView() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                accept=".xlsx,.xls,.csv"
-                className="hidden"
-              />
+              <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".xlsx,.xls,.csv" className="hidden" />
               <div
                 className={cn(
                   "border-2 border-dashed rounded-xl p-12 text-center transition-colors cursor-pointer",
@@ -183,10 +300,7 @@ export function ImportExportView() {
                 {['Transações', 'Contas', 'Categorias', 'Centros de Custo'].map(type => (
                   <Card 
                     key={type} 
-                    className={cn(
-                      "cursor-pointer transition-colors",
-                      selectedType === type ? "border-primary bg-primary/5" : "hover:border-primary"
-                    )}
+                    className={cn("cursor-pointer transition-colors", selectedType === type ? "border-primary bg-primary/5" : "hover:border-primary")}
                     onClick={() => setSelectedType(type)}
                   >
                     <CardContent className="p-4 text-center">
@@ -202,9 +316,7 @@ export function ImportExportView() {
 
         <TabsContent value="export" className="mt-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Exportar Dados</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Exportar Dados</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[
@@ -234,9 +346,7 @@ export function ImportExportView() {
 
         <TabsContent value="history" className="mt-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Histórico de Importações</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Histórico de Importações</CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {importHistory.map(item => (
