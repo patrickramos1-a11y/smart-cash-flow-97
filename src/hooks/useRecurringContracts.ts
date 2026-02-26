@@ -71,6 +71,12 @@ export interface RecurringInstallment {
   contract?: RecurringContract;
 }
 
+// Safe date parser for YYYY-MM-DD without timezone drift
+function parseLocalDate(dateStr: string) {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 // Hook for minimum wage config
 export function useMinimumWageConfig(year?: number) {
   return useQuery({
@@ -408,7 +414,7 @@ export function useCreateContractWithInstallments() {
 
       // 6. Generate 12 installments for the year
       const installments = [];
-      const startDate = new Date(input.start_date);
+      const startDate = parseLocalDate(input.start_date);
       const startMonth = startDate.getMonth() + 1;
 
       for (let month = startMonth; month <= 12; month++) {
@@ -562,7 +568,7 @@ export function useCreateClientWithContract() {
       if (contractError) throw contractError;
 
       const effectiveFactor = input.custom_minimum_wage_factor || planFactor;
-      const startDate = new Date(input.start_date);
+      const startDate = parseLocalDate(input.start_date);
       const startMonth = startDate.getMonth() + 1;
 
       const installments = [];
