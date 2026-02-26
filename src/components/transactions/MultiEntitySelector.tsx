@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Users, X, Search, ChevronDown } from 'lucide-react';
-import { useFinancialEntities, ENTITY_TYPE_LABELS, EntityType } from '@/hooks/useFinancialEntities';
+import { useFinancialEntities, EntityType } from '@/hooks/useFinancialEntities';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -22,6 +22,14 @@ const TYPE_COLORS: Record<EntityType, string> = {
   FORNECEDOR: 'bg-warning/10 text-warning border-warning/30',
   SOCIO: 'bg-income/10 text-income border-income/30',
   GRUPO: 'bg-info/10 text-info border-info/30',
+};
+
+const TYPE_FILTER_LABELS: Record<EntityType | 'all', string> = {
+  all: 'Todos',
+  COLABORADOR: 'Colaborador',
+  SOCIO: 'Sócio',
+  FORNECEDOR: 'Fornecedor',
+  GRUPO: 'Cliente',
 };
 
 export function MultiEntitySelector({ selectedIds, onChange, label = 'Responsáveis / Entidades', required }: MultiEntitySelectorProps) {
@@ -56,6 +64,16 @@ export function MultiEntitySelector({ selectedIds, onChange, label = 'Responsáv
 
   const selectedEntities = activeEntities.filter(e => selectedIds.includes(e.id));
 
+  const selectAllFiltered = () => {
+    const ids = filtered.map(e => e.id);
+    onChange(Array.from(new Set([...selectedIds, ...ids])));
+  };
+
+  const clearFiltered = () => {
+    const filteredSet = new Set(filtered.map(e => e.id));
+    onChange(selectedIds.filter(id => !filteredSet.has(id)));
+  };
+
   return (
     <div>
       <Label>{label} {required && '*'}</Label>
@@ -68,7 +86,7 @@ export function MultiEntitySelector({ selectedIds, onChange, label = 'Responsáv
           >
             <div className="flex flex-wrap gap-1 flex-1">
               {selectedEntities.length === 0 ? (
-                <span className="text-muted-foreground">Vincular pessoas ou grupos</span>
+                <span className="text-muted-foreground">Vincular pessoas ou clientes</span>
               ) : (
                 selectedEntities.map(e => (
                   <Badge
@@ -110,9 +128,17 @@ export function MultiEntitySelector({ selectedIds, onChange, label = 'Responsáv
                   className="text-[10px] cursor-pointer"
                   onClick={() => setFilterType(t)}
                 >
-                  {t === 'all' ? 'Todos' : ENTITY_TYPE_LABELS[t]}
+                  {TYPE_FILTER_LABELS[t]}
                 </Badge>
               ))}
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={selectAllFiltered}>
+                Selecionar visíveis
+              </Button>
+              <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={clearFiltered}>
+                Limpar visíveis
+              </Button>
             </div>
           </div>
           <ScrollArea className="max-h-60">
@@ -120,7 +146,7 @@ export function MultiEntitySelector({ selectedIds, onChange, label = 'Responsáv
               {Object.entries(grouped).map(([type, items]) => (
                 <div key={type}>
                   <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    {ENTITY_TYPE_LABELS[type as EntityType]}s
+                    {`${TYPE_FILTER_LABELS[type as EntityType]}s`}
                   </div>
                   {items.map(e => (
                     <div
@@ -134,7 +160,7 @@ export function MultiEntitySelector({ selectedIds, onChange, label = 'Responsáv
                       />
                       <span className="text-sm flex-1">{e.name}</span>
                       <Badge variant="outline" className={cn("text-[9px]", TYPE_COLORS[e.type as EntityType])}>
-                        {ENTITY_TYPE_LABELS[e.type as EntityType]}
+                        {TYPE_FILTER_LABELS[e.type as EntityType]}
                       </Badge>
                     </div>
                   ))}
