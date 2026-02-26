@@ -104,7 +104,7 @@ export function QuickTransactionModal({
         conta_id: selectedCategory?.default_account_id || null,
         forma_pagamento_id: formData.forma_pagamento_id || null,
         notes: formData.notes || null,
-      });
+      } as any);
       handleClose();
       return;
     }
@@ -141,7 +141,7 @@ export function QuickTransactionModal({
           conta_id: selectedCategory?.default_account_id || null,
           forma_pagamento_id: formData.forma_pagamento_id || null,
           notes: formData.notes || null,
-        });
+        } as any);
 
         // Advance month
         currentMonth++;

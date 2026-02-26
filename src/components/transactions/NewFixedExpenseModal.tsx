@@ -170,12 +170,20 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
             )}
           </div>
 
-          {/* Account and Payment Method */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Conta (herdada da categoria)</Label>
-              <Input value={linkedAccount?.name || 'Selecione uma categoria'} disabled className="bg-muted" />
+          {/* Inherited info + Payment Method */}
+          {selectedCategory && (
+            <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Conta vinculada:</span>
+                <span className="font-medium">{linkedAccount?.name || '—'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Centro de Custo:</span>
+                <span className="font-medium">{linkedCostCenter?.name || '—'}</span>
+              </div>
             </div>
+          )}
+          <div className="grid grid-cols-1 gap-4">
             <div>
               <Label>Forma de Pagamento</Label>
               <Select value={formData.forma_pagamento_id} onValueChange={(v) => setFormData({ ...formData, forma_pagamento_id: v })}>
