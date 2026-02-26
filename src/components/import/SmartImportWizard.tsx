@@ -7,14 +7,16 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Upload, Trash2, FileSpreadsheet, CheckCircle2, AlertCircle, 
   ArrowRight, ArrowLeft, Database, Calendar, Loader2,
-  FolderSync, Users, Building2, Layers, CreditCard
+  FolderSync, Users, Building2, Layers, CreditCard, Tag, Link2, Plus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { useSmartImport } from '@/hooks/useSmartImport';
+import { useSmartImport, type CategoryMapping } from '@/hooks/useSmartImport';
+import { useTransactionCategories } from '@/hooks/useFinancialConfig';
 
 interface SmartImportWizardProps {
   open: boolean;
@@ -23,7 +25,7 @@ interface SmartImportWizardProps {
   fileBuffer?: ArrayBuffer;
 }
 
-type WizardStep = 'mode' | 'upload' | 'preview' | 'periods' | 'analysis' | 'import' | 'complete';
+type WizardStep = 'mode' | 'upload' | 'preview' | 'categories' | 'periods' | 'analysis' | 'import' | 'complete';
 
 export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer }: SmartImportWizardProps) {
   const [currentStep, setCurrentStep] = useState<WizardStep>('mode');
@@ -32,7 +34,11 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const [importStats, setImportStats] = useState<Record<string, number> | null>(null);
   const [localFileBuffer, setLocalFileBuffer] = useState<ArrayBuffer | undefined>();
+  const [bulkCategoryId, setBulkCategoryId] = useState<string>('');
+  const [selectedUnlinked, setSelectedUnlinked] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: existingCategories } = useTransactionCategories();
 
   const {
     isLoading,
@@ -40,6 +46,8 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
     setParsedData,
     analysisResult,
     setAnalysisResult,
+    categoryMappings,
+    setCategoryMappings,
     parseFileContent,
     parseXlsxFile,
     analyzeData,
@@ -47,19 +55,15 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
     executeImport
   } = useSmartImport();
 
-  // Handle file upload within wizard
   const handleLocalFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = () => {
-        setLocalFileBuffer(reader.result as ArrayBuffer);
-      };
+      reader.onload = () => setLocalFileBuffer(reader.result as ArrayBuffer);
       reader.readAsArrayBuffer(file);
     }
   };
 
-  // Handle file content when provided
   const handleParseFile = useCallback(() => {
     try {
       let data;
@@ -83,7 +87,6 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
     }
   }, [fileContent, fileBuffer, localFileBuffer, parseFileContent, parseXlsxFile, setParsedData]);
 
-  // Handle mode selection and proceed
   const handleModeConfirm = async () => {
     if (importMode === 'reset') {
       if (!confirmReset) {
@@ -96,29 +99,54 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
     setCurrentStep('upload');
   };
 
-  // Handle year toggle
   const toggleYear = (year: number) => {
     setSelectedYears(prev => 
       prev.includes(year) ? prev.filter(y => y !== year) : [...prev, year].sort()
     );
   };
 
-  // Handle analysis
   const handleAnalyze = async () => {
     if (!parsedData || selectedYears.length === 0) {
       toast.error('Selecione pelo menos um período');
       return;
     }
-
     const result = await analyzeData(parsedData, selectedYears);
     setAnalysisResult(result);
-    setCurrentStep('analysis');
+    setCurrentStep('categories');
   };
 
-  // Handle import execution
+  // Update a category mapping
+  const updateMapping = (idx: number, updates: Partial<CategoryMapping>) => {
+    const updated = [...categoryMappings];
+    updated[idx] = { ...updated[idx], ...updates };
+    setCategoryMappings(updated);
+  };
+
+  // Assign bulk category to unlinked transactions
+  const handleBulkAssign = () => {
+    if (!bulkCategoryId || !parsedData || selectedUnlinked.size === 0) return;
+    const cat = existingCategories?.find(c => c.id === bulkCategoryId);
+    if (!cat) return;
+    
+    // Update the rows with the selected category name
+    const updatedRows = [...parsedData.rows];
+    selectedUnlinked.forEach(idx => {
+      if (analysisResult?.unlinkedTransactions[idx]) {
+        const originalRow = analysisResult.unlinkedTransactions[idx];
+        const rowIdx = updatedRows.indexOf(originalRow);
+        if (rowIdx >= 0) {
+          updatedRows[rowIdx] = { ...updatedRows[rowIdx], categoria: cat.name, mappedCategoryId: cat.id };
+        }
+      }
+    });
+
+    setParsedData({ ...parsedData, rows: updatedRows });
+    setSelectedUnlinked(new Set());
+    toast.success(`${selectedUnlinked.size} transações vinculadas à categoria "${cat.name}"`);
+  };
+
   const handleExecuteImport = async () => {
     if (!parsedData || !analysisResult) return;
-
     setCurrentStep('import');
     const result = await executeImport(parsedData, analysisResult, selectedYears);
     
@@ -130,7 +158,6 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
     }
   };
 
-  // Reset wizard
   const handleClose = () => {
     setCurrentStep('mode');
     setImportMode('incremental');
@@ -140,6 +167,8 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
     setAnalysisResult(null);
     setImportStats(null);
     setLocalFileBuffer(undefined);
+    setSelectedUnlinked(new Set());
+    setBulkCategoryId('');
     onOpenChange(false);
   };
 
@@ -149,6 +178,7 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
     { key: 'mode', label: 'Modo' },
     { key: 'upload', label: 'Upload' },
     { key: 'preview', label: 'Preview' },
+    { key: 'categories', label: 'Categorias' },
     { key: 'periods', label: 'Períodos' },
     { key: 'analysis', label: 'Análise' },
     { key: 'import', label: 'Importar' },
@@ -163,7 +193,7 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FolderSync className="w-5 h-5 text-primary" />
-            Importação Inteligente por Período
+            Importação Inteligente por Categoria
           </DialogTitle>
         </DialogHeader>
 
@@ -171,13 +201,7 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
         <div className="space-y-2 px-1">
           <div className="flex justify-between text-xs text-muted-foreground">
             {steps.map((step, idx) => (
-              <span 
-                key={step.key} 
-                className={cn(
-                  "transition-colors",
-                  idx <= stepIndex ? "text-primary font-medium" : ""
-                )}
-              >
+              <span key={step.key} className={cn("transition-colors", idx <= stepIndex ? "text-primary font-medium" : "")}>
                 {step.label}
               </span>
             ))}
@@ -190,15 +214,12 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
           {currentStep === 'mode' && (
             <div className="space-y-4 py-4">
               <p className="text-muted-foreground">
-                Escolha como deseja realizar a importação:
+                A importação é orientada por <strong>Categoria</strong>. Conta, centro de custo e tipo são herdados automaticamente.
               </p>
 
               <div className="grid grid-cols-2 gap-4">
                 <Card 
-                  className={cn(
-                    "cursor-pointer transition-all",
-                    importMode === 'reset' ? "border-destructive bg-destructive/5" : "hover:border-muted-foreground"
-                  )}
+                  className={cn("cursor-pointer transition-all", importMode === 'reset' ? "border-destructive bg-destructive/5" : "hover:border-muted-foreground")}
                   onClick={() => setImportMode('reset')}
                 >
                   <CardHeader className="pb-2">
@@ -206,9 +227,7 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
                       <Trash2 className="w-5 h-5 text-destructive" />
                       <CardTitle className="text-base">Zerar e Implantar</CardTitle>
                     </div>
-                    <CardDescription>
-                      Primeira implantação ou reset completo
-                    </CardDescription>
+                    <CardDescription>Primeira implantação ou reset completo</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <ul className="text-sm text-muted-foreground space-y-1">
@@ -220,10 +239,7 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
                 </Card>
 
                 <Card 
-                  className={cn(
-                    "cursor-pointer transition-all",
-                    importMode === 'incremental' ? "border-primary bg-primary/5" : "hover:border-muted-foreground"
-                  )}
+                  className={cn("cursor-pointer transition-all", importMode === 'incremental' ? "border-primary bg-primary/5" : "hover:border-muted-foreground")}
                   onClick={() => setImportMode('incremental')}
                 >
                   <CardHeader className="pb-2">
@@ -231,15 +247,13 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
                       <Database className="w-5 h-5 text-primary" />
                       <CardTitle className="text-base">Importação Incremental</CardTitle>
                     </div>
-                    <CardDescription>
-                      Adicionar dados sem duplicar
-                    </CardDescription>
+                    <CardDescription>Adicionar dados sem duplicar</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <ul className="text-sm text-muted-foreground space-y-1">
                       <li>• Mantém dados existentes</li>
                       <li>• Detecta duplicados automaticamente</li>
-                      <li>• Permite importar outros anos</li>
+                      <li>• Vincula por categoria existente</li>
                     </ul>
                   </CardContent>
                 </Card>
@@ -249,15 +263,10 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
                 <Card className="border-destructive bg-destructive/5">
                   <CardContent className="pt-4">
                     <div className="flex items-start gap-3">
-                      <Checkbox 
-                        id="confirmReset"
-                        checked={confirmReset}
-                        onCheckedChange={(checked) => setConfirmReset(checked as boolean)}
-                      />
+                      <Checkbox id="confirmReset" checked={confirmReset} onCheckedChange={(checked) => setConfirmReset(checked as boolean)} />
                       <label htmlFor="confirmReset" className="text-sm leading-relaxed cursor-pointer">
                         <strong className="text-destructive">ATENÇÃO:</strong> Confirmo que desejo APAGAR TODOS os dados 
-                        do sistema (clientes, contratos, transações, contas, categorias, centros de custo, 
-                        configurações) antes de iniciar a importação. Esta ação é irreversível.
+                        do sistema antes de iniciar a importação. Esta ação é irreversível.
                       </label>
                     </div>
                   </CardContent>
@@ -270,56 +279,28 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
           {currentStep === 'upload' && (
             <div className="space-y-4 py-4">
               <p className="text-muted-foreground">
-                Faça upload da planilha principal com as transações e estrutura financeira:
+                Faça upload da planilha. A <strong>Categoria</strong> é o campo principal — conta e centro de custo são opcionais.
               </p>
               
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleLocalFileSelect}
-                accept=".xlsx,.xls,.csv"
-                className="hidden"
-              />
+              <input type="file" ref={fileInputRef} onChange={handleLocalFileSelect} accept=".xlsx,.xls,.csv" className="hidden" />
 
               <Card 
-                className={cn(
-                  "border-dashed border-2 cursor-pointer transition-all",
-                  hasFile ? "border-primary bg-primary/5" : "hover:border-primary"
-                )}
+                className={cn("border-dashed border-2 cursor-pointer transition-all", hasFile ? "border-primary bg-primary/5" : "hover:border-primary")}
                 onClick={() => fileInputRef.current?.click()}
               >
                 <CardContent className="flex flex-col items-center justify-center py-12">
-                  <FileSpreadsheet className={cn(
-                    "w-16 h-16 mb-4",
-                    hasFile ? "text-primary" : "text-muted-foreground/50"
-                  )} />
-                  <p className="text-lg font-medium mb-2">
-                    {hasFile ? 'Arquivo selecionado ✓' : 'Selecione o arquivo XLSX'}
-                  </p>
+                  <FileSpreadsheet className={cn("w-16 h-16 mb-4", hasFile ? "text-primary" : "text-muted-foreground/50")} />
+                  <p className="text-lg font-medium mb-2">{hasFile ? 'Arquivo selecionado ✓' : 'Selecione o arquivo XLSX'}</p>
                   <p className="text-sm text-muted-foreground mb-4">
-                    {hasFile 
-                      ? 'Clique em "Processar" para analisar o arquivo'
-                      : 'Clique aqui ou arraste o arquivo'}
+                    {hasFile ? 'Clique em "Processar" para analisar' : 'Clique aqui ou arraste o arquivo'}
                   </p>
                   <Button 
                     variant={hasFile ? "default" : "outline"}
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      if (hasFile) {
-                        handleParseFile();
-                      } else {
-                        fileInputRef.current?.click();
-                      }
-                    }} 
+                    onClick={(e) => { e.stopPropagation(); hasFile ? handleParseFile() : fileInputRef.current?.click(); }} 
                     disabled={isLoading}
                   >
-                    {isLoading ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : hasFile ? (
-                      <CheckCircle2 className="w-4 h-4 mr-2" />
-                    ) : (
-                      <Upload className="w-4 h-4 mr-2" />
-                    )}
+                    {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : 
+                     hasFile ? <CheckCircle2 className="w-4 h-4 mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
                     {hasFile ? 'Processar Arquivo' : 'Selecionar Arquivo'}
                   </Button>
                 </CardContent>
@@ -329,7 +310,10 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
                 <CardContent className="pt-4">
                   <p className="text-sm font-medium mb-2">Formato esperado:</p>
                   <p className="text-xs text-muted-foreground">
-                    Colunas: Tipo de Lançamento | Conta | Categoria | Valor | Centro de Custo | Pago? | Data | Empresa
+                    Colunas obrigatórias: <strong>Categoria</strong> | Valor | Data
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Colunas opcionais: Tipo de Lançamento | Conta | Centro de Custo | Pago? | Empresa
                   </p>
                 </CardContent>
               </Card>
@@ -339,46 +323,34 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
           {/* Step: Preview */}
           {currentStep === 'preview' && parsedData && (
             <div className="space-y-4 py-4">
-              <p className="text-muted-foreground">
-                Arquivo processado com sucesso. Resumo dos dados encontrados:
-              </p>
+              <p className="text-muted-foreground">Arquivo processado. Resumo dos dados encontrados:</p>
 
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <Card>
-                  <CardContent className="pt-4 text-center">
-                    <FileSpreadsheet className="w-8 h-8 mx-auto mb-2 text-primary" />
-                    <p className="text-2xl font-bold">{parsedData.summary.totalRows}</p>
-                    <p className="text-xs text-muted-foreground">Registros</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4 text-center">
-                    <CreditCard className="w-8 h-8 mx-auto mb-2 text-blue-500" />
-                    <p className="text-2xl font-bold">{parsedData.summary.totalAccounts}</p>
-                    <p className="text-xs text-muted-foreground">Contas</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4 text-center">
-                    <Layers className="w-8 h-8 mx-auto mb-2 text-green-500" />
-                    <p className="text-2xl font-bold">{parsedData.summary.totalCategories}</p>
-                    <p className="text-xs text-muted-foreground">Categorias</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4 text-center">
-                    <Building2 className="w-8 h-8 mx-auto mb-2 text-orange-500" />
-                    <p className="text-2xl font-bold">{parsedData.summary.totalCostCenters}</p>
-                    <p className="text-xs text-muted-foreground">Centros Custo</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4 text-center">
-                    <Users className="w-8 h-8 mx-auto mb-2 text-purple-500" />
-                    <p className="text-2xl font-bold">{parsedData.summary.totalClients}</p>
-                    <p className="text-xs text-muted-foreground">Clientes</p>
-                  </CardContent>
-                </Card>
+                <Card><CardContent className="pt-4 text-center">
+                  <FileSpreadsheet className="w-8 h-8 mx-auto mb-2 text-primary" />
+                  <p className="text-2xl font-bold">{parsedData.summary.totalRows}</p>
+                  <p className="text-xs text-muted-foreground">Registros</p>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4 text-center">
+                  <Tag className="w-8 h-8 mx-auto mb-2 text-primary" />
+                  <p className="text-2xl font-bold">{parsedData.summary.totalCategories}</p>
+                  <p className="text-xs text-muted-foreground">Categorias</p>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4 text-center">
+                  <CreditCard className="w-8 h-8 mx-auto mb-2 text-blue-500" />
+                  <p className="text-2xl font-bold">{parsedData.summary.totalAccounts}</p>
+                  <p className="text-xs text-muted-foreground">Contas</p>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4 text-center">
+                  <Building2 className="w-8 h-8 mx-auto mb-2 text-orange-500" />
+                  <p className="text-2xl font-bold">{parsedData.summary.totalCostCenters}</p>
+                  <p className="text-xs text-muted-foreground">Centros Custo</p>
+                </CardContent></Card>
+                <Card><CardContent className="pt-4 text-center">
+                  <Users className="w-8 h-8 mx-auto mb-2 text-purple-500" />
+                  <p className="text-2xl font-bold">{parsedData.summary.totalClients}</p>
+                  <p className="text-xs text-muted-foreground">Clientes</p>
+                </CardContent></Card>
               </div>
 
               <Card>
@@ -391,85 +363,179 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
                     {Array.from(parsedData.years).sort().map(year => (
-                      <Badge key={year} variant="secondary" className="text-lg px-4 py-1">
-                        {year}
-                      </Badge>
+                      <Badge key={year} variant="secondary" className="text-lg px-4 py-1">{year}</Badge>
                     ))}
                   </div>
                 </CardContent>
               </Card>
 
-              <Tabs defaultValue="categories">
-                <TabsList>
-                  <TabsTrigger value="categories">Categorias</TabsTrigger>
-                  <TabsTrigger value="costCenters">Centros de Custo</TabsTrigger>
-                  <TabsTrigger value="accounts">Contas</TabsTrigger>
-                  <TabsTrigger value="clients">Clientes</TabsTrigger>
-                </TabsList>
-                <TabsContent value="categories" className="max-h-48 overflow-auto">
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="pt-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Tag className="w-4 h-4 text-primary" />
+                    <p className="text-sm font-medium">Categorias encontradas na planilha</p>
+                  </div>
                   <div className="flex flex-wrap gap-1">
                     {Array.from(parsedData.categories.keys()).map(cat => (
                       <Badge key={cat} variant="outline">{cat}</Badge>
                     ))}
                   </div>
-                </TabsContent>
-                <TabsContent value="costCenters" className="max-h-48 overflow-auto">
-                  <div className="flex flex-wrap gap-1">
-                    {Array.from(parsedData.costCenters).map(cc => (
-                      <Badge key={cc} variant="outline">{cc}</Badge>
-                    ))}
-                  </div>
-                </TabsContent>
-                <TabsContent value="accounts" className="max-h-48 overflow-auto">
-                  <div className="flex flex-wrap gap-1">
-                    {Array.from(parsedData.accounts).map(acc => (
-                      <Badge key={acc} variant="outline">{acc}</Badge>
-                    ))}
-                  </div>
-                </TabsContent>
-                <TabsContent value="clients" className="max-h-48 overflow-auto">
-                  <div className="flex flex-wrap gap-1">
-                    {Array.from(parsedData.clients).map(client => (
-                      <Badge key={client} variant="outline">{client}</Badge>
-                    ))}
-                  </div>
-                </TabsContent>
-              </Tabs>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Step: Categories - Category-centric mapping */}
+          {currentStep === 'categories' && analysisResult && (
+            <div className="space-y-4 py-4">
+              <p className="text-muted-foreground">
+                Mapeie as categorias da planilha. Categorias existentes serão vinculadas automaticamente, novas serão criadas.
+              </p>
+
+              {/* Linked categories */}
+              {categoryMappings.filter(m => m.action === 'link').length > 0 && (
+                <Card className="border-income/30">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2 text-income">
+                      <Link2 className="w-4 h-4" />
+                      Categorias Existentes ({categoryMappings.filter(m => m.action === 'link').length})
+                    </CardTitle>
+                    <CardDescription>Serão vinculadas automaticamente</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-1">
+                      {categoryMappings.filter(m => m.action === 'link').map(m => (
+                        <Badge key={m.originalName} variant="secondary" className="text-income">
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          {m.originalName}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* New categories */}
+              {categoryMappings.filter(m => m.action === 'create').length > 0 && (
+                <Card className="border-warning/30">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2 text-warning">
+                      <Plus className="w-4 h-4" />
+                      Novas Categorias ({categoryMappings.filter(m => m.action === 'create').length})
+                    </CardTitle>
+                    <CardDescription>
+                      Serão criadas automaticamente. Ou vincule a uma categoria existente:
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {categoryMappings.map((mapping, idx) => {
+                      if (mapping.action !== 'create') return null;
+                      return (
+                        <div key={mapping.originalName} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
+                          <Badge variant="outline" className="shrink-0">{mapping.originalName}</Badge>
+                          <span className="text-xs text-muted-foreground">→</span>
+                          <Select 
+                            value={mapping.existingCategoryId || '__create__'}
+                            onValueChange={(v) => {
+                              if (v === '__create__') {
+                                updateMapping(idx, { action: 'create', existingCategoryId: undefined });
+                              } else {
+                                updateMapping(idx, { action: 'link', existingCategoryId: v });
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="flex-1 h-8 text-xs">
+                              <SelectValue placeholder="Criar nova" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__create__">
+                                <div className="flex items-center gap-1">
+                                  <Plus className="w-3 h-3" /> Criar nova categoria
+                                </div>
+                              </SelectItem>
+                              {existingCategories?.filter(c => c.active).map(c => (
+                                <SelectItem key={c.id} value={c.id}>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color || '#6366f1' }} />
+                                    {c.name}
+                                    <span className="text-muted-foreground text-xs">({c.type})</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Unlinked transactions */}
+              {analysisResult.unlinkedTransactions.length > 0 && (
+                <Card className="border-destructive/30">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2 text-destructive">
+                      <AlertCircle className="w-4 h-4" />
+                      Transações Sem Categoria ({analysisResult.unlinkedTransactions.length})
+                    </CardTitle>
+                    <CardDescription>Selecione e atribua uma categoria em massa</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex gap-2">
+                      <Select value={bulkCategoryId} onValueChange={setBulkCategoryId}>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Selecionar categoria" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {existingCategories?.filter(c => c.active).map(c => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button size="sm" onClick={handleBulkAssign} disabled={!bulkCategoryId || selectedUnlinked.size === 0}>
+                        Atribuir ({selectedUnlinked.size})
+                      </Button>
+                    </div>
+                    <div className="max-h-32 overflow-y-auto space-y-1">
+                      {analysisResult.unlinkedTransactions.slice(0, 20).map((row, idx) => (
+                        <div key={idx} className="flex items-center gap-2 text-xs p-1 rounded hover:bg-muted/50">
+                          <Checkbox 
+                            checked={selectedUnlinked.has(idx)}
+                            onCheckedChange={(checked) => {
+                              const next = new Set(selectedUnlinked);
+                              checked ? next.add(idx) : next.delete(idx);
+                              setSelectedUnlinked(next);
+                            }}
+                          />
+                          <span className="text-muted-foreground">{row.dataPagamento?.toLocaleDateString('pt-BR') || '—'}</span>
+                          <span className="flex-1 truncate">{row.tipoLancamento}</span>
+                          <span className="font-medium">R$ {row.valor.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
 
           {/* Step: Period Selection */}
           {currentStep === 'periods' && parsedData && (
             <div className="space-y-4 py-4">
-              <p className="text-muted-foreground">
-                Selecione o(s) período(s) que deseja importar:
-              </p>
+              <p className="text-muted-foreground">Selecione o(s) período(s) que deseja importar:</p>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {Array.from(parsedData.years).sort().map(year => (
-                  <Card 
-                    key={year}
-                    className={cn(
-                      "cursor-pointer transition-all",
-                      selectedYears.includes(year) 
-                        ? "border-primary bg-primary/5" 
-                        : "hover:border-muted-foreground"
-                    )}
-                    onClick={() => toggleYear(year)}
-                  >
+                  <Card key={year} className={cn("cursor-pointer transition-all", selectedYears.includes(year) ? "border-primary bg-primary/5" : "hover:border-muted-foreground")} onClick={() => toggleYear(year)}>
                     <CardContent className="pt-4 text-center">
                       <div className="flex items-center justify-center gap-2 mb-2">
-                        <Checkbox 
-                          checked={selectedYears.includes(year)}
-                          onCheckedChange={() => toggleYear(year)}
-                        />
+                        <Checkbox checked={selectedYears.includes(year)} onCheckedChange={() => toggleYear(year)} />
                         <Calendar className="w-6 h-6 text-primary" />
                       </div>
                       <p className="text-2xl font-bold">{year}</p>
                       <p className="text-xs text-muted-foreground">
-                        {parsedData.rows.filter(r => 
-                          r.dataPagamento?.getFullYear() === year
-                        ).length} registros
+                        {parsedData.rows.filter(r => r.dataPagamento?.getFullYear() === year).length} registros
                       </p>
                     </CardContent>
                   </Card>
@@ -479,15 +545,9 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
               {selectedYears.length > 0 && (
                 <Card className="bg-muted/30">
                   <CardContent className="pt-4">
-                    <p className="text-sm">
-                      <strong>Períodos selecionados:</strong> {selectedYears.join(', ')}
-                    </p>
+                    <p className="text-sm"><strong>Períodos selecionados:</strong> {selectedYears.join(', ')}</p>
                     <p className="text-sm text-muted-foreground">
-                      Total de registros a processar: {
-                        parsedData.rows.filter(r => 
-                          r.dataPagamento && selectedYears.includes(r.dataPagamento.getFullYear())
-                        ).length
-                      }
+                      Total: {parsedData.rows.filter(r => r.dataPagamento && selectedYears.includes(r.dataPagamento.getFullYear())).length} registros
                     </p>
                   </CardContent>
                 </Card>
@@ -498,26 +558,22 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
           {/* Step: Analysis */}
           {currentStep === 'analysis' && analysisResult && (
             <div className="space-y-4 py-4">
-              <p className="text-muted-foreground">
-                Análise de duplicidade concluída. Revise os resultados:
-              </p>
+              <p className="text-muted-foreground">Análise concluída. Revise antes de importar:</p>
 
               <div className="grid grid-cols-3 gap-4">
-                <Card className="border-green-500/50 bg-green-500/5">
+                <Card className="border-income/50 bg-income/5">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2 text-green-600">
+                    <CardTitle className="text-sm flex items-center gap-2 text-income">
                       <CheckCircle2 className="w-4 h-4" />
                       Novos (serão importados)
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-1 text-sm">
-                    <p>Contas: {analysisResult.newItems.accounts.length}</p>
                     <p>Categorias: {analysisResult.newItems.categories.length}</p>
+                    <p>Contas: {analysisResult.newItems.accounts.length}</p>
                     <p>Centros Custo: {analysisResult.newItems.costCenters.length}</p>
                     <p>Clientes: {analysisResult.newItems.clients.length}</p>
-                    <p className="font-bold pt-2 border-t">
-                      Transações: {analysisResult.newItems.transactions.length}
-                    </p>
+                    <p className="font-bold pt-2 border-t">Transações: {analysisResult.newItems.transactions.length}</p>
                   </CardContent>
                 </Card>
 
@@ -529,49 +585,31 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-1 text-sm">
-                    <p>Contas: {analysisResult.duplicates.accounts.length}</p>
                     <p>Categorias: {analysisResult.duplicates.categories.length}</p>
+                    <p>Contas: {analysisResult.duplicates.accounts.length}</p>
                     <p>Centros Custo: {analysisResult.duplicates.costCenters.length}</p>
                     <p>Clientes: {analysisResult.duplicates.clients.length}</p>
-                    <p className="font-bold pt-2 border-t">
-                      Transações: {analysisResult.duplicates.transactions.length}
-                    </p>
+                    <p className="font-bold pt-2 border-t">Transações: {analysisResult.duplicates.transactions.length}</p>
                   </CardContent>
                 </Card>
 
-                <Card className="border-yellow-500/50 bg-yellow-500/5">
+                <Card className="border-warning/50 bg-warning/5">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2 text-yellow-600">
+                    <CardTitle className="text-sm flex items-center gap-2 text-warning">
                       <AlertCircle className="w-4 h-4" />
-                      Conflitos (revisar)
+                      Sem Categoria
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-1 text-sm">
-                    <p>Contas: {analysisResult.conflicts.accounts.length}</p>
-                    <p>Categorias: {analysisResult.conflicts.categories.length}</p>
-                    <p>Centros Custo: {analysisResult.conflicts.costCenters.length}</p>
-                    <p>Clientes: {analysisResult.conflicts.clients.length}</p>
-                    <p className="font-bold pt-2 border-t">
-                      Transações: {analysisResult.conflicts.transactions.length}
+                    <p>{analysisResult.unlinkedTransactions.length} transações sem vínculo</p>
+                    <p className="text-xs text-muted-foreground pt-2">
+                      {analysisResult.unlinkedTransactions.length > 0 
+                        ? 'Volte ao passo anterior para atribuir' 
+                        : 'Tudo vinculado ✓'}
                     </p>
                   </CardContent>
                 </Card>
               </div>
-
-              {analysisResult.newItems.categories.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Novas categorias a criar:</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-1">
-                      {analysisResult.newItems.categories.map(cat => (
-                        <Badge key={cat} variant="secondary">{cat}</Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
             </div>
           )}
 
@@ -580,9 +618,7 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="w-16 h-16 text-primary animate-spin mb-4" />
               <p className="text-lg font-medium">Importando dados...</p>
-              <p className="text-sm text-muted-foreground">
-                Aguarde enquanto os registros são criados no sistema
-              </p>
+              <p className="text-sm text-muted-foreground">Categorias → Contas → Transações</p>
             </div>
           )}
 
@@ -590,44 +626,26 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
           {currentStep === 'complete' && importStats && (
             <div className="space-y-4 py-4">
               <div className="text-center mb-6">
-                <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                <CheckCircle2 className="w-16 h-16 text-income mx-auto mb-4" />
                 <h3 className="text-xl font-bold">Importação Concluída!</h3>
-                <p className="text-muted-foreground">
-                  Períodos: {selectedYears.join(', ')}
-                </p>
+                <p className="text-muted-foreground">Períodos: {selectedYears.join(', ')}</p>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <Card>
-                  <CardContent className="pt-4 text-center">
-                    <p className="text-3xl font-bold text-green-600">{importStats.costCenters}</p>
-                    <p className="text-sm text-muted-foreground">Centros de Custo</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4 text-center">
-                    <p className="text-3xl font-bold text-blue-600">{importStats.accounts}</p>
-                    <p className="text-sm text-muted-foreground">Contas</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4 text-center">
-                    <p className="text-3xl font-bold text-purple-600">{importStats.categories}</p>
-                    <p className="text-sm text-muted-foreground">Categorias</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4 text-center">
-                    <p className="text-3xl font-bold text-orange-600">{importStats.clients}</p>
-                    <p className="text-sm text-muted-foreground">Clientes</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4 text-center">
-                    <p className="text-3xl font-bold text-primary">{importStats.transactions}</p>
-                    <p className="text-sm text-muted-foreground">Transações</p>
-                  </CardContent>
-                </Card>
+                {[
+                  { label: 'Categorias', value: importStats.categories, color: 'text-primary' },
+                  { label: 'Centros de Custo', value: importStats.costCenters, color: 'text-income' },
+                  { label: 'Contas', value: importStats.accounts, color: 'text-info' },
+                  { label: 'Clientes', value: importStats.clients, color: 'text-warning' },
+                  { label: 'Transações', value: importStats.transactions, color: 'text-primary' },
+                ].map(item => (
+                  <Card key={item.label}>
+                    <CardContent className="pt-4 text-center">
+                      <p className={cn("text-3xl font-bold", item.color)}>{item.value}</p>
+                      <p className="text-sm text-muted-foreground">{item.label}</p>
+                    </CardContent>
+                  </Card>
+                ))}
                 {importStats.errors > 0 && (
                   <Card className="border-destructive">
                     <CardContent className="pt-4 text-center">
@@ -657,48 +675,31 @@ export function SmartImportWizard({ open, onOpenChange, fileContent, fileBuffer 
 
           <div className="flex gap-2">
             {currentStep === 'complete' && (
-              <Button variant="outline" onClick={handleClose}>
-                Fechar
-              </Button>
+              <Button variant="outline" onClick={handleClose}>Fechar</Button>
             )}
-
             {currentStep === 'mode' && (
-              <Button 
-                onClick={handleModeConfirm}
-                disabled={importMode === 'reset' && !confirmReset}
-              >
-                Continuar
-                <ArrowRight className="w-4 h-4 ml-2" />
+              <Button onClick={handleModeConfirm} disabled={importMode === 'reset' && !confirmReset}>
+                Continuar <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             )}
-
             {currentStep === 'preview' && (
+              <Button onClick={handleAnalyze} disabled={isLoading}>
+                {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ArrowRight className="w-4 h-4 mr-2" />}
+                Analisar Categorias
+              </Button>
+            )}
+            {currentStep === 'categories' && (
               <Button onClick={() => setCurrentStep('periods')}>
-                Selecionar Períodos
-                <ArrowRight className="w-4 h-4 ml-2" />
+                Selecionar Períodos <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             )}
-
             {currentStep === 'periods' && (
-              <Button 
-                onClick={handleAnalyze}
-                disabled={selectedYears.length === 0 || isLoading}
-              >
-                {isLoading ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <ArrowRight className="w-4 h-4 mr-2" />
-                )}
-                Analisar Dados
+              <Button onClick={() => setCurrentStep('analysis')} disabled={selectedYears.length === 0}>
+                Revisar Análise <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             )}
-
             {currentStep === 'analysis' && (
-              <Button 
-                onClick={handleExecuteImport}
-                disabled={isLoading}
-                className="bg-green-600 hover:bg-green-700"
-              >
+              <Button onClick={handleExecuteImport} disabled={isLoading} className="bg-income hover:bg-income/90 text-income-foreground">
                 <CheckCircle2 className="w-4 h-4 mr-2" />
                 Executar Importação
               </Button>
