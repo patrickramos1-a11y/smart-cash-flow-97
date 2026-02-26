@@ -241,7 +241,6 @@ function AccountsTab() {
   const handleSubmit = () => {
     const payload = {
       ...formData,
-      company_id: '00000000-0000-0000-0000-000000000001',
       category_id: formData.category_id || null,
     };
 
@@ -418,7 +417,6 @@ function AccountCategoriesTab() {
   const handleSubmit = () => {
     const payload = {
       ...formData,
-      company_id: '00000000-0000-0000-0000-000000000001',
     };
 
     if (editingCategory) {
@@ -596,7 +594,6 @@ function CostCentersTab() {
   const handleSubmit = () => {
     const payload = {
       ...formData,
-      company_id: '00000000-0000-0000-0000-000000000001',
     };
 
     if (editingCostCenter) {
@@ -778,6 +775,27 @@ const SUBTYPE_COLORS: Record<string, string> = {
   VARIAVEL: 'bg-red-400 text-white',
 };
 
+// Pool of distinct colors for categories
+const COLOR_POOL = [
+  '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6',
+  '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16',
+  '#06b6d4', '#e11d48', '#a855f7', '#22c55e', '#eab308',
+  '#0ea5e9', '#d946ef', '#64748b', '#f43f5e', '#059669',
+  '#7c3aed', '#db2777', '#0891b2', '#ca8a04', '#16a34a',
+  '#9333ea', '#c026d3', '#0284c7', '#dc2626', '#2563eb',
+];
+
+function getRandomUniqueColor(usedColors: string[]): string {
+  const available = COLOR_POOL.filter(c => !usedColors.includes(c));
+  if (available.length > 0) {
+    return available[Math.floor(Math.random() * available.length)];
+  }
+  // Fallback: generate random HSL
+  const hue = Math.floor(Math.random() * 360);
+  const hsl = `hsl(${hue}, 70%, 50%)`;
+  return hsl;
+}
+
 function TransactionCategoriesTab() {
   const { data: categories, isLoading } = useTransactionCategories();
   const { data: costCenters } = useCostCenters();
@@ -812,7 +830,7 @@ function TransactionCategoriesTab() {
   };
 
   const handleSubmit = () => {
-    const payload = {
+    const payload: any = {
       name: formData.name,
       cost_center_id: formData.cost_center_id,
       type: formData.type,
@@ -821,7 +839,6 @@ function TransactionCategoriesTab() {
       default_account_id: formData.default_account_id || null,
       color: formData.color,
       active: formData.active,
-      company_id: '00000000-0000-0000-0000-000000000001',
     };
 
     if (editingCategory) {
@@ -856,13 +873,14 @@ function TransactionCategoriesTab() {
 
   const openNew = () => {
     setEditingCategory(null);
+    const usedColors = categories?.map(c => c.color || '').filter(Boolean) || [];
     setFormData({
       name: '',
       cost_center_id: '',
       type: 'SAIDA',
       subtype: '',
       default_account_id: '',
-      color: '#6366f1',
+      color: getRandomUniqueColor(usedColors),
       active: true
     });
     setIsDialogOpen(true);
