@@ -891,6 +891,7 @@ export type Database = {
             | null
           id: string
           name: string
+          subtype: string | null
           type: Database["public"]["Enums"]["transaction_tipo_movimento"]
           updated_at: string
         }
@@ -906,6 +907,7 @@ export type Database = {
             | null
           id?: string
           name: string
+          subtype?: string | null
           type: Database["public"]["Enums"]["transaction_tipo_movimento"]
           updated_at?: string
         }
@@ -921,6 +923,7 @@ export type Database = {
             | null
           id?: string
           name?: string
+          subtype?: string | null
           type?: Database["public"]["Enums"]["transaction_tipo_movimento"]
           updated_at?: string
         }

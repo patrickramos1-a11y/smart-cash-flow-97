@@ -43,12 +43,13 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
   const createFixedExpense = useCreateFixedExpense();
   const generateTransactions = useGenerateFixedExpenseTransactions();
 
-  // Filter categories to SAIDA type
-  const expenseCategories = categories?.filter(c => c.type === 'SAIDA') || [];
+  // Filter categories to SAIDA + FIXA subtype
+  const expenseCategories = categories?.filter(c => c.type === 'SAIDA' && (c as any).subtype === 'FIXA' && c.active) || [];
   
-  // Get linked cost center from selected category
+  // Get linked cost center and account from selected category
   const selectedCategory = categories?.find(c => c.id === formData.categoria_id);
   const linkedCostCenter = costCenters?.find(cc => cc.id === selectedCategory?.cost_center_id);
+  const linkedAccount = accounts?.find(a => a.id === selectedCategory?.default_account_id);
 
   const valor = parseFloat(formData.valor.replace(/\./g, '').replace(',', '.')) || 0;
 
@@ -78,8 +79,8 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
       valor,
       dia_vencimento: formData.dia_vencimento,
       categoria_id: formData.categoria_id || null,
-      centro_custo_id: linkedCostCenter?.id || null,
-      conta_id: formData.conta_id || null,
+      centro_custo_id: selectedCategory?.cost_center_id || null,
+      conta_id: selectedCategory?.default_account_id || formData.conta_id || null,
       forma_pagamento_id: formData.forma_pagamento_id || null,
       data_inicio: formData.data_inicio,
       data_fim: formData.data_fim || null,
@@ -148,20 +149,32 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
             </div>
           </div>
 
-          {/* Account and Category */}
+          {/* Category - Primary field */}
+          <div>
+            <Label>Categoria *</Label>
+            <Select value={formData.categoria_id} onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecionar categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                {expenseCategories.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedCategory && (
+              <div className="text-xs text-muted-foreground mt-1 flex gap-3">
+                <span>Conta: <strong>{linkedAccount?.name || '—'}</strong></span>
+                <span>C. Custo: <strong>{linkedCostCenter?.name || '—'}</strong></span>
+              </div>
+            )}
+          </div>
+
+          {/* Account and Payment Method */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Conta de Pagamento</Label>
-              <Select value={formData.conta_id} onValueChange={(v) => setFormData({ ...formData, conta_id: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecionar conta" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accounts?.filter(a => a.active).map(a => (
-                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Conta (herdada da categoria)</Label>
+              <Input value={linkedAccount?.name || 'Selecione uma categoria'} disabled className="bg-muted" />
             </div>
             <div>
               <Label>Forma de Pagamento</Label>
@@ -177,26 +190,6 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
               </Select>
             </div>
           </div>
-
-          <div>
-            <Label>Categoria</Label>
-            <Select value={formData.categoria_id} onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecionar categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                {expenseCategories.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {linkedCostCenter && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Centro de Custo: <span className="font-medium">{linkedCostCenter.name}</span> ({linkedCostCenter.dre_label})
-              </p>
-            )}
-          </div>
-
           {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
             <div>
