@@ -10,9 +10,11 @@ import { Switch } from '@/components/ui/switch';
 import { Check, Loader2, ArrowDownCircle, ArrowUpCircle, Repeat, Split } from 'lucide-react';
 import { useCreateTransaction, useClients } from '@/hooks/useTransactions';
 import { useTransactionCategories, usePaymentMethods, type CategorySubtype } from '@/hooks/useFinancialConfig';
-import { useFinancialEntities, ENTITY_TYPE_LABELS, EntityType } from '@/hooks/useFinancialEntities';
+import { useSaveTransactionEntities } from '@/hooks/useTransactionEntities';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { MultiEntitySelector } from './MultiEntitySelector';
+import { CategoryFilteredSelector } from './CategoryFilteredSelector';
 
 interface QuickTransactionModalProps {
   open: boolean;
@@ -36,13 +38,16 @@ export function QuickTransactionModal({
     valor: '',
     cliente_id: '',
     categoria_id: '',
-    entity_id: '',
     forma_pagamento_id: '',
     data_vencimento: currentDate.toISOString().split('T')[0],
     competencia_mes: month,
     competencia_ano: year,
     notes: '',
   });
+
+  const [entityIds, setEntityIds] = useState<string[]>([]);
+  const [filterAccountId, setFilterAccountId] = useState('');
+  const [filterCostCenterId, setFilterCostCenterId] = useState('');
 
   // Repetition state
   const [enableRepetition, setEnableRepetition] = useState(false);
@@ -52,13 +57,12 @@ export function QuickTransactionModal({
   const { data: clients } = useClients();
   const { data: categories } = useTransactionCategories();
   const { data: paymentMethods } = usePaymentMethods();
-  const { data: entities } = useFinancialEntities();
   const createTransaction = useCreateTransaction();
+  const saveEntities = useSaveTransactionEntities();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const effectiveSubtype = filterSubtype || (tipo === 'ENTRADA' ? 'AVULSA' : 'VARIAVEL');
-  const filteredCategories = categories?.filter(c => c.type === tipo && c.subtype === effectiveSubtype && c.active) || [];
   const selectedCategory = categories?.find(c => c.id === formData.categoria_id);
 
   const isEntrada = tipo === 'ENTRADA';
@@ -67,33 +71,26 @@ export function QuickTransactionModal({
 
   const resetForm = () => {
     setFormData({
-      descricao: '',
-      valor: '',
-      cliente_id: '',
-      categoria_id: '',
-      entity_id: '',
+      descricao: '', valor: '', cliente_id: '', categoria_id: '',
       forma_pagamento_id: '',
       data_vencimento: currentDate.toISOString().split('T')[0],
-      competencia_mes: month,
-      competencia_ano: year,
-      notes: '',
+      competencia_mes: month, competencia_ano: year, notes: '',
     });
+    setEntityIds([]);
+    setFilterAccountId('');
+    setFilterCostCenterId('');
     setEnableRepetition(false);
     setRepetitionCount(2);
     setRepetitionMode('parcelamento');
   };
 
-  const handleClose = () => {
-    resetForm();
-    onClose();
-  };
+  const handleClose = () => { resetForm(); onClose(); };
 
   const handleSubmit = async () => {
     const valorTotal = parseFloat(formData.valor.replace(/\./g, '').replace(',', '.')) || 0;
 
     if (!enableRepetition || repetitionCount <= 1) {
-      // Single transaction
-      await createTransaction.mutateAsync({
+      const result = await createTransaction.mutateAsync({
         tipo_movimento: tipo,
         natureza,
         origem: 'LANCAMENTO_MANUAL',
@@ -108,8 +105,14 @@ export function QuickTransactionModal({
         conta_id: selectedCategory?.default_account_id || null,
         forma_pagamento_id: formData.forma_pagamento_id || null,
         notes: formData.notes || null,
-        entity_id: formData.entity_id || null,
+        entity_id: entityIds[0] || null,
       } as any);
+
+      // Save multi-entity links
+      if (entityIds.length > 0 && result?.id) {
+        await saveEntities.mutateAsync({ transactionId: result.id, entityIds });
+      }
+
       handleClose();
       return;
     }
@@ -131,7 +134,7 @@ export function QuickTransactionModal({
 
         const dueDate = new Date(currentYear, currentMonth - 1, new Date(formData.data_vencimento).getDate());
 
-        await createTransaction.mutateAsync({
+        const result = await createTransaction.mutateAsync({
           tipo_movimento: tipo,
           natureza,
           origem: 'LANCAMENTO_MANUAL',
@@ -146,15 +149,15 @@ export function QuickTransactionModal({
           conta_id: selectedCategory?.default_account_id || null,
           forma_pagamento_id: formData.forma_pagamento_id || null,
           notes: formData.notes || null,
-          entity_id: formData.entity_id || null,
+          entity_id: entityIds[0] || null,
         } as any);
 
-        // Advance month
-        currentMonth++;
-        if (currentMonth > 12) {
-          currentMonth = 1;
-          currentYear++;
+        if (entityIds.length > 0 && result?.id) {
+          await saveEntities.mutateAsync({ transactionId: result.id, entityIds });
         }
+
+        currentMonth++;
+        if (currentMonth > 12) { currentMonth = 1; currentYear++; }
       }
 
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
@@ -196,31 +199,17 @@ export function QuickTransactionModal({
         </div>
 
         <div className="space-y-4">
-          {/* CATEGORY */}
-          <div>
-            <Label>Categoria *</Label>
-            <Select value={formData.categoria_id} onValueChange={(v) => setFormData({ ...formData, categoria_id: v })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecionar categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                {filteredCategories.map(c => (
-                  <SelectItem key={c.id} value={c.id}>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: c.color || '#6366f1' }} />
-                      {c.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedCategory && (
-              <div className="text-xs text-muted-foreground mt-1 flex gap-3">
-                <span>Conta: <strong>{(selectedCategory as any).default_account?.name || '—'}</strong></span>
-                <span>C. Custo: <strong>{selectedCategory.cost_center?.name || '—'}</strong></span>
-              </div>
-            )}
-          </div>
+          {/* CATEGORY with pre-filters */}
+          <CategoryFilteredSelector
+            tipo={tipo}
+            subtype={effectiveSubtype as any}
+            selectedCategoryId={formData.categoria_id}
+            onCategoryChange={(v) => setFormData({ ...formData, categoria_id: v })}
+            filterAccountId={filterAccountId}
+            onFilterAccountChange={(v) => setFilterAccountId(v === 'all' ? '' : v)}
+            filterCostCenterId={filterCostCenterId}
+            onFilterCostCenterChange={(v) => setFilterCostCenterId(v === 'all' ? '' : v)}
+          />
 
           <div>
             <Label>Descrição *</Label>
@@ -267,9 +256,7 @@ export function QuickTransactionModal({
                     <div>
                       <Label className="text-xs">Modo</Label>
                       <Select value={repetitionMode} onValueChange={(v) => setRepetitionMode(v as any)}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="parcelamento">
                             <div className="flex items-center gap-2">
@@ -289,9 +276,7 @@ export function QuickTransactionModal({
                     <div>
                       <Label className="text-xs">Quantas vezes</Label>
                       <Select value={repetitionCount.toString()} onValueChange={(v) => setRepetitionCount(parseInt(v))}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {Array.from({ length: 23 }, (_, i) => i + 2).map(n => (
                             <SelectItem key={n} value={n.toString()}>{n}x</SelectItem>
@@ -323,42 +308,26 @@ export function QuickTransactionModal({
             </div>
           )}
 
-          {/* Client - only for ENTRADA */}
-          {isEntrada && (
-            <div>
-              <Label>Cliente</Label>
-              <Select value={formData.cliente_id} onValueChange={(v) => setFormData({ ...formData, cliente_id: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecionar cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients?.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Entity / Responsável */}
+          {/* Client - available for ALL types now */}
           <div>
-            <Label>Responsável / Entidade</Label>
-            <Select value={formData.entity_id} onValueChange={(v) => setFormData({ ...formData, entity_id: v })}>
+            <Label>{isEntrada ? 'Cliente' : 'Cliente (opcional)'}</Label>
+            <Select value={formData.cliente_id} onValueChange={(v) => setFormData({ ...formData, cliente_id: v })}>
               <SelectTrigger>
-                <SelectValue placeholder="Vincular pessoa ou grupo" />
+                <SelectValue placeholder="Selecionar cliente" />
               </SelectTrigger>
               <SelectContent>
-                {entities?.filter(e => e.active).map(e => (
-                  <SelectItem key={e.id} value={e.id}>
-                    <span className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">[{ENTITY_TYPE_LABELS[e.type as EntityType]}]</span>
-                      {e.name}
-                    </span>
-                  </SelectItem>
+                {clients?.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+
+          {/* Multi-Entity Selector */}
+          <MultiEntitySelector
+            selectedIds={entityIds}
+            onChange={setEntityIds}
+          />
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -381,9 +350,7 @@ export function QuickTransactionModal({
                   value={formData.competencia_mes.toString()} 
                   onValueChange={(v) => setFormData({ ...formData, competencia_mes: parseInt(v) })}
                 >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Array.from({ length: 12 }, (_, i) => (
                       <SelectItem key={i + 1} value={(i + 1).toString()}>
@@ -396,9 +363,7 @@ export function QuickTransactionModal({
                   value={formData.competencia_ano.toString()} 
                   onValueChange={(v) => setFormData({ ...formData, competencia_ano: parseInt(v) })}
                 >
-                  <SelectTrigger className="w-20">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {[2024, 2025, 2026, 2027].map(y => (
                       <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
@@ -421,9 +386,7 @@ export function QuickTransactionModal({
         </div>
 
         <div className="flex gap-2 pt-4 border-t">
-          <Button variant="outline" onClick={handleClose} className="flex-1">
-            Cancelar
-          </Button>
+          <Button variant="outline" onClick={handleClose} className="flex-1">Cancelar</Button>
           <Button 
             onClick={handleSubmit} 
             disabled={!canSubmit || createTransaction.isPending || isSubmitting}
