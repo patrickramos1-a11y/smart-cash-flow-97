@@ -610,6 +610,56 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_entities: {
+        Row: {
+          active: boolean
+          cost_center_id: string | null
+          created_at: string
+          document: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          cost_center_id?: string | null
+          created_at?: string
+          document?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          cost_center_id?: string | null
+          created_at?: string
+          document?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_entities_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fixed_expenses: {
         Row: {
           active: boolean
@@ -1007,6 +1057,7 @@ export type Database = {
           descricao: string | null
           documento_numero: string | null
           documento_tipo: Database["public"]["Enums"]["documento_tipo"] | null
+          entity_id: string | null
           fixed_expense_id: string | null
           forma_pagamento_id: string | null
           id: string
@@ -1038,6 +1089,7 @@ export type Database = {
           descricao?: string | null
           documento_numero?: string | null
           documento_tipo?: Database["public"]["Enums"]["documento_tipo"] | null
+          entity_id?: string | null
           fixed_expense_id?: string | null
           forma_pagamento_id?: string | null
           id?: string
@@ -1069,6 +1121,7 @@ export type Database = {
           descricao?: string | null
           documento_numero?: string | null
           documento_tipo?: Database["public"]["Enums"]["documento_tipo"] | null
+          entity_id?: string | null
           fixed_expense_id?: string | null
           forma_pagamento_id?: string | null
           id?: string
@@ -1127,6 +1180,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "transactions_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "financial_entities"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "transactions_installment_id_fkey"
             columns: ["installment_id"]
             isOneToOne: false
@@ -1147,7 +1207,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      recalculate_account_balance: {
+        Args: { p_account_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       backlog_category:

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -12,24 +11,10 @@ import { useFixedExpenses, useGenerateFixedExpenseTransactions } from '@/hooks/u
 import { useAccounts } from '@/hooks/useFinancialConfig';
 import { TransactionsList } from './TransactionsList';
 import { NewFixedExpenseModal } from './NewFixedExpenseModal';
+import { MonthYearNavigator } from '@/components/ui/month-year-navigator';
 import { formatCurrency } from '@/data/mockData';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { toast } from 'sonner';
-
-const months = [
-  { value: 1, label: 'Janeiro' },
-  { value: 2, label: 'Fevereiro' },
-  { value: 3, label: 'Março' },
-  { value: 4, label: 'Abril' },
-  { value: 5, label: 'Maio' },
-  { value: 6, label: 'Junho' },
-  { value: 7, label: 'Julho' },
-  { value: 8, label: 'Agosto' },
-  { value: 9, label: 'Setembro' },
-  { value: 10, label: 'Outubro' },
-  { value: 11, label: 'Novembro' },
-  { value: 12, label: 'Dezembro' },
-];
 
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -58,14 +43,12 @@ export function DespesasFixasPage() {
     origem: 'DESPESA_FIXA'
   });
 
-  // Get yearly data for chart
   const { data: yearlyTransactions } = useTransactions({
     competencia_ano: selectedYear,
     tipo_movimento: 'SAIDA',
     origem: 'DESPESA_FIXA'
   });
 
-  // Build chart data by month
   const chartData = MONTH_LABELS.map((label, idx) => {
     const monthTransactions = yearlyTransactions?.filter(t => t.competencia_mes === idx + 1) || [];
     const expected = monthTransactions.reduce((sum, t) => sum + Number(t.valor), 0);
@@ -73,13 +56,11 @@ export function DespesasFixasPage() {
     return { month: label, previsto: expected, pago: paid };
   });
 
-  // Top fixed expenses ranking
   const expenseRanking = fixedExpenses
     ?.map(e => ({ name: e.nome, valor: Number(e.valor) }))
     .sort((a, b) => b.valor - a.valor)
     .slice(0, 10) || [];
 
-  // Group by account
   const byAccount = yearlyTransactions?.reduce((acc, t) => {
     const accountId = t.conta_id || 'sem-conta';
     if (!acc[accountId]) acc[accountId] = { total: 0, count: 0 };
@@ -93,16 +74,6 @@ export function DespesasFixasPage() {
     ...data
   })).sort((a, b) => b.total - a.total);
 
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
-
-  const handleGenerateTransactions = async () => {
-    try {
-      await generateMutation.mutateAsync({ year: selectedYear, month: selectedMonth });
-    } catch (error) {
-      toast.error('Erro ao gerar transações');
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Header with filters */}
@@ -112,36 +83,19 @@ export function DespesasFixasPage() {
           <h2 className="text-xl font-bold">Despesas Fixas</h2>
           <Badge variant="outline" className="ml-2">Recorrentes</Badge>
         </div>
-        
-        <div className="flex flex-wrap gap-2">
-          <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(Number(v))}>
-            <SelectTrigger className="w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {months.map(m => (
-                <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
-            <SelectTrigger className="w-24">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {years.map(y => (
-                <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Button onClick={() => setShowExpenseModal(true)} className="gap-2 bg-expense hover:bg-expense/90">
-            <Plus className="w-4 h-4" />
-            Nova Despesa Fixa
-          </Button>
-        </div>
+        <Button onClick={() => setShowExpenseModal(true)} className="gap-2 bg-expense hover:bg-expense/90">
+          <Plus className="w-4 h-4" />
+          Nova Despesa Fixa
+        </Button>
       </div>
+
+      {/* Month/Year Navigator */}
+      <MonthYearNavigator 
+        month={selectedMonth} 
+        year={selectedYear} 
+        onMonthChange={setSelectedMonth} 
+        onYearChange={setSelectedYear} 
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -229,7 +183,6 @@ export function DespesasFixasPage() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly chart */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -257,7 +210,6 @@ export function DespesasFixasPage() {
           </CardContent>
         </Card>
 
-        {/* Ranking */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -286,7 +238,6 @@ export function DespesasFixasPage() {
         </Card>
       </div>
 
-      {/* By Account */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Despesas por Conta</CardTitle>
@@ -304,7 +255,6 @@ export function DespesasFixasPage() {
         </CardContent>
       </Card>
 
-      {/* Transactions List */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Lançamentos do Mês</CardTitle>
@@ -321,7 +271,6 @@ export function DespesasFixasPage() {
         </CardContent>
       </Card>
 
-      {/* Dedicated Fixed Expense Modal */}
       <NewFixedExpenseModal
         open={showExpenseModal}
         onClose={() => setShowExpenseModal(false)}

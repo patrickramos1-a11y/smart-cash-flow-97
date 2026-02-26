@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -11,23 +10,9 @@ import { useTransactions, useTransactionKPIs } from '@/hooks/useTransactions';
 import { useRecurringContracts, useRecurringKPIs } from '@/hooks/useRecurringContracts';
 import { TransactionsList } from './TransactionsList';
 import { NewRecurringContractModal } from '@/components/contracts/NewRecurringContractModal';
+import { MonthYearNavigator } from '@/components/ui/month-year-navigator';
 import { formatCurrency } from '@/data/mockData';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-
-const months = [
-  { value: 1, label: 'Janeiro' },
-  { value: 2, label: 'Fevereiro' },
-  { value: 3, label: 'Março' },
-  { value: 4, label: 'Abril' },
-  { value: 5, label: 'Maio' },
-  { value: 6, label: 'Junho' },
-  { value: 7, label: 'Julho' },
-  { value: 8, label: 'Agosto' },
-  { value: 9, label: 'Setembro' },
-  { value: 10, label: 'Outubro' },
-  { value: 11, label: 'Novembro' },
-  { value: 12, label: 'Dezembro' },
-];
 
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -49,14 +34,12 @@ export function EntradasRecorrentesPage() {
     natureza: 'RECORRENTE'
   });
 
-  // Get yearly data for chart
   const { data: yearlyTransactions } = useTransactions({
     competencia_ano: selectedYear,
     tipo_movimento: 'ENTRADA',
     natureza: 'RECORRENTE'
   });
 
-  // Build chart data by month
   const chartData = MONTH_LABELS.map((label, idx) => {
     const monthTransactions = yearlyTransactions?.filter(t => t.competencia_mes === idx + 1) || [];
     const expected = monthTransactions.reduce((sum, t) => sum + Number(t.valor), 0);
@@ -64,7 +47,6 @@ export function EntradasRecorrentesPage() {
     return { month: label, previsto: expected, realizado: paid };
   });
 
-  // Top clients ranking
   const clientTotals = yearlyTransactions?.reduce((acc, t) => {
     const clientName = t.recurring_clients?.name || 'N/A';
     if (!acc[clientName]) acc[clientName] = { paid: 0, open: 0 };
@@ -81,47 +63,26 @@ export function EntradasRecorrentesPage() {
     .sort((a, b) => (b.paid + b.open) - (a.paid + a.open))
     .slice(0, 10);
 
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
-
   return (
     <div className="space-y-6">
-      {/* Header with filters */}
       <div className="flex flex-wrap gap-4 items-center justify-between">
         <div className="flex items-center gap-2">
           <RefreshCw className="w-5 h-5 text-income" />
           <h2 className="text-xl font-bold">Entradas Recorrentes</h2>
           <Badge variant="outline" className="ml-2">Contratos</Badge>
         </div>
-        
-        <div className="flex gap-2">
-          <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(Number(v))}>
-            <SelectTrigger className="w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {months.map(m => (
-                <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
-            <SelectTrigger className="w-24">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {years.map(y => (
-                <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Button onClick={() => setShowContractModal(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Novo Contrato
-          </Button>
-        </div>
+        <Button onClick={() => setShowContractModal(true)} className="gap-2">
+          <Plus className="w-4 h-4" />
+          Novo Contrato
+        </Button>
       </div>
+
+      <MonthYearNavigator 
+        month={selectedMonth} 
+        year={selectedYear} 
+        onMonthChange={setSelectedMonth} 
+        onYearChange={setSelectedYear} 
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -222,7 +183,6 @@ export function EntradasRecorrentesPage() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly chart */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -250,7 +210,6 @@ export function EntradasRecorrentesPage() {
           </CardContent>
         </Card>
 
-        {/* Client ranking */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -284,7 +243,6 @@ export function EntradasRecorrentesPage() {
         </Card>
       </div>
 
-      {/* Transactions List */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Transações do Mês</CardTitle>
@@ -301,7 +259,6 @@ export function EntradasRecorrentesPage() {
         </CardContent>
       </Card>
 
-      {/* Dedicated Contract Modal */}
       <NewRecurringContractModal
         open={showContractModal}
         onClose={() => setShowContractModal(false)}
