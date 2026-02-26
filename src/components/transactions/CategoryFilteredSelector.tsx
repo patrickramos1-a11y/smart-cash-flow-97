@@ -1,6 +1,6 @@
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useAccounts, useCostCenters, useTransactionCategories, type TransactionCategory, type CategorySubtype } from '@/hooks/useFinancialConfig';
+import { useAccounts, useCostCenters, useTransactionCategories, type CategorySubtype } from '@/hooks/useFinancialConfig';
 
 interface CategoryFilteredSelectorProps {
   tipo: 'ENTRADA' | 'SAIDA';
@@ -27,11 +27,19 @@ export function CategoryFilteredSelector({
   const { data: costCenters } = useCostCenters();
   const { data: categories } = useTransactionCategories();
 
-  const activeAccounts = accounts?.filter(a => a.active) || [];
-  const activeCostCenters = costCenters?.filter(c => c.active) || [];
+  // Base categories for this tipo+subtype
+  const baseCategories = categories?.filter(c => c.type === tipo && c.subtype === subtype && c.active) || [];
 
-  let filteredCategories = categories?.filter(c => c.type === tipo && c.subtype === subtype && c.active) || [];
-  
+  // Extract unique account IDs and cost center IDs that exist in these categories
+  const categoryAccountIds = new Set(baseCategories.map(c => c.default_account_id).filter(Boolean));
+  const categoryCostCenterIds = new Set(baseCategories.map(c => c.cost_center_id).filter(Boolean));
+
+  // Only show accounts/cost centers that have categories linked
+  const availableAccounts = accounts?.filter(a => a.active && categoryAccountIds.has(a.id)) || [];
+  const availableCostCenters = costCenters?.filter(c => c.active && categoryCostCenterIds.has(c.id)) || [];
+
+  // Apply filters to categories
+  let filteredCategories = [...baseCategories];
   if (filterAccountId) {
     filteredCategories = filteredCategories.filter(c => c.default_account_id === filterAccountId);
   }
@@ -53,7 +61,7 @@ export function CategoryFilteredSelector({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas as contas</SelectItem>
-              {activeAccounts.map(a => (
+              {availableAccounts.map(a => (
                 <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
               ))}
             </SelectContent>
@@ -67,7 +75,7 @@ export function CategoryFilteredSelector({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os centros</SelectItem>
-              {activeCostCenters.map(c => (
+              {availableCostCenters.map(c => (
                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
               ))}
             </SelectContent>
