@@ -404,7 +404,7 @@ export function useSmartImport() {
     }
   }, []);
 
-  // Reset all data
+  // Reset all data (full reset)
   const resetDatabase = useCallback(async (): Promise<boolean> => {
     setIsLoading(true);
     try {
@@ -426,6 +426,53 @@ export function useSmartImport() {
     } catch (error) {
       console.error('Reset error:', error);
       toast.error('Erro ao zerar base de dados');
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Clear only transactions for selected years (preserves structural config)
+  const clearTransactionsByYears = useCallback(async (years: number[]): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      let totalDeleted = 0;
+
+      for (const year of years) {
+        // Delete transaction history first (FK dependency)
+        const { data: txIds } = await supabase
+          .from('transactions')
+          .select('id')
+          .eq('competencia_ano', year);
+
+        if (txIds && txIds.length > 0) {
+          const ids = txIds.map(t => t.id);
+          for (let i = 0; i < ids.length; i += 100) {
+            const batch = ids.slice(i, i + 100);
+            await supabase.from('transaction_history').delete().in('transaction_id', batch);
+          }
+        }
+
+        // Delete transactions for the year
+        const { data: deleted, error } = await supabase
+          .from('transactions')
+          .delete()
+          .eq('competencia_ano', year)
+          .select('id');
+
+        if (error) {
+          console.error(`Error deleting transactions for ${year}:`, error);
+          toast.error(`Erro ao limpar transações de ${year}`);
+        } else {
+          totalDeleted += deleted?.length || 0;
+        }
+      }
+
+      toast.success(`${totalDeleted} transações removidas dos anos ${years.join(', ')}`);
+      return true;
+    } catch (error) {
+      console.error('Clear transactions error:', error);
+      toast.error('Erro ao limpar transações');
       return false;
     } finally {
       setIsLoading(false);
@@ -585,29 +632,43 @@ export function useSmartImport() {
       }
 
       // 6. Create transactions - CATEGORY-CENTRIC: category drives all other fields
+      // Load full category data to inherit account & cost center
+      const { data: allCategories } = await supabase
+        .from('transaction_categories')
+        .select('id, name, type, subtype, expense_type, default_account_id, cost_center_id');
+      
+      const categoryDetailMap = new Map<string, {
+        id: string; type: string; subtype: string | null; expense_type: string | null;
+        default_account_id: string | null; cost_center_id: string;
+      }>();
+      (allCategories || []).forEach(c => categoryDetailMap.set(c.id, c));
+
       for (const row of analysis.newItems.transactions) {
         if (!row.dataPagamento) continue;
 
-        const categoryId = categoryMap.get(normalizeText(row.categoria));
+        const categoryId = row.mappedCategoryId || categoryMap.get(normalizeText(row.categoria));
         const clientId = row.empresa ? clientMap.get(normalizeText(row.empresa)) : null;
-        const tipoInfo = mapTipoLancamento(row.tipoLancamento);
-
-        // Category determines account and cost center - no need to specify them separately
-        // But we still look up to set the fields for backward compatibility
-        const accountId = accountMap.get(normalizeText(row.conta));
-        const costCenterId = costCenterMap.get(normalizeText(row.centroCusto));
-
-        // Determine natureza from subtype
+        
+        // Inherit from category (primary), fallback to row data
+        const catDetail = categoryId ? categoryDetailMap.get(categoryId) : null;
+        const resolvedAccountId = catDetail?.default_account_id || accountMap.get(normalizeText(row.conta)) || null;
+        const resolvedCostCenterId = catDetail?.cost_center_id || costCenterMap.get(normalizeText(row.centroCusto)) || null;
+        const resolvedMovimento = catDetail?.type || mapTipoLancamento(row.tipoLancamento).movimento;
+        
         let natureza: 'RECORRENTE' | 'AVULSA' = 'AVULSA';
-        if (tipoInfo.natureza === 'FIXA') natureza = 'RECORRENTE';
+        if (catDetail?.subtype === 'RECORRENTE' || catDetail?.subtype === 'FIXA') {
+          natureza = 'RECORRENTE';
+        }
 
         const { error } = await supabase.from('transactions').insert({
-          tipo_movimento: tipoInfo.movimento,
-          natureza,
-          origem: 'IMPORTACAO',
+          tipo_movimento: resolvedMovimento as 'ENTRADA' | 'SAIDA',
+          natureza: natureza as 'RECORRENTE' | 'AVULSA',
+          origem: 'IMPORTACAO' as const,
           transaction_category_id: categoryId || null,
-          account_id: accountId || null,
-          cost_center_id: costCenterId || null,
+          account_id: resolvedAccountId,
+          cost_center_id: resolvedCostCenterId,
+          conta_id: resolvedAccountId ? String(resolvedAccountId) : null,
+          centro_custo_id: resolvedCostCenterId ? String(resolvedCostCenterId) : null,
           cliente_id: clientId,
           competencia_mes: row.dataPagamento.getMonth() + 1,
           competencia_ano: row.dataPagamento.getFullYear(),
@@ -615,7 +676,7 @@ export function useSmartImport() {
           valor_pago: row.pago ? row.valor : null,
           data_vencimento: row.dataPagamento.toISOString().split('T')[0],
           data_pagamento: row.pago ? row.dataPagamento.toISOString().split('T')[0] : null,
-          status: row.pago ? 'PAGO' : 'EM_ABERTO',
+          status: (row.pago ? 'PAGO' : 'EM_ABERTO') as 'PAGO' | 'EM_ABERTO',
           descricao: `${row.categoria || 'Sem categoria'} - ${row.empresa || 'Sem vínculo'}`
         });
 
@@ -646,6 +707,7 @@ export function useSmartImport() {
     parseXlsxFile,
     analyzeData,
     resetDatabase,
+    clearTransactionsByYears,
     executeImport
   };
 }
