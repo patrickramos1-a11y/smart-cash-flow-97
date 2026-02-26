@@ -62,7 +62,7 @@ export function DespesasFixasPage() {
     .slice(0, 10) || [];
 
   const byAccount = yearlyTransactions?.reduce((acc, t) => {
-    const accountId = t.conta_id || 'sem-conta';
+    const accountId = (t as any).account_id || t.conta_id || 'sem-conta';
     if (!acc[accountId]) acc[accountId] = { total: 0, count: 0 };
     acc[accountId].total += Number(t.valor);
     acc[accountId].count++;

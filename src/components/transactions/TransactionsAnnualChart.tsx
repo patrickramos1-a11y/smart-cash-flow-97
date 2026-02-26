@@ -33,13 +33,26 @@ export function TransactionsAnnualChart({ year, filterType, filterNatureza, show
   const { data: transactions, isLoading } = useQuery({
     queryKey: ['transactions_annual', year],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('tipo_movimento, natureza, valor, valor_pago, status, competencia_mes, competencia_ano')
-        .eq('competencia_ano', year);
+      // Fetch in batches to avoid 1000 row limit
+      let allData: any[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      
+      while (true) {
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('tipo_movimento, natureza, valor, valor_pago, status, competencia_mes, competencia_ano')
+          .eq('competencia_ano', year)
+          .range(from, from + batchSize - 1);
 
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allData = allData.concat(data);
+        if (data.length < batchSize) break;
+        from += batchSize;
+      }
+
+      return allData;
     },
   });
 
@@ -48,28 +61,44 @@ export function TransactionsAnnualChart({ year, filterType, filterNatureza, show
       const monthNum = idx + 1;
       const monthTransactions = transactions?.filter(t => t.competencia_mes === monthNum) || [];
       
-      const entries = monthTransactions
-        .filter(t => t.tipo_movimento === 'ENTRADA')
+      // Entradas split by natureza
+      const entradaRecorrente = monthTransactions
+        .filter(t => t.tipo_movimento === 'ENTRADA' && t.natureza === 'RECORRENTE')
         .reduce((sum, t) => sum + Number(t.valor), 0);
       
-      const exits = monthTransactions
-        .filter(t => t.tipo_movimento === 'SAIDA')
+      const entradaAvulsa = monthTransactions
+        .filter(t => t.tipo_movimento === 'ENTRADA' && t.natureza === 'AVULSA')
         .reduce((sum, t) => sum + Number(t.valor), 0);
+
+      // Saídas split by natureza (RECORRENTE = Fixa, AVULSA = Variável)
+      const saidaFixa = monthTransactions
+        .filter(t => t.tipo_movimento === 'SAIDA' && t.natureza === 'RECORRENTE')
+        .reduce((sum, t) => sum + Number(t.valor), 0);
+      
+      const saidaVariavel = monthTransactions
+        .filter(t => t.tipo_movimento === 'SAIDA' && t.natureza === 'AVULSA')
+        .reduce((sum, t) => sum + Number(t.valor), 0);
+
+      const totalEntradas = entradaRecorrente + entradaAvulsa;
+      const totalSaidas = saidaFixa + saidaVariavel;
 
       return {
         month,
-        entradas: entries,
-        saidas: exits,
-        saldo: entries - exits,
+        entradaRecorrente,
+        entradaAvulsa,
+        totalEntradas,
+        saidaFixa,
+        saidaVariavel,
+        totalSaidas,
+        saldo: totalEntradas - totalSaidas,
       };
     });
   }, [transactions]);
 
-  // Calculate totals based on filter
   const totals = useMemo(() => {
     return chartData.reduce((acc, item) => {
-      acc.totalEntradas += item.entradas;
-      acc.totalSaidas += item.saidas;
+      acc.totalEntradas += item.totalEntradas;
+      acc.totalSaidas += item.totalSaidas;
       return acc;
     }, { totalEntradas: 0, totalSaidas: 0 });
   }, [chartData]);
@@ -103,7 +132,7 @@ export function TransactionsAnnualChart({ year, filterType, filterNatureza, show
               Visão Anual — {year}
             </CardTitle>
             <CardDescription className="mt-1">
-              {filterType === 'ENTRADA' ? 'Somente Entradas' : filterType === 'SAIDA' ? 'Somente Saídas' : 'Entradas vs Saídas'}
+              {filterType === 'ENTRADA' ? 'Recorrentes vs Avulsas' : filterType === 'SAIDA' ? 'Fixas vs Variáveis' : 'Entradas vs Saídas'}
             </CardDescription>
           </div>
           <div className="grid grid-cols-2 gap-4 text-right">
@@ -151,51 +180,144 @@ export function TransactionsAnnualChart({ year, filterType, filterNatureza, show
               />
               <Legend />
               <ReferenceLine y={0} stroke="hsl(var(--border))" strokeWidth={2} />
-              {showEntradas && (
-                <Bar 
-                  dataKey="entradas" 
-                  name="Entradas" 
-                  fill="hsl(var(--income))" 
-                  opacity={0.7}
-                  radius={[4, 4, 0, 0]}
-                >
-                  {showValues && (
-                    <LabelList 
-                      dataKey="entradas" 
-                      position="top" 
-                      formatter={(v: number) => v > 0 ? formatCompact(v) : ''} 
-                      style={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                    />
-                  )}
-                </Bar>
-              )}
-              {showSaidas && (
-                <Bar 
-                  dataKey="saidas" 
-                  name="Saídas" 
-                  fill="hsl(var(--expense))" 
-                  opacity={0.7}
-                  radius={[4, 4, 0, 0]}
-                >
-                  {showValues && (
-                    <LabelList 
-                      dataKey="saidas" 
-                      position="top" 
-                      formatter={(v: number) => v > 0 ? formatCompact(v) : ''} 
-                      style={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                    />
-                  )}
-                </Bar>
-              )}
+
+              {/* === VIEW: ALL (Entradas + Saídas) === */}
               {showEntradas && showSaidas && (
-                <Line 
-                  type="monotone" 
-                  dataKey="saldo" 
-                  name="Saldo" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={2}
-                  dot={{ fill: 'hsl(var(--primary))', r: 3 }}
-                />
+                <>
+                  {/* Entradas stacked: Recorrente + Avulsa */}
+                  <Bar 
+                    dataKey="entradaRecorrente" 
+                    name="Entrada Recorrente" 
+                    fill="hsl(var(--income))" 
+                    stackId="entradas"
+                    radius={[0, 0, 0, 0]}
+                  />
+                  <Bar 
+                    dataKey="entradaAvulsa" 
+                    name="Entrada Avulsa" 
+                    fill="hsl(142 71% 65%)" 
+                    stackId="entradas"
+                    radius={[4, 4, 0, 0]}
+                  />
+                  {/* Saídas stacked: Fixa + Variável */}
+                  <Bar 
+                    dataKey="saidaFixa" 
+                    name="Despesa Fixa" 
+                    fill="hsl(var(--expense))" 
+                    stackId="saidas"
+                    radius={[0, 0, 0, 0]}
+                  />
+                  <Bar 
+                    dataKey="saidaVariavel" 
+                    name="Despesa Variável" 
+                    fill="hsl(var(--warning))" 
+                    stackId="saidas"
+                    radius={[4, 4, 0, 0]}
+                  />
+                  {/* Saldo line */}
+                  <Line 
+                    type="monotone" 
+                    dataKey="saldo" 
+                    name="Saldo" 
+                    stroke="hsl(var(--primary))" 
+                    strokeWidth={2}
+                    dot={{ fill: 'hsl(var(--primary))', r: 3 }}
+                  />
+                </>
+              )}
+
+              {/* === VIEW: ONLY ENTRADAS === */}
+              {showEntradas && !showSaidas && (
+                <>
+                  <Bar 
+                    dataKey="entradaRecorrente" 
+                    name="Recorrente" 
+                    fill="hsl(var(--income))" 
+                    stackId="entradas"
+                    radius={[0, 0, 0, 0]}
+                  >
+                    {showValues && (
+                      <LabelList 
+                        dataKey="entradaRecorrente" 
+                        position="inside" 
+                        formatter={(v: number) => v > 0 ? formatCompact(v) : ''} 
+                        style={{ fill: 'white', fontSize: 9 }}
+                      />
+                    )}
+                  </Bar>
+                  <Bar 
+                    dataKey="entradaAvulsa" 
+                    name="Avulsa" 
+                    fill="hsl(142 71% 65%)" 
+                    stackId="entradas"
+                    radius={[4, 4, 0, 0]}
+                  >
+                    {showValues && (
+                      <LabelList 
+                        dataKey="entradaAvulsa" 
+                        position="top" 
+                        formatter={(v: number) => v > 0 ? formatCompact(v) : ''} 
+                        style={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }}
+                      />
+                    )}
+                  </Bar>
+                  <Line 
+                    type="monotone" 
+                    dataKey="totalEntradas" 
+                    name="Total Entradas" 
+                    stroke="hsl(var(--income))" 
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                  />
+                </>
+              )}
+
+              {/* === VIEW: ONLY SAÍDAS === */}
+              {showSaidas && !showEntradas && (
+                <>
+                  <Bar 
+                    dataKey="saidaFixa" 
+                    name="Fixa" 
+                    fill="hsl(var(--expense))" 
+                    stackId="saidas"
+                    radius={[0, 0, 0, 0]}
+                  >
+                    {showValues && (
+                      <LabelList 
+                        dataKey="saidaFixa" 
+                        position="inside" 
+                        formatter={(v: number) => v > 0 ? formatCompact(v) : ''} 
+                        style={{ fill: 'white', fontSize: 9 }}
+                      />
+                    )}
+                  </Bar>
+                  <Bar 
+                    dataKey="saidaVariavel" 
+                    name="Variável" 
+                    fill="hsl(var(--warning))" 
+                    stackId="saidas"
+                    radius={[4, 4, 0, 0]}
+                  >
+                    {showValues && (
+                      <LabelList 
+                        dataKey="saidaVariavel" 
+                        position="top" 
+                        formatter={(v: number) => v > 0 ? formatCompact(v) : ''} 
+                        style={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }}
+                      />
+                    )}
+                  </Bar>
+                  <Line 
+                    type="monotone" 
+                    dataKey="totalSaidas" 
+                    name="Total Saídas" 
+                    stroke="hsl(var(--expense))" 
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                  />
+                </>
               )}
             </ComposedChart>
           </ResponsiveContainer>
