@@ -1,131 +1,214 @@
 
-
-# Refatoracao Completa: Categoria como Nucleo do Sistema Financeiro
+# Plano de Correcao e Evolucao do Modulo Financeiro
 
 ## Resumo
 
-Transformar a **Categoria** no elemento central de todo o fluxo financeiro. Ao selecionar uma categoria no lancamento, o sistema automaticamente herda conta, centro de custo e tipo de lancamento -- eliminando preenchimento manual e erros de classificacao.
-
-## O que muda
-
-### Hoje
-- Categoria tem tipo (Entrada/Saida) e natureza de despesa (Fixa/Variavel), mas **nao tem subtipo para entradas** (Recorrente/Avulsa)
-- Conta e centro de custo sao preenchidos manualmente no lancamento
-- Conta padrao (`default_account_id`) e opcional e pouco usada
-- Nas abas de transacoes, todas as categorias aparecem sem filtragem inteligente
-
-### Depois
-- Cada categoria define **completamente** o tipo de lancamento:
-  - Entrada Recorrente, Entrada Avulsa, Despesa Fixa, Despesa Variavel
-- Conta e centro de custo sao **herdados automaticamente** da categoria
-- No lancamento, o usuario escolhe apenas a categoria -- o resto e preenchido pelo sistema
-- Cada aba de transacao mostra **apenas** as categorias do seu tipo
+Este plano aborda todos os problemas identificados em 4 fases, da correcao critica ate a evolucao de interface. O foco principal esta em: corrigir projecao de contratos recorrentes, garantir heranca automatica categoria-conta, reestruturar a aba de Contas para refletir valores reais, e adicionar novas capacidades como entidades de vinculos e repeticao de despesas variaveis.
 
 ---
 
-## Etapas de Implementacao
+## FASE 1 -- Correcoes Criticas
 
-### 1. Migracao do Banco de Dados
+### 1.1 Corrigir Projecao de Contratos Recorrentes
 
-Adicionar coluna `subtype` a tabela `transaction_categories` para distinguir os 4 tipos completos:
+**Problema:** Contratos recorrentes aparecem apenas em dezembro e nao impactam dashboards.
+
+**Causa raiz:** No `useCreateContractWithInstallments`, as parcelas sao geradas corretamente a partir do `startMonth`, porem o trigger `sync_installment_to_transaction` pode nao estar sendo disparado corretamente (triggers estao reportados como inexistentes no schema). As transacoes criadas pelo trigger usam `origem = 'CONTRATO_RECORRENTE'` mas a logica de filtro no dashboard e na aba recorrente pode nao estar considerando esse campo.
+
+**Solucao:**
+- Verificar e recriar os triggers `sync_installment_to_transaction` e `sync_transaction_to_installment` caso nao estejam ativos (migracao SQL)
+- No `Dashboard.tsx`, garantir que contratos recorrentes (transacoes com `origem = 'CONTRATO_RECORRENTE'`) sejam contabilizados na projecao anual
+- No `ProjectionChart.tsx`, corrigir a logica: atualmente usa `contracts` e calcula `projectedMonthlyRevenue` para meses futuros, mas para meses passados filtra por `status === 'PAGO'` -- deve incluir `EM_ABERTO` tambem no valor esperado
+- Invalidar queries de transacoes apos criacao de contrato (ja existe, verificar se funciona)
+
+**Arquivos:** `ProjectionChart.tsx`, `Dashboard.tsx`, nova migracao SQL para triggers
+
+### 1.2 Corrigir Heranca Categoria -> Conta -> Centro de Custo
+
+**Problema:** Sistema ainda mostra selecao manual de conta em contratos recorrentes. Categoria exibindo dados incorretos.
+
+**Solucao:**
+- `NewRecurringContractModal.tsx`: Remover campo `defaultAccountId` e select de contas (linhas 72, 457-470). Adicionar campo de selecao de categoria (filtrada para `ENTRADA` + `RECORRENTE`). Herdar `account_id` e `cost_center_id` da categoria selecionada
+- `useCreateContractWithInstallments`: Ao criar transacoes via trigger, garantir que `conta_id` e `centro_custo_id` sejam populados a partir da categoria vinculada
+- `NewFixedExpenseModal.tsx`: Remover campo desabilitado de conta manual (ja herda, mas precisa limpar o campo `conta_id` do formData que ainda aparece)
+
+**Arquivos:** `NewRecurringContractModal.tsx`, `useRecurringContracts.ts`, `NewFixedExpenseModal.tsx`
+
+### 1.3 Regra Clara para Desconto Fixo
+
+**Problema:** Opcao de desconto sem prazo definido pode comprometer projecao.
+
+**Solucao:**
+- No `NewRecurringContractModal.tsx`, step "discount": tornar obrigatoria a selecao de duracao quando desconto estiver ativo
+- Adicionar terceira opcao: "Desconto indefinido (ate encerramento manual)" com aviso visual
+- Na projecao, descontos indefinidos aplicam o desconto em todos os meses ate `end_date` do contrato ou fim do ano
+
+**Arquivos:** `NewRecurringContractModal.tsx`
+
+---
+
+## FASE 2 -- Evolucao Estrutural
+
+### 2.1 Criar Modulo de Entidades Financeiras (Responsaveis/Fornecedores)
+
+**Nova tabela no banco de dados:**
 
 ```text
-transaction_categories
-  + subtype TEXT  -- valores: 'RECORRENTE', 'AVULSA', 'FIXA', 'VARIAVEL'
+financial_entities
+  id          UUID PK
+  name        TEXT NOT NULL
+  type        TEXT NOT NULL  -- 'COLABORADOR', 'FORNECEDOR', 'SOCIO', 'GRUPO'
+  email       TEXT
+  phone       TEXT
+  document    TEXT
+  cost_center_id  UUID (FK opcional)
+  active      BOOLEAN DEFAULT true
+  notes       TEXT
+  created_at  TIMESTAMPTZ
+  updated_at  TIMESTAMPTZ
 ```
 
-Logica de preenchimento automatico dos dados existentes:
-- Se `type = 'SAIDA'` e `expense_type = 'FIXA'` → `subtype = 'FIXA'`
-- Se `type = 'SAIDA'` e `expense_type = 'VARIAVEL'` → `subtype = 'VARIAVEL'`
-- Se `type = 'SAIDA'` e sem expense_type → `subtype = 'VARIAVEL'` (padrao)
-- Se `type = 'ENTRADA'` → `subtype = 'AVULSA'` (padrao, usuario ajusta depois)
+**Adicionar coluna na tabela transactions:**
 
-Tornar `default_account_id` efetivamente obrigatorio na interface (sem alterar constraint no banco para nao quebrar dados antigos).
+```text
+transactions
+  + entity_id  UUID (FK para financial_entities, nullable)
+```
 
-### 2. Refatorar Formulario de Categoria (Configuracoes)
+**Impacto no codigo:**
+- Criar hook `useFinancialEntities.ts` com CRUD
+- Na aba de Configuracoes, adicionar nova tab "Entidades" com gestao de colaboradores, fornecedores, socios e grupos
+- Nos modais de lancamento (`QuickTransactionModal`, `NewFixedExpenseModal`), adicionar campo opcional "Responsavel / Vinculado a" com busca
+- No `TransactionsHub` e `Dashboard`, permitir filtro por entidade
 
-Redesenhar o formulario de cadastro/edicao de categoria:
+**Arquivos novos:** `src/hooks/useFinancialEntities.ts`
+**Arquivos modificados:** `FinancialConfigView.tsx`, `QuickTransactionModal.tsx`, `NewFixedExpenseModal.tsx`, `TransactionsHub.tsx`, migracao SQL
 
-**Campos do formulario:**
-- Nome da categoria
-- Tipo principal: **Entrada** ou **Despesa** (radio/select)
-- Subtipo (condicional):
-  - Se Entrada: **Recorrente** ou **Avulsa**
-  - Se Despesa: **Fixa** ou **Variavel**
-- Conta vinculada (obrigatoria) -- select com contas ativas
-- Centro de custo (obrigatorio) -- select com centros ativos
-- Cor (opcional)
-- Status ativo/inativo
+### 2.2 Despesa Variavel com Repeticao Limitada
 
-**Visualizacao da listagem:**
-- Agrupar categorias por tipo (4 grupos visuais com cores):
-  - Entrada Recorrente (verde escuro)
-  - Entrada Avulsa (verde claro)
-  - Despesa Fixa (vermelho escuro)
-  - Despesa Variavel (vermelho claro)
-- Mostrar conta e centro de custo vinculados em cada linha
+**Problema:** Nao existe opcao de repetir despesa variavel X vezes.
 
-### 3. Edicao em Massa de Categorias
+**Solucao:**
+- No `QuickTransactionModal.tsx`, quando `filterSubtype === 'VARIAVEL'`, adicionar secao "Repetir":
+  - Toggle "Repetir este lancamento"
+  - Campo "Quantas vezes" (2 a 24)
+  - Opcao "Parcelamento" (divide o valor) vs "Repeticao" (mesmo valor)
+- Ao submeter, gerar N transacoes com competencias sequenciais
+- Descricao: "Nome - Parcela X/N" ou "Nome - Repeticao X/N"
 
-Implementar na aba de Categorias (Configuracoes):
-
-- Checkbox de selecao multipla em cada categoria
-- Barra de acoes em massa que aparece ao selecionar 2+ itens:
-  - Alterar conta vinculada
-  - Alterar centro de custo
-  - Alterar subtipo (Recorrente/Avulsa/Fixa/Variavel)
-  - Ativar/Desativar em massa
-
-### 4. Atualizar Hooks e Logica de Lancamento
-
-**No `useFinancialConfig.ts`:**
-- Atualizar tipo `TransactionCategory` para incluir `subtype`
-- Adicionar funcao `useTransactionCategoriesBySubtype(subtype)` para filtrar categorias
-
-**No `useTransactions.ts` / `useCreateTransaction`:**
-- Ao criar transacao, buscar a categoria selecionada
-- Auto-preencher `conta_id`, `centro_custo_id`, `cost_center_id` a partir da categoria
-- Auto-definir `tipo_movimento` e `natureza` com base no tipo/subtipo da categoria
-
-### 5. Atualizar Modais de Lancamento
-
-**QuickTransactionModal (Avulsas e Variaveis):**
-- Remover campos de conta, centro de custo e tipo do formulario
-- Adicionar campo de busca/selecao de categoria como campo principal
-- Filtrar categorias pelo subtipo correto (baseado na aba atual)
-- Ao selecionar categoria, preencher automaticamente os campos ocultos
-
-**NewRecurringContractModal (Entradas Recorrentes):**
-- Adicionar selecao de categoria (filtrada para ENTRADA + RECORRENTE)
-- Herdar conta e centro de custo da categoria selecionada
-
-**NewFixedExpenseModal (Despesas Fixas):**
-- Adicionar selecao de categoria (filtrada para SAIDA + FIXA)
-- Herdar conta e centro de custo da categoria selecionada
-
-**Visao Geral (TransactionsHub):**
-- No wizard generico, adicionar campo de busca inteligente de categoria
-- Ao selecionar uma categoria, detectar o subtipo e redirecionar para o modal correto:
-  - Entrada Recorrente → abre NewRecurringContractModal
-  - Entrada Avulsa → abre QuickTransactionModal (modo entrada)
-  - Despesa Fixa → abre NewFixedExpenseModal
-  - Despesa Variavel → abre QuickTransactionModal (modo despesa)
+**Arquivos:** `QuickTransactionModal.tsx`, `useTransactions.ts` (nova mutacao `useCreateBatchTransactions`)
 
 ---
 
-## Arquivos Impactados
+## FASE 3 -- Reforma de Interface
 
-### Banco de Dados
-- Nova migracao: adicionar coluna `subtype` em `transaction_categories` + popular dados existentes
+### 3.1 Reformular Graficos com Despesas Fixas vs Variaveis
 
-### Arquivos Modificados
-- `src/hooks/useFinancialConfig.ts` -- atualizar tipo TransactionCategory, adicionar hook de filtragem por subtipo
-- `src/components/config/FinancialConfigView.tsx` -- redesenhar TransactionCategoriesTab com novo formulario, agrupamento visual e edicao em massa
-- `src/components/transactions/QuickTransactionModal.tsx` -- remover campos manuais, adicionar selecao de categoria como campo central
-- `src/components/contracts/NewRecurringContractModal.tsx` -- adicionar selecao de categoria filtrada
-- `src/components/transactions/NewFixedExpenseModal.tsx` -- adicionar selecao de categoria filtrada
-- `src/components/transactions/TransactionsHub.tsx` -- wizard inteligente na visao geral
-- `src/hooks/useTransactions.ts` -- auto-preencher dados da categoria ao criar transacao
+**Problema:** Graficos nao distinguem visualmente fixas de variaveis.
 
-### Nenhum arquivo novo necessario
-Toda a logica se encaixa nos componentes e hooks existentes.
+**Solucao:**
+- No `RevenueExpenseChart.tsx`, substituir barra unica de despesas por 2 barras empilhadas:
+  - Coluna 1: Despesas Fixas (cor vermelha escura)
+  - Coluna 2: Despesas Variaveis (cor laranja)
+  - Linha: Total consolidado
+- Adicionar toggles para ativar/desativar camadas
+
+**Arquivos:** `RevenueExpenseChart.tsx`, `TransactionsAnnualChart.tsx`
+
+### 3.2 Navegacao Mensal Moderna
+
+**Problema:** Selecao de mes com dropdowns antigos em todas as abas.
+
+**Solucao:**
+- Criar componente `MonthYearNavigator` com botoes prev/next, barra horizontal de meses clicaveis e transicao visual
+- Substituir os selects de mes/ano em: `TransactionsHub.tsx`, `DespesasFixasPage.tsx`, `DespesasVariaveisPage.tsx`, `EntradasAvulsasPage.tsx`, `EntradasRecorrentesPage.tsx`
+
+**Arquivo novo:** `src/components/ui/month-year-navigator.tsx`
+**Arquivos modificados:** 5 paginas de transacao
+
+### 3.3 Busca Inteligente de Categoria com Digitacao Progressiva
+
+**Problema:** Lista completa de categorias aparece aberta, sem filtro.
+
+**Solucao:**
+- Nos modais (`QuickTransactionModal`, `NewFixedExpenseModal`), substituir `Select` por componente `Command` (cmdk ja instalado) com:
+  - Input com digitacao progressiva
+  - Filtro automatico
+  - Agrupamento por subtipo
+  - Botao "+" para criar nova categoria inline
+
+**Arquivos:** `QuickTransactionModal.tsx`, `NewFixedExpenseModal.tsx`, `NewRecurringContractModal.tsx`
+
+### 3.4 Botao Rapido para Criar Categoria no Lancamento
+
+**Solucao:**
+- Adicionar botao "+" ao lado do campo de categoria em todos os modais de lancamento
+- Ao clicar, abrir Dialog inline para criar categoria rapida (nome, tipo, subtipo, conta, centro de custo)
+- Ao salvar, selecionar automaticamente a nova categoria
+
+**Arquivos:** `QuickTransactionModal.tsx`, `NewFixedExpenseModal.tsx`
+
+---
+
+## FASE 4 -- Reestruturacao da Aba de Contas
+
+### 4.1 Corrigir Saldos das Contas
+
+**Problema:** Contas nao puxam valores e estao inconsistentes.
+
+**Causa raiz:** O campo `current_balance` em `accounts` nao e atualizado automaticamente com base nas transacoes. Ele reflete apenas o `initial_balance` estatico.
+
+**Solucao:**
+- Criar funcao SQL `recalculate_account_balance(account_id)` que:
+  - Soma todas as transacoes PAGO vinculadas a conta (entradas - saidas)
+  - Soma transferencias de/para a conta
+  - Atualiza `current_balance = initial_balance + saldo_transacoes + saldo_transferencias`
+- Criar trigger que dispara apos INSERT/UPDATE/DELETE em `transactions` quando `conta_id` muda ou `status` muda para/de PAGO
+- Criar trigger similar em `account_transfers`
+- Executar recalculo em massa para todas as contas existentes
+
+**Arquivos:** Nova migracao SQL
+
+### 4.2 Melhorar Visualizacao na Aba de Contas (AccountsView)
+
+**Solucao:**
+- Corrigir `AccountsView.tsx` para que o grafico de evolucao use `account_id` (UUID) ao inves de `conta_id` (texto legado) na filtragem de transacoes
+- Garantir que a projecao de meses futuros use as categorias vinculadas a conta para calcular entradas/saidas projetadas
+- Adicionar indicador de categorias vinculadas por conta na listagem
+
+**Arquivos:** `AccountsView.tsx`
+
+---
+
+## Ordem de Execucao
+
+1. Migracao SQL: triggers de sync, tabela `financial_entities`, coluna `entity_id`, funcao de recalculo de saldo
+2. Corrigir projecao de contratos e heranca categoria-conta (Fase 1)
+3. Reestruturar saldos de contas (Fase 4.1)
+4. Criar hooks e UI de entidades financeiras (Fase 2.1)
+5. Repeticao de despesas variaveis (Fase 2.2)
+6. Reformulacao de graficos e navegacao (Fase 3)
+7. Busca inteligente e botao de criacao rapida (Fase 3.3 e 3.4)
+
+## Arquivos Impactados (resumo)
+
+**Novas migracoes SQL:** 1 migracao consolidada com triggers, tabela, colunas e funcoes
+**Novo arquivo:** `src/hooks/useFinancialEntities.ts`, `src/components/ui/month-year-navigator.tsx`
+**Arquivos modificados:**
+- `src/components/dashboard/ProjectionChart.tsx`
+- `src/components/dashboard/Dashboard.tsx`
+- `src/components/dashboard/RevenueExpenseChart.tsx`
+- `src/components/contracts/NewRecurringContractModal.tsx`
+- `src/components/transactions/QuickTransactionModal.tsx`
+- `src/components/transactions/NewFixedExpenseModal.tsx`
+- `src/components/transactions/TransactionsHub.tsx`
+- `src/components/transactions/TransactionsAnnualChart.tsx`
+- `src/components/transactions/DespesasFixasPage.tsx`
+- `src/components/transactions/DespesasVariaveisPage.tsx`
+- `src/components/transactions/EntradasAvulsasPage.tsx`
+- `src/components/transactions/EntradasRecorrentesPage.tsx`
+- `src/components/config/FinancialConfigView.tsx`
+- `src/components/accounts/AccountsView.tsx`
+- `src/hooks/useRecurringContracts.ts`
+- `src/hooks/useTransactions.ts`
+- `src/hooks/useFinancialConfig.ts`
