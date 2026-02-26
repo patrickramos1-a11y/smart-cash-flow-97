@@ -1,37 +1,24 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   ArrowDownCircle, ArrowUpCircle, Plus, RefreshCw, 
   TrendingUp, TrendingDown, Clock, AlertTriangle, CheckCircle,
-  FileText, BarChart3
+  FileText, BarChart3, Eye, EyeOff
 } from 'lucide-react';
 import { TransactionsList } from './TransactionsList';
 import { NewTransactionWizard } from './NewTransactionWizard';
 import { TransactionAnalytics } from './TransactionAnalytics';
 import { TransactionsAnnualChart } from './TransactionsAnnualChart';
-import { useTransactionKPIs } from '@/hooks/useTransactions';
+import { useTransactionKPIs, useTransactions } from '@/hooks/useTransactions';
 import { formatCurrency } from '@/data/mockData';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
-const months = [
-  { value: 1, label: 'Janeiro' },
-  { value: 2, label: 'Fevereiro' },
-  { value: 3, label: 'Março' },
-  { value: 4, label: 'Abril' },
-  { value: 5, label: 'Maio' },
-  { value: 6, label: 'Junho' },
-  { value: 7, label: 'Julho' },
-  { value: 8, label: 'Agosto' },
-  { value: 9, label: 'Setembro' },
-  { value: 10, label: 'Outubro' },
-  { value: 11, label: 'Novembro' },
-  { value: 12, label: 'Dezembro' },
-];
+const MONTH_ABBREV = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 export function TransactionsHub() {
   const currentYear = new Date().getFullYear();
@@ -44,6 +31,8 @@ export function TransactionsHub() {
   const [entrySubTab, setEntrySubTab] = useState('recorrentes');
   const [exitSubTab, setExitSubTab] = useState('fixas');
   const [showWizard, setShowWizard] = useState(false);
+  const [showChartValues, setShowChartValues] = useState(false);
+  const [chartFilter, setChartFilter] = useState<'all' | 'ENTRADA' | 'SAIDA'>('all');
 
   const getFiltersForTab = () => {
     const baseFilters = { 
@@ -80,12 +69,43 @@ export function TransactionsHub() {
     tipo_movimento: 'SAIDA'
   });
 
+  // Sub-KPIs for Entradas breakdown
+  const { kpis: entryRecurringKpis } = useTransactionKPIs({
+    competencia_mes: selectedMonth,
+    competencia_ano: selectedYear,
+    tipo_movimento: 'ENTRADA',
+    natureza: 'RECORRENTE'
+  });
+  const { kpis: entryAvulsaKpis } = useTransactionKPIs({
+    competencia_mes: selectedMonth,
+    competencia_ano: selectedYear,
+    tipo_movimento: 'ENTRADA',
+    natureza: 'AVULSA'
+  });
+
+  // Sub-KPIs for Saídas breakdown
+  const { kpis: exitFixasKpis } = useTransactionKPIs({
+    competencia_mes: selectedMonth,
+    competencia_ano: selectedYear,
+    tipo_movimento: 'SAIDA',
+    natureza: 'RECORRENTE'
+  });
+  const { kpis: exitVariaveisKpis } = useTransactionKPIs({
+    competencia_mes: selectedMonth,
+    competencia_ano: selectedYear,
+    tipo_movimento: 'SAIDA',
+    natureza: 'AVULSA'
+  });
+
   const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+
+  // Auto-update chart filter based on tab
+  const effectiveChartFilter = mainTab === 'entradas' ? 'ENTRADA' : mainTab === 'saidas' ? 'SAIDA' : chartFilter;
 
   const renderKPICards = () => {
     if (mainTab === 'all') {
       return (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4 mb-4 lg:mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
           <Card className="border-l-4 border-l-income">
             <CardContent className="p-3 lg:p-6 pt-3 lg:pt-6">
               <div className="flex items-center gap-1.5 mb-1">
@@ -143,8 +163,161 @@ export function TransactionsHub() {
       );
     }
 
+    if (mainTab === 'entradas') {
+      return (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
+            <Card className="border-l-4 border-l-primary">
+              <CardContent className="p-3 lg:p-6 pt-3 lg:pt-6">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <FileText className="w-3.5 h-3.5" />
+                  <span className="text-[10px] lg:text-sm font-medium text-muted-foreground">Total Esperado</span>
+                </div>
+                <p className="text-lg lg:text-2xl font-bold">{formatCurrency(kpis.totalEsperado)}</p>
+                <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5">{kpis.quantidadeTotal} lançamentos</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-income">
+              <CardContent className="p-3 lg:p-6 pt-3 lg:pt-6">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <CheckCircle className="w-3.5 h-3.5 text-income" />
+                  <span className="text-[10px] lg:text-sm font-medium text-muted-foreground">Pago</span>
+                </div>
+                <p className="text-lg lg:text-2xl font-bold text-income">{formatCurrency(kpis.totalPago)}</p>
+                <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5">{kpis.quantidadePago} de {kpis.quantidadeTotal}</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-warning">
+              <CardContent className="p-3 lg:p-6 pt-3 lg:pt-6">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Clock className="w-3.5 h-3.5 text-warning" />
+                  <span className="text-[10px] lg:text-sm font-medium text-muted-foreground">Em Aberto</span>
+                </div>
+                <p className="text-lg lg:text-2xl font-bold text-warning">{formatCurrency(kpis.totalEmAberto)}</p>
+                <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5">{kpis.quantidadeEmAberto} pendentes</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-expense">
+              <CardContent className="p-3 lg:p-6 pt-3 lg:pt-6">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-expense" />
+                  <span className="text-[10px] lg:text-sm font-medium text-muted-foreground">Atrasado</span>
+                </div>
+                <p className="text-lg lg:text-2xl font-bold text-expense">{formatCurrency(kpis.totalAtrasado)}</p>
+                <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5">{kpis.quantidadeAtrasado} atrasados</p>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Receita Recorrente vs Avulsa breakdown */}
+          <div className="grid grid-cols-2 gap-2 lg:gap-4">
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <RefreshCw className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-[10px] lg:text-xs font-medium text-muted-foreground">Receita Recorrente</span>
+                </div>
+                <p className="text-base lg:text-lg font-bold">{formatCurrency(entryRecurringKpis.totalEsperado)}</p>
+                <p className="text-[10px] text-muted-foreground">{entryRecurringKpis.quantidadeTotal} contratos</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-info/5 border-info/20">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <FileText className="w-3.5 h-3.5 text-info" />
+                  <span className="text-[10px] lg:text-xs font-medium text-muted-foreground">Receita Avulsa</span>
+                </div>
+                <p className="text-base lg:text-lg font-bold">{formatCurrency(entryAvulsaKpis.totalEsperado)}</p>
+                <p className="text-[10px] text-muted-foreground">{entryAvulsaKpis.quantidadeTotal} serviços</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
+    if (mainTab === 'saidas') {
+      return (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
+            <Card className="border-l-4 border-l-primary">
+              <CardContent className="p-3 lg:p-6 pt-3 lg:pt-6">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <FileText className="w-3.5 h-3.5" />
+                  <span className="text-[10px] lg:text-sm font-medium text-muted-foreground">Total Esperado</span>
+                </div>
+                <p className="text-lg lg:text-2xl font-bold">{formatCurrency(kpis.totalEsperado)}</p>
+                <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5">{kpis.quantidadeTotal} lançamentos</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-income">
+              <CardContent className="p-3 lg:p-6 pt-3 lg:pt-6">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <CheckCircle className="w-3.5 h-3.5 text-income" />
+                  <span className="text-[10px] lg:text-sm font-medium text-muted-foreground">Pago</span>
+                </div>
+                <p className="text-lg lg:text-2xl font-bold text-income">{formatCurrency(kpis.totalPago)}</p>
+                <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5">{kpis.quantidadePago} pagos</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-warning">
+              <CardContent className="p-3 lg:p-6 pt-3 lg:pt-6">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Clock className="w-3.5 h-3.5 text-warning" />
+                  <span className="text-[10px] lg:text-sm font-medium text-muted-foreground">Em Aberto</span>
+                </div>
+                <p className="text-lg lg:text-2xl font-bold text-warning">{formatCurrency(kpis.totalEmAberto)}</p>
+                <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5">{kpis.quantidadeEmAberto} pendentes</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-expense">
+              <CardContent className="p-3 lg:p-6 pt-3 lg:pt-6">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-expense" />
+                  <span className="text-[10px] lg:text-sm font-medium text-muted-foreground">Atrasado</span>
+                </div>
+                <p className="text-lg lg:text-2xl font-bold text-expense">{formatCurrency(kpis.totalAtrasado)}</p>
+                <p className="text-[10px] lg:text-xs text-muted-foreground mt-0.5">{kpis.quantidadeAtrasado} atrasados</p>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Despesas Fixas vs Variáveis breakdown */}
+          <div className="grid grid-cols-2 gap-2 lg:gap-4">
+            <Card className="bg-expense/5 border-expense/20">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <RefreshCw className="w-3.5 h-3.5 text-expense" />
+                  <span className="text-[10px] lg:text-xs font-medium text-muted-foreground">Despesas Fixas</span>
+                </div>
+                <p className="text-base lg:text-lg font-bold">{formatCurrency(exitFixasKpis.totalEsperado)}</p>
+                <p className="text-[10px] text-muted-foreground">{exitFixasKpis.quantidadeTotal} lançamentos</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-warning/5 border-warning/20">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <FileText className="w-3.5 h-3.5 text-warning" />
+                  <span className="text-[10px] lg:text-xs font-medium text-muted-foreground">Despesas Variáveis</span>
+                </div>
+                <p className="text-base lg:text-lg font-bold">{formatCurrency(exitVariaveisKpis.totalEsperado)}</p>
+                <p className="text-[10px] text-muted-foreground">{exitVariaveisKpis.quantidadeTotal} lançamentos</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
+    // Default for analysis tab
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4 mb-4 lg:mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
         <Card className="border-l-4 border-l-primary">
           <CardContent className="p-3 lg:p-6 pt-3 lg:pt-6">
             <div className="flex items-center gap-1.5 mb-1">
@@ -194,43 +367,94 @@ export function TransactionsHub() {
 
   return (
     <div className="space-y-3 lg:space-y-6">
-      {/* Header with filters and new button */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex gap-2 items-center">
-          <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(Number(v))}>
-            <SelectTrigger className="w-28 lg:w-36 h-8 lg:h-10 text-xs lg:text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {months.map(m => (
-                <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
-            <SelectTrigger className="w-20 lg:w-24 h-8 lg:h-10 text-xs lg:text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {years.map(y => (
-                <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {/* Header: Year selector + New button */}
+      <div className="flex items-center justify-between gap-2">
+        <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
+          <SelectTrigger className="w-20 lg:w-24 h-8 lg:h-10 text-xs lg:text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {years.map(y => (
+              <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          <Button onClick={() => setShowWizard(true)} size={isMobile ? "sm" : "default"} className="gap-1.5 ml-auto lg:ml-0">
-            <Plus className="w-4 h-4" />
-            {!isMobile && 'Novo Lançamento'}
-          </Button>
+        <Button onClick={() => setShowWizard(true)} size={isMobile ? "sm" : "default"} className="gap-1.5">
+          <Plus className="w-4 h-4" />
+          {!isMobile && 'Novo Lançamento'}
+        </Button>
+      </div>
+
+      {/* Month strip - 12 months compact */}
+      <div className="overflow-x-auto -mx-3 px-3 lg:mx-0 lg:px-0">
+        <div className="flex gap-1 min-w-max lg:grid lg:grid-cols-12 lg:min-w-0">
+          {MONTH_ABBREV.map((label, idx) => {
+            const monthNum = idx + 1;
+            const isSelected = monthNum === selectedMonth;
+            const isCurrent = monthNum === currentMonth && selectedYear === currentYear;
+            return (
+              <button
+                key={monthNum}
+                onClick={() => setSelectedMonth(monthNum)}
+                className={cn(
+                  "px-3 py-2 rounded-lg text-xs font-medium transition-all text-center min-w-[44px]",
+                  isSelected
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : isCurrent
+                    ? "bg-primary/10 text-primary border border-primary/30"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                )}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards - dynamic per tab */}
       {renderKPICards()}
 
-      {/* Annual Chart - hidden on mobile to save space, shown in a collapsible */}
-      {!isMobile && <TransactionsAnnualChart year={selectedYear} />}
+      {/* Annual Chart with filter controls */}
+      {!isMobile && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 justify-end">
+            {mainTab === 'all' && (
+              <div className="flex gap-1">
+                {(['all', 'ENTRADA', 'SAIDA'] as const).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setChartFilter(f)}
+                    className={cn(
+                      "px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+                      chartFilter === f
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    {f === 'all' ? 'Tudo' : f === 'ENTRADA' ? 'Entradas' : 'Saídas'}
+                  </button>
+                ))}
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowChartValues(!showChartValues)}
+              className="gap-1.5 h-7 text-xs"
+            >
+              {showChartValues ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              {showChartValues ? 'Ocultar' : 'Valores'}
+            </Button>
+          </div>
+          <TransactionsAnnualChart 
+            year={selectedYear} 
+            filterType={effectiveChartFilter === 'all' ? undefined : effectiveChartFilter}
+            showValues={showChartValues}
+          />
+        </div>
+      )}
 
       {/* Main Tabs */}
       <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">

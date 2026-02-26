@@ -86,11 +86,13 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
       notes: formData.notes || null,
     });
 
-    // 2. Generate transactions for current month
-    await generateTransactions.mutateAsync({
-      year: currentYear,
-      month: currentMonth,
-    });
+    // 2. Generate transactions for ALL remaining months of the year
+    for (let m = 1; m <= 12; m++) {
+      await generateTransactions.mutateAsync({
+        year: currentYear,
+        month: m,
+      });
+    }
 
     handleClose();
   };

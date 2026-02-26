@@ -136,12 +136,7 @@ export function DespesasFixasPage() {
             </SelectContent>
           </Select>
 
-          <Button variant="outline" onClick={handleGenerateTransactions} disabled={generateMutation.isPending}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${generateMutation.isPending ? 'animate-spin' : ''}`} />
-            Gerar Lançamentos
-          </Button>
-
-          <Button onClick={() => setShowExpenseModal(true)} className="gap-2">
+          <Button onClick={() => setShowExpenseModal(true)} className="gap-2 bg-expense hover:bg-expense/90">
             <Plus className="w-4 h-4" />
             Nova Despesa Fixa
           </Button>
