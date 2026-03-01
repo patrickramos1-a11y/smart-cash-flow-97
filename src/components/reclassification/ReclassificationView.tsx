@@ -31,7 +31,7 @@ export function ReclassificationView() {
         .select(`
           id, descricao, valor, competencia_mes, competencia_ano, tipo_movimento,
           transaction_category_id, cost_center_id,
-          transaction_categories (id, name, cost_center_id),
+          transaction_categories (id, name, cost_center_id, cost_centers (id, name, dre_group)),
           cost_centers (id, name, dre_group)
         `)
         .order('competencia_ano', { ascending: false })

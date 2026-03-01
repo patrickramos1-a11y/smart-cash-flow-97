@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAccounts, useCostCenters, useTransactionCategories, type CategorySubtype } from '@/hooks/useFinancialConfig';
@@ -50,13 +51,22 @@ export function CategoryFilteredSelector({
   // Base categories for this tipo+subtype
   const baseCategories = categories?.filter(c => c.type === tipo && c.subtype === subtype && c.active) || [];
 
-  // Extract unique account IDs and cost center IDs that exist in these categories
+  // Extract unique account IDs and cost center IDs from these categories
   const categoryAccountIds = new Set(baseCategories.map(c => c.default_account_id).filter(Boolean));
   const categoryCostCenterIds = new Set(baseCategories.map(c => c.cost_center_id).filter(Boolean));
 
-  // Show only accounts that have categories linked in this tipo+subtype
-  const availableAccounts = accounts?.filter(a => a.active && categoryAccountIds.has(a.id)) || [];
-  const availableCostCenters = costCenters?.filter(c => c.active && categoryCostCenterIds.has(c.id)) || [];
+  // Show accounts linked to categories (even inactive accounts, since legacy data references them)
+  // Also fetch all accounts to build a name map
+  const allAccounts = accounts || [];
+  const accountMap = new Map(allAccounts.map(a => [a.id, a]));
+  
+  // Build list of accounts that have categories in this modality
+  const availableAccounts = Array.from(categoryAccountIds)
+    .map(id => accountMap.get(id as string))
+    .filter(Boolean)
+    .sort((a, b) => (a!.name).localeCompare(b!.name));
+
+  const availableCostCenters = costCenters?.filter(c => categoryCostCenterIds.has(c.id)) || [];
 
   // Apply filters to categories
   let filteredCategories = [...baseCategories];
@@ -66,6 +76,36 @@ export function CategoryFilteredSelector({
   if (filterCostCenterId) {
     filteredCategories = filteredCategories.filter(c => c.cost_center_id === filterCostCenterId);
   }
+
+  // Group categories by account name, then sort alphabetically within each group
+  const groupedCategories = useMemo(() => {
+    const groups: { accountName: string; accountId: string | null; categories: typeof filteredCategories }[] = [];
+    const byAccount = new Map<string, typeof filteredCategories>();
+    
+    for (const cat of filteredCategories) {
+      const accId = cat.default_account_id || '__none__';
+      if (!byAccount.has(accId)) byAccount.set(accId, []);
+      byAccount.get(accId)!.push(cat);
+    }
+
+    // Sort groups by account name
+    const sortedKeys = Array.from(byAccount.keys()).sort((a, b) => {
+      const nameA = a === '__none__' ? 'zzz' : (accountMap.get(a)?.name || 'zzz');
+      const nameB = b === '__none__' ? 'zzz' : (accountMap.get(b)?.name || 'zzz');
+      return nameA.localeCompare(nameB);
+    });
+
+    for (const key of sortedKeys) {
+      const cats = byAccount.get(key)!.sort((a, b) => a.name.localeCompare(b.name));
+      groups.push({
+        accountName: key === '__none__' ? 'Sem conta vinculada' : (accountMap.get(key)?.name || 'Conta desconhecida'),
+        accountId: key === '__none__' ? null : key,
+        categories: cats,
+      });
+    }
+
+    return groups;
+  }, [filteredCategories, accountMap]);
 
   const selectedCategory = categories?.find(c => c.id === selectedCategoryId);
 
@@ -82,8 +122,8 @@ export function CategoryFilteredSelector({
             <SelectContent>
               <SelectItem value="all">Todas as contas</SelectItem>
               {availableAccounts.map(a => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.name}
+                <SelectItem key={a!.id} value={a!.id}>
+                  {a!.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -105,7 +145,7 @@ export function CategoryFilteredSelector({
         </div>
       </div>
 
-      {/* Category selector with icons */}
+      {/* Category selector grouped by account */}
       <div>
         <Label>Categoria *</Label>
         <Select value={selectedCategoryId} onValueChange={onCategoryChange}>
@@ -113,18 +153,29 @@ export function CategoryFilteredSelector({
             <SelectValue placeholder="Selecionar categoria" />
           </SelectTrigger>
           <SelectContent>
-            {filteredCategories.map(c => {
-              const Icon = getEntityIcon(c.name);
-              const color = ensureDarkColor(c.color || '#6366f1');
-              return (
-                <SelectItem key={c.id} value={c.id}>
-                  <div className="flex items-center gap-2">
-                    <Icon className="w-4 h-4 shrink-0" style={{ color }} />
-                    <span style={{ color }}>{c.name}</span>
-                  </div>
-                </SelectItem>
-              );
-            })}
+            {groupedCategories.map((group) => (
+              <div key={group.accountName}>
+                {/* Account group header */}
+                <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/40 sticky top-0">
+                  {group.accountName}
+                </div>
+                {group.categories.map(c => {
+                  const Icon = getEntityIcon(c.name);
+                  const color = ensureDarkColor(c.color || '#6366f1');
+                  return (
+                    <SelectItem key={c.id} value={c.id}>
+                      <div className="flex items-center gap-2">
+                        <Icon className="w-4 h-4 shrink-0" style={{ color }} />
+                        <span style={{ color }}>{c.name}</span>
+                        <span className="text-[10px] text-muted-foreground ml-auto">
+                          {group.accountName}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </div>
+            ))}
             {filteredCategories.length === 0 && (
               <div className="px-2 py-4 text-center text-sm text-muted-foreground">
                 Nenhuma categoria encontrada

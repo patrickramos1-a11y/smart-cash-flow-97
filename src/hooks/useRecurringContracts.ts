@@ -360,14 +360,15 @@ export function useCreateContractWithInstallments() {
     mutationFn: async (input: CreateContractInput) => {
       const year = input.year || new Date().getFullYear();
       
-      // 1. Get minimum wage for the year
-      const { data: mwConfig } = await supabase
+      // 1. Get minimum wage for the year AND previous year (for January rule)
+      const { data: mwConfigs } = await supabase
         .from('minimum_wage_config')
-        .select('value')
-        .eq('year', year)
-        .single();
+        .select('year, value')
+        .in('year', [year, year - 1])
+        .order('year');
       
-      const minimumWageValue = mwConfig?.value || 1518;
+      const mwCurrentYear = mwConfigs?.find(m => m.year === year)?.value || 1518;
+      const mwPreviousYear = mwConfigs?.find(m => m.year === year - 1)?.value || mwCurrentYear;
 
       // 2. Get plan details if plan_id is provided
       let planFactor = 1;
@@ -416,12 +417,15 @@ export function useCreateContractWithInstallments() {
       // 5. Determine factor to use
       const effectiveFactor = input.custom_minimum_wage_factor || planFactor;
 
-      // 6. Generate 12 installments for the year
+      // 6. Generate installments for the year
       const installments = [];
       const startDate = parseLocalDate(input.start_date);
       const startMonth = startDate.getMonth() + 1;
 
       for (let month = startMonth; month <= 12; month++) {
+        // January rule: use previous year's minimum wage
+        const effectiveMW = month === 1 ? mwPreviousYear : mwCurrentYear;
+
         // Calculate value for this month
         let monthlyValue: number;
         
@@ -429,8 +433,8 @@ export function useCreateContractWithInstallments() {
           // Fixed R$ value mode
           monthlyValue = input.fixed_value;
         } else {
-          // SM factor mode
-          monthlyValue = effectiveFactor * minimumWageValue;
+          // SM factor mode - apply effective MW per month
+          monthlyValue = effectiveFactor * effectiveMW;
         }
 
         // Apply discount if applicable
@@ -449,7 +453,7 @@ export function useCreateContractWithInstallments() {
           switch (input.discount_type) {
             case 'factor':
               // Reduce the SM factor
-              monthlyValue = (effectiveFactor - input.discount_amount) * minimumWageValue;
+              monthlyValue = (effectiveFactor - input.discount_amount) * effectiveMW;
               break;
             case 'value':
               // Subtract fixed value
@@ -470,7 +474,7 @@ export function useCreateContractWithInstallments() {
           contract_id: contract.id,
           competence_month: month,
           competence_year: year,
-          minimum_wage_value: minimumWageValue,
+          minimum_wage_value: effectiveMW,
           minimum_wage_factor: input.fixed_value ? 0 : effectiveFactor,
           expected_value: Math.max(0, monthlyValue),
           due_date: dueDate.toISOString().split('T')[0],
