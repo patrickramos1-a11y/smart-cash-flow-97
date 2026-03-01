@@ -537,6 +537,28 @@ export function useDeleteTransactionCategory() {
   });
 }
 
+export function useBulkDeleteTransactionCategories() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from('transaction_categories')
+        .delete()
+        .in('id', ids);
+      
+      if (error) throw error;
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ['transaction-categories'] });
+      toast.success(`${ids.length} categorias excluídas com sucesso!`);
+    },
+    onError: (error) => {
+      toast.error('Erro ao excluir categorias: ' + error.message);
+    },
+  });
+}
+
 // =============================================
 // PAYMENT METHODS
 // =============================================

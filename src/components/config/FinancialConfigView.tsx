@@ -45,6 +45,7 @@ import {
   Loader2,
   Users
 } from 'lucide-react';
+import { Search, ArrowUpDown, Filter } from 'lucide-react';
 import { 
   useCompanies,
   useAccounts,
@@ -75,6 +76,7 @@ import {
   type TransactionCategory,
   type PaymentMethod,
   useBulkUpdateTransactionCategories,
+  useBulkDeleteTransactionCategories,
   type CategorySubtype,
 } from '@/hooks/useFinancialConfig';
 import { useRecurringContracts, useContractPlans, useCreateContractPlan, useUpdateContractPlan, type ContractPlan } from '@/hooks/useRecurringContracts';
@@ -966,7 +968,6 @@ function CostCentersTab() {
 // TRANSACTION CATEGORIES TAB (Redesigned - Category as Core)
 // =============================================
 
-
 const SUBTYPE_LABELS: Record<string, string> = {
   RECORRENTE: 'Entrada Recorrente',
   AVULSA: 'Entrada Avulsa',
@@ -981,7 +982,6 @@ const SUBTYPE_COLORS: Record<string, string> = {
   VARIAVEL: 'bg-red-400 text-white',
 };
 
-// Pool of distinct colors for categories
 const COLOR_POOL = [
   '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6',
   '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16',
@@ -993,14 +993,13 @@ const COLOR_POOL = [
 
 function getRandomUniqueColor(usedColors: string[]): string {
   const available = COLOR_POOL.filter(c => !usedColors.includes(c));
-  if (available.length > 0) {
-    return available[Math.floor(Math.random() * available.length)];
-  }
-  // Fallback: generate random HSL
+  if (available.length > 0) return available[Math.floor(Math.random() * available.length)];
   const hue = Math.floor(Math.random() * 360);
-  const hsl = `hsl(${hue}, 70%, 50%)`;
-  return hsl;
+  return `hsl(${hue}, 70%, 50%)`;
 }
+
+type SortField = 'name' | 'type' | 'subtype' | 'account' | 'cost_center';
+type SortDir = 'asc' | 'desc';
 
 function TransactionCategoriesTab() {
   const { data: categories, isLoading } = useTransactionCategories();
@@ -1010,85 +1009,98 @@ function TransactionCategoriesTab() {
   const updateCategory = useUpdateTransactionCategory();
   const deleteCategory = useDeleteTransactionCategory();
   const bulkUpdate = useBulkUpdateTransactionCategories();
-  
+  const bulkDelete = useBulkDeleteTransactionCategories();
+
   const [editingCategory, setEditingCategory] = useState<TransactionCategory | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [bulkField, setBulkField] = useState<'subtype' | 'account' | 'cost_center' | 'active'>('subtype');
   const [bulkValue, setBulkValue] = useState('');
-  
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
+  // Filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [filterSubtype, setFilterSubtype] = useState<string>('all');
+  const [filterAccount, setFilterAccount] = useState<string>('all');
+  const [filterCostCenter, setFilterCostCenter] = useState<string>('all');
+
+  // Sorting
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+
   const [formData, setFormData] = useState({
-    name: '',
-    cost_center_id: '',
-    type: 'SAIDA' as 'ENTRADA' | 'SAIDA',
-    subtype: '' as CategorySubtype | '',
-    default_account_id: '',
-    color: '#6366f1',
-    active: true
+    name: '', cost_center_id: '', type: 'SAIDA' as 'ENTRADA' | 'SAIDA',
+    subtype: '' as CategorySubtype | '', default_account_id: '', color: '#6366f1', active: true
   });
 
-  // Derive expense_type from subtype for backward compatibility
   const getExpenseType = (subtype: string) => {
     if (subtype === 'FIXA') return 'FIXA';
     if (subtype === 'VARIAVEL') return 'VARIAVEL';
     return null;
   };
 
+  // Filtered + sorted categories
+  const filteredCategories = (categories || [])
+    .filter(c => {
+      if (searchTerm && !c.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+      if (filterType !== 'all' && c.type !== filterType) return false;
+      if (filterSubtype !== 'all' && c.subtype !== filterSubtype) return false;
+      if (filterAccount !== 'all' && c.default_account_id !== filterAccount) return false;
+      if (filterCostCenter !== 'all' && c.cost_center_id !== filterCostCenter) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case 'name': cmp = a.name.localeCompare(b.name); break;
+        case 'type': cmp = a.type.localeCompare(b.type); break;
+        case 'subtype': cmp = (a.subtype || '').localeCompare(b.subtype || ''); break;
+        case 'account': cmp = ((a as any).default_account?.name || '').localeCompare((b as any).default_account?.name || ''); break;
+        case 'cost_center': cmp = (a.cost_center?.name || '').localeCompare(b.cost_center?.name || ''); break;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+  };
+
+  const SortHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
+    <TableHead className="cursor-pointer select-none" onClick={() => toggleSort(field)}>
+      <div className="flex items-center gap-1">
+        {children}
+        <ArrowUpDown className={`w-3 h-3 ${sortField === field ? 'text-primary' : 'text-muted-foreground/40'}`} />
+      </div>
+    </TableHead>
+  );
+
   const handleSubmit = () => {
     const payload: any = {
-      name: formData.name,
-      cost_center_id: formData.cost_center_id,
-      type: formData.type,
+      name: formData.name, cost_center_id: formData.cost_center_id, type: formData.type,
       subtype: formData.subtype || null,
       expense_type: formData.type === 'SAIDA' ? getExpenseType(formData.subtype) : null,
-      default_account_id: formData.default_account_id || null,
-      color: formData.color,
-      active: formData.active,
+      default_account_id: formData.default_account_id || null, color: formData.color, active: formData.active,
     };
-
     if (editingCategory) {
-      updateCategory.mutate({ id: editingCategory.id, ...payload } as any, {
-        onSuccess: () => {
-          setIsDialogOpen(false);
-          setEditingCategory(null);
-        }
-      });
+      updateCategory.mutate({ id: editingCategory.id, ...payload } as any, { onSuccess: () => { setIsDialogOpen(false); setEditingCategory(null); } });
     } else {
-      createCategory.mutate(payload as any, {
-        onSuccess: () => {
-          setIsDialogOpen(false);
-        }
-      });
+      createCategory.mutate(payload as any, { onSuccess: () => setIsDialogOpen(false) });
     }
   };
 
   const openEdit = (cat: TransactionCategory) => {
     setEditingCategory(cat);
-    setFormData({
-      name: cat.name,
-      cost_center_id: cat.cost_center_id,
-      type: cat.type,
-      subtype: (cat.subtype || '') as CategorySubtype | '',
-      default_account_id: cat.default_account_id || '',
-      color: cat.color || '#6366f1',
-      active: cat.active
-    });
+    setFormData({ name: cat.name, cost_center_id: cat.cost_center_id, type: cat.type, subtype: (cat.subtype || '') as CategorySubtype | '', default_account_id: cat.default_account_id || '', color: cat.color || '#6366f1', active: cat.active });
     setIsDialogOpen(true);
   };
 
   const openNew = () => {
     setEditingCategory(null);
     const usedColors = categories?.map(c => c.color || '').filter(Boolean) || [];
-    setFormData({
-      name: '',
-      cost_center_id: '',
-      type: 'SAIDA',
-      subtype: '',
-      default_account_id: '',
-      color: getRandomUniqueColor(usedColors),
-      active: true
-    });
+    setFormData({ name: '', cost_center_id: '', type: 'SAIDA', subtype: '', default_account_id: '', color: getRandomUniqueColor(usedColors), active: true });
     setIsDialogOpen(true);
   };
 
@@ -1098,11 +1110,15 @@ function TransactionCategoriesTab() {
     setSelectedIds(next);
   };
 
-  const toggleAll = () => {
-    if (selectedIds.size === (categories?.length || 0)) {
-      setSelectedIds(new Set());
+  const toggleAllFiltered = () => {
+    if (filteredCategories.every(c => selectedIds.has(c.id))) {
+      const next = new Set(selectedIds);
+      filteredCategories.forEach(c => next.delete(c.id));
+      setSelectedIds(next);
     } else {
-      setSelectedIds(new Set(categories?.map(c => c.id) || []));
+      const next = new Set(selectedIds);
+      filteredCategories.forEach(c => next.add(c.id));
+      setSelectedIds(next);
     }
   };
 
@@ -1113,187 +1129,111 @@ function TransactionCategoriesTab() {
     if (bulkField === 'account') updates.default_account_id = bulkValue;
     if (bulkField === 'cost_center') updates.cost_center_id = bulkValue;
     if (bulkField === 'active') updates.active = bulkValue === 'true';
-    
-    bulkUpdate.mutate({ ids, updates }, {
-      onSuccess: () => {
-        setBulkDialogOpen(false);
-        setSelectedIds(new Set());
-        setBulkValue('');
-      }
-    });
+    bulkUpdate.mutate({ ids, updates }, { onSuccess: () => { setBulkDialogOpen(false); setSelectedIds(new Set()); setBulkValue(''); } });
   };
 
-  // Auto-set subtype options based on type
-  const subtypeOptions = formData.type === 'ENTRADA' 
+  const handleBulkDelete = () => {
+    bulkDelete.mutate(Array.from(selectedIds), { onSuccess: () => { setConfirmDeleteOpen(false); setSelectedIds(new Set()); } });
+  };
+
+  const subtypeOptions = formData.type === 'ENTRADA'
     ? [{ value: 'RECORRENTE', label: 'Recorrente' }, { value: 'AVULSA', label: 'Avulsa' }]
     : [{ value: 'FIXA', label: 'Fixa' }, { value: 'VARIAVEL', label: 'Variável' }];
 
-  // Group categories by full type
-  const grouped = {
-    RECORRENTE: categories?.filter(c => c.type === 'ENTRADA' && c.subtype === 'RECORRENTE') || [],
-    AVULSA: categories?.filter(c => c.type === 'ENTRADA' && c.subtype === 'AVULSA') || [],
-    FIXA: categories?.filter(c => c.type === 'SAIDA' && c.subtype === 'FIXA') || [],
-    VARIAVEL: categories?.filter(c => c.type === 'SAIDA' && c.subtype === 'VARIAVEL') || [],
-    SEM_SUBTIPO: categories?.filter(c => !c.subtype) || [],
-  };
+  // Unique accounts used by categories for filter
+  const usedAccountIds = [...new Set(categories?.map(c => c.default_account_id).filter(Boolean) || [])];
+  const usedCostCenterIds = [...new Set(categories?.map(c => c.cost_center_id).filter(Boolean) || [])];
 
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin" /></div>;
 
-  const renderGroup = (label: string, items: TransactionCategory[], badgeClass: string) => {
-    if (items.length === 0) return null;
-    return (
-      <div key={label} className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Badge className={badgeClass}>{label}</Badge>
-          <span className="text-xs text-muted-foreground">{items.length} categorias</span>
-        </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10">
-                <Checkbox 
-                  checked={items.every(i => selectedIds.has(i.id))}
-                  onCheckedChange={() => {
-                    const next = new Set(selectedIds);
-                    const allSelected = items.every(i => next.has(i.id));
-                    items.forEach(i => allSelected ? next.delete(i.id) : next.add(i.id));
-                    setSelectedIds(next);
-                  }}
-                />
-              </TableHead>
-              <TableHead>Cor</TableHead>
-              <TableHead>Nome</TableHead>
-              <TableHead>Conta Vinculada</TableHead>
-              <TableHead>Centro de Custo</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[100px]">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.map((cat) => (
-              <TableRow key={cat.id} className={!cat.active ? 'opacity-50' : ''}>
-                <TableCell>
-                  <Checkbox 
-                    checked={selectedIds.has(cat.id)}
-                    onCheckedChange={() => toggleSelect(cat.id)}
-                  />
-                </TableCell>
-                <TableCell>
-                  <div className="w-5 h-5 rounded-full" style={{ backgroundColor: cat.color || '#6366f1' }} />
-                </TableCell>
-                <TableCell className="font-medium">{cat.name}</TableCell>
-                <TableCell className="text-sm">
-                  {(cat as any).default_account?.name || <span className="text-muted-foreground italic">Não definida</span>}
-                </TableCell>
-                <TableCell className="text-sm">{cat.cost_center?.name || '-'}</TableCell>
-                <TableCell>
-                  <Badge variant={cat.active ? 'default' : 'secondary'}>
-                    {cat.active ? 'Ativa' : 'Inativa'}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(cat)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => deleteCategory.mutate(cat.id)} className="text-destructive">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div className="flex justify-between items-center flex-wrap gap-2">
         <p className="text-muted-foreground text-sm">
-          A Categoria é o núcleo do sistema. Ela define tipo, conta e centro de custo automaticamente.
+          A Categoria é o núcleo do sistema. {categories?.length || 0} categorias ativas.
         </p>
         <div className="flex gap-2">
-          {selectedIds.size >= 2 && (
-            <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" onClick={() => setBulkDialogOpen(true)}>
-                  Editar {selectedIds.size} selecionadas
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Edição em Massa</DialogTitle>
-                  <DialogDescription>Alterar {selectedIds.size} categorias selecionadas.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label>Campo a alterar</Label>
-                    <Select value={bulkField} onValueChange={(v: any) => { setBulkField(v); setBulkValue(''); }}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="subtype">Subtipo</SelectItem>
-                        <SelectItem value="account">Conta Vinculada</SelectItem>
-                        <SelectItem value="cost_center">Centro de Custo</SelectItem>
-                        <SelectItem value="active">Status</SelectItem>
-                      </SelectContent>
-                    </Select>
+          {selectedIds.size > 0 && (
+            <>
+              <Button variant="destructive" size="sm" onClick={() => setConfirmDeleteOpen(true)}>
+                <Trash2 className="w-4 h-4 mr-1" />Excluir {selectedIds.size}
+              </Button>
+              <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">Editar {selectedIds.size} selecionadas</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edição em Massa</DialogTitle>
+                    <DialogDescription>Alterar {selectedIds.size} categorias selecionadas.</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Campo a alterar</Label>
+                      <Select value={bulkField} onValueChange={(v: any) => { setBulkField(v); setBulkValue(''); }}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="subtype">Subtipo</SelectItem>
+                          <SelectItem value="account">Conta Vinculada</SelectItem>
+                          <SelectItem value="cost_center">Centro de Custo</SelectItem>
+                          <SelectItem value="active">Status</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Novo valor</Label>
+                      {bulkField === 'subtype' && (
+                        <Select value={bulkValue} onValueChange={setBulkValue}>
+                          <SelectTrigger><SelectValue placeholder="Selecionar subtipo" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="RECORRENTE">Recorrente</SelectItem>
+                            <SelectItem value="AVULSA">Avulsa</SelectItem>
+                            <SelectItem value="FIXA">Fixa</SelectItem>
+                            <SelectItem value="VARIAVEL">Variável</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {bulkField === 'account' && (
+                        <Select value={bulkValue} onValueChange={setBulkValue}>
+                          <SelectTrigger><SelectValue placeholder="Selecionar conta" /></SelectTrigger>
+                          <SelectContent>
+                            {accounts?.filter(a => a.active).map(a => (
+                              <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {bulkField === 'cost_center' && (
+                        <Select value={bulkValue} onValueChange={setBulkValue}>
+                          <SelectTrigger><SelectValue placeholder="Selecionar centro de custo" /></SelectTrigger>
+                          <SelectContent>
+                            {costCenters?.map(cc => (
+                              <SelectItem key={cc.id} value={cc.id}>{cc.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {bulkField === 'active' && (
+                        <Select value={bulkValue} onValueChange={setBulkValue}>
+                          <SelectTrigger><SelectValue placeholder="Selecionar status" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="true">Ativa</SelectItem>
+                            <SelectItem value="false">Inativa</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Novo valor</Label>
-                    {bulkField === 'subtype' && (
-                      <Select value={bulkValue} onValueChange={setBulkValue}>
-                        <SelectTrigger><SelectValue placeholder="Selecionar subtipo" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="RECORRENTE">Recorrente</SelectItem>
-                          <SelectItem value="AVULSA">Avulsa</SelectItem>
-                          <SelectItem value="FIXA">Fixa</SelectItem>
-                          <SelectItem value="VARIAVEL">Variável</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                    {bulkField === 'account' && (
-                      <Select value={bulkValue} onValueChange={setBulkValue}>
-                        <SelectTrigger><SelectValue placeholder="Selecionar conta" /></SelectTrigger>
-                        <SelectContent>
-                          {accounts?.filter(a => a.active).map(a => (
-                            <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    {bulkField === 'cost_center' && (
-                      <Select value={bulkValue} onValueChange={setBulkValue}>
-                        <SelectTrigger><SelectValue placeholder="Selecionar centro de custo" /></SelectTrigger>
-                        <SelectContent>
-                          {costCenters?.map(cc => (
-                            <SelectItem key={cc.id} value={cc.id}>{cc.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    {bulkField === 'active' && (
-                      <Select value={bulkValue} onValueChange={setBulkValue}>
-                        <SelectTrigger><SelectValue placeholder="Selecionar status" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="true">Ativa</SelectItem>
-                          <SelectItem value="false">Inativa</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setBulkDialogOpen(false)}>Cancelar</Button>
-                  <Button onClick={handleBulkAction} disabled={!bulkValue || bulkUpdate.isPending}>
-                    {bulkUpdate.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                    Aplicar
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setBulkDialogOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleBulkAction} disabled={!bulkValue || bulkUpdate.isPending}>
+                      {bulkUpdate.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}Aplicar
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </>
           )}
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -1307,13 +1247,8 @@ function TransactionCategoriesTab() {
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
                   <Label>Nome *</Label>
-                  <Input 
-                    value={formData.name} 
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Ex: Acompanhamento Ambiental, Aluguel, Papelaria..."
-                  />
+                  <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Ex: Acompanhamento Ambiental, Aluguel..." />
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Tipo *</Label>
@@ -1330,54 +1265,36 @@ function TransactionCategoriesTab() {
                     <Select value={formData.subtype} onValueChange={(v: CategorySubtype) => setFormData({ ...formData, subtype: v })}>
                       <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                       <SelectContent>
-                        {subtypeOptions.map(o => (
-                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                        ))}
+                        {subtypeOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   <Label>Conta Vinculada *</Label>
                   <Select value={formData.default_account_id} onValueChange={(v) => setFormData({ ...formData, default_account_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Selecionar conta" /></SelectTrigger>
                     <SelectContent>
-                      {accounts?.filter(a => a.active).map(a => (
-                        <SelectItem key={a.id} value={a.id}>{a.name} {a.bank ? `(${a.bank})` : ''}</SelectItem>
-                      ))}
+                      {accounts?.filter(a => a.active).map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">Conta herdada automaticamente nos lançamentos.</p>
                 </div>
-
                 <div className="space-y-2">
                   <Label>Centro de Custo *</Label>
                   <Select value={formData.cost_center_id} onValueChange={(v) => setFormData({ ...formData, cost_center_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Selecionar centro de custo" /></SelectTrigger>
                     <SelectContent>
-                      {costCenters?.map(cc => (
-                        <SelectItem key={cc.id} value={cc.id}>{cc.name} ({cc.dre_label})</SelectItem>
-                      ))}
+                      {costCenters?.map(cc => <SelectItem key={cc.id} value={cc.id}>{cc.name} ({cc.dre_label})</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Cor</Label>
-                    <Input 
-                      type="color"
-                      value={formData.color} 
-                      onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                      className="h-10 w-20"
-                    />
+                    <Input type="color" value={formData.color} onChange={(e) => setFormData({ ...formData, color: e.target.value })} className="h-10 w-20" />
                   </div>
                   <div className="flex items-center gap-2 pt-6">
-                    <Switch 
-                      checked={formData.active} 
-                      onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
-                    />
+                    <Switch checked={formData.active} onCheckedChange={(checked) => setFormData({ ...formData, active: checked })} />
                     <Label>Ativa</Label>
                   </div>
                 </div>
@@ -1393,13 +1310,150 @@ function TransactionCategoriesTab() {
         </div>
       </div>
 
-      {/* Grouped display */}
-      <div className="space-y-6">
-        {renderGroup('Entrada Recorrente', grouped.RECORRENTE, SUBTYPE_COLORS.RECORRENTE)}
-        {renderGroup('Entrada Avulsa', grouped.AVULSA, SUBTYPE_COLORS.AVULSA)}
-        {renderGroup('Despesa Fixa', grouped.FIXA, SUBTYPE_COLORS.FIXA)}
-        {renderGroup('Despesa Variável', grouped.VARIAVEL, SUBTYPE_COLORS.VARIAVEL)}
-        {grouped.SEM_SUBTIPO.length > 0 && renderGroup('Sem Subtipo (classificar)', grouped.SEM_SUBTIPO, 'bg-muted text-muted-foreground')}
+      {/* Confirm bulk delete */}
+      <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Exclusão</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir {selectedIds.size} categorias? Esta ação não pode ser desfeita.
+              Categorias com transações vinculadas podem falhar.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteOpen(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleBulkDelete} disabled={bulkDelete.isPending}>
+              {bulkDelete.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Excluir {selectedIds.size} categorias
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="p-3">
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="Buscar categoria..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-8 h-9" />
+            </div>
+            <Select value={filterType} onValueChange={v => { setFilterType(v); setFilterSubtype('all'); }}>
+              <SelectTrigger className="w-36 h-9"><SelectValue placeholder="Tipo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos tipos</SelectItem>
+                <SelectItem value="ENTRADA">Entrada</SelectItem>
+                <SelectItem value="SAIDA">Despesa</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterSubtype} onValueChange={setFilterSubtype}>
+              <SelectTrigger className="w-36 h-9"><SelectValue placeholder="Subtipo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos subtipos</SelectItem>
+                <SelectItem value="RECORRENTE">Recorrente</SelectItem>
+                <SelectItem value="AVULSA">Avulsa</SelectItem>
+                <SelectItem value="FIXA">Fixa</SelectItem>
+                <SelectItem value="VARIAVEL">Variável</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterAccount} onValueChange={setFilterAccount}>
+              <SelectTrigger className="w-44 h-9"><SelectValue placeholder="Conta" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas contas</SelectItem>
+                {accounts?.filter(a => usedAccountIds.includes(a.id)).map(a => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterCostCenter} onValueChange={setFilterCostCenter}>
+              <SelectTrigger className="w-48 h-9"><SelectValue placeholder="Centro de Custo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos centros</SelectItem>
+                {costCenters?.filter(cc => usedCostCenterIds.includes(cc.id)).map(cc => (
+                  <SelectItem key={cc.id} value={cc.id}>{cc.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Results count */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Filter className="w-4 h-4" />
+        {filteredCategories.length} de {categories?.length || 0} categorias
+        {selectedIds.size > 0 && <Badge variant="secondary">{selectedIds.size} selecionadas</Badge>}
+      </div>
+
+      {/* Table */}
+      <div className="border rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={filteredCategories.length > 0 && filteredCategories.every(c => selectedIds.has(c.id))}
+                    onCheckedChange={toggleAllFiltered}
+                  />
+                </TableHead>
+                <TableHead className="w-10">Cor</TableHead>
+                <SortHeader field="name">Nome</SortHeader>
+                <SortHeader field="subtype">Subtipo</SortHeader>
+                <SortHeader field="account">Conta</SortHeader>
+                <SortHeader field="cost_center">Centro de Custo</SortHeader>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-[80px]">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredCategories.map((cat) => (
+                <TableRow key={cat.id} className={`${!cat.active ? 'opacity-50' : ''} ${selectedIds.has(cat.id) ? 'bg-primary/5' : ''}`}>
+                  <TableCell>
+                    <Checkbox checked={selectedIds.has(cat.id)} onCheckedChange={() => toggleSelect(cat.id)} />
+                  </TableCell>
+                  <TableCell>
+                    <div className="w-5 h-5 rounded-full border border-border" style={{ backgroundColor: cat.color || '#6366f1' }} />
+                  </TableCell>
+                  <TableCell className="font-medium text-sm">{cat.name}</TableCell>
+                  <TableCell>
+                    <Badge className={SUBTYPE_COLORS[cat.subtype || ''] || 'bg-muted text-muted-foreground'} variant="secondary">
+                      {SUBTYPE_LABELS[cat.subtype || ''] || 'Sem subtipo'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
+                    {(cat as any).default_account?.name || <span className="italic">—</span>}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
+                    {cat.cost_center?.name || '—'}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={cat.active ? 'default' : 'secondary'}>
+                      {cat.active ? 'Ativa' : 'Inativa'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(cat)}>
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => deleteCategory.mutate(cat.id)} className="text-destructive">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {filteredCategories.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    Nenhuma categoria encontrada com os filtros aplicados.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );
