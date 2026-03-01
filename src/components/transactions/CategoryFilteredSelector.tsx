@@ -54,8 +54,8 @@ export function CategoryFilteredSelector({
   const categoryAccountIds = new Set(baseCategories.map(c => c.default_account_id).filter(Boolean));
   const categoryCostCenterIds = new Set(baseCategories.map(c => c.cost_center_id).filter(Boolean));
 
-  // Show ALL active accounts, but highlight which ones have categories
-  const availableAccounts = accounts?.filter(a => a.active) || [];
+  // Show only accounts that have categories linked in this tipo+subtype
+  const availableAccounts = accounts?.filter(a => a.active && categoryAccountIds.has(a.id)) || [];
   const availableCostCenters = costCenters?.filter(c => c.active && categoryCostCenterIds.has(c.id)) || [];
 
   // Apply filters to categories
