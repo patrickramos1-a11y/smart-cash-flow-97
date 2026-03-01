@@ -84,9 +84,6 @@ export function CategoryFilteredSelector({
               {availableAccounts.map(a => (
                 <SelectItem key={a.id} value={a.id}>
                   {a.name}
-                  {!categoryAccountIds.has(a.id) && (
-                    <span className="text-muted-foreground ml-1">(sem categorias)</span>
-                  )}
                 </SelectItem>
               ))}
             </SelectContent>
