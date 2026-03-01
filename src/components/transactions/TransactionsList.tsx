@@ -28,6 +28,7 @@ import { formatCurrency } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { ConfirmModal } from '@/components/modals/ConfirmModal';
 import { MobileTransactionCard } from './MobileTransactionCard';
+import { EditRecurringValueModal } from './EditRecurringValueModal';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 
@@ -75,6 +76,7 @@ export function TransactionsList({ filters }: TransactionsListProps) {
   const [payValue, setPayValue] = useState('');
   const [sortField, setSortField] = useState<SortField>('data_vencimento');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [editingTransaction, setEditingTransaction] = useState<TransactionWithClient | null>(null);
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(
     new Set(ALL_COLUMNS.filter(c => c.default).map(c => c.key))
   );
@@ -431,6 +433,11 @@ export function TransactionsList({ filters }: TransactionsListProps) {
                                   <DropdownMenuItem onClick={() => handleDuplicate(t)}>
                                     <Copy className="w-4 h-4 mr-2" /> Duplicar
                                   </DropdownMenuItem>
+                                  {t.natureza === 'RECORRENTE' && t.status !== 'PAGO' && (
+                                    <DropdownMenuItem onClick={() => setEditingTransaction(t)}>
+                                      <Pencil className="w-4 h-4 mr-2" /> Editar Valor
+                                    </DropdownMenuItem>
+                                  )}
                                   {t.status !== 'PAGO' && (
                                     <DropdownMenuItem onClick={() => handleOpenPay(t)}>
                                       <CheckCircle className="w-4 h-4 mr-2" /> Marcar Pago
@@ -535,6 +542,13 @@ export function TransactionsList({ filters }: TransactionsListProps) {
         message={`Tem certeza que deseja excluir "${deletingTransaction?.descricao}"? Esta ação não pode ser desfeita.`}
         confirmText="Excluir"
         type="danger"
+      />
+
+      {/* Edit Recurring Value Modal */}
+      <EditRecurringValueModal
+        open={!!editingTransaction}
+        onClose={() => setEditingTransaction(null)}
+        transaction={editingTransaction}
       />
     </>
   );
