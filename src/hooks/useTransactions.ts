@@ -35,6 +35,13 @@ export interface TransactionRow {
   documento_numero: string | null;
   notes: string | null;
   entity_id: string | null;
+  // New fiscal fields
+  origem_receita: string | null;
+  documento_recebimento: string | null;
+  responsavel_id: string | null;
+  nf_percentual_aplicado: number | null;
+  valor_imposto_nf: number | null;
+  valor_liquido_nf: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -242,33 +249,42 @@ export function useCreateTransaction() {
 
   return useMutation({
     mutationFn: async (transaction: Partial<TransactionRow>) => {
+      const insertData: any = {
+        tipo_movimento: transaction.tipo_movimento!,
+        natureza: transaction.natureza || 'AVULSA',
+        origem: transaction.origem || 'LANCAMENTO_MANUAL',
+        cliente_id: transaction.cliente_id,
+        competencia_mes: transaction.competencia_mes!,
+        competencia_ano: transaction.competencia_ano!,
+        valor: transaction.valor!,
+        data_vencimento: transaction.data_vencimento!,
+        status: transaction.status || 'EM_ABERTO',
+        descricao: transaction.descricao,
+        // UUID-based fields
+        transaction_category_id: transaction.categoria_id,
+        account_id: transaction.conta_id,
+        cost_center_id: transaction.centro_custo_id,
+        // Legacy fields
+        categoria_id: transaction.categoria_id,
+        centro_custo_id: transaction.centro_custo_id,
+        conta_id: transaction.conta_id,
+        forma_pagamento_id: transaction.forma_pagamento_id,
+        documento_tipo: transaction.documento_tipo,
+        documento_numero: transaction.documento_numero,
+        notes: transaction.notes,
+        entity_id: (transaction as any).entity_id || null,
+        // Fiscal fields
+        origem_receita: (transaction as any).origem_receita || null,
+        documento_recebimento: (transaction as any).documento_recebimento || null,
+        responsavel_id: (transaction as any).responsavel_id || null,
+        nf_percentual_aplicado: (transaction as any).nf_percentual_aplicado || null,
+        valor_imposto_nf: (transaction as any).valor_imposto_nf || null,
+        valor_liquido_nf: (transaction as any).valor_liquido_nf || null,
+      };
+
       const { data, error } = await supabase
         .from('transactions')
-        .insert({
-          tipo_movimento: transaction.tipo_movimento!,
-          natureza: transaction.natureza || 'AVULSA',
-          origem: transaction.origem || 'LANCAMENTO_MANUAL',
-          cliente_id: transaction.cliente_id,
-          competencia_mes: transaction.competencia_mes!,
-          competencia_ano: transaction.competencia_ano!,
-          valor: transaction.valor!,
-          data_vencimento: transaction.data_vencimento!,
-          status: transaction.status || 'EM_ABERTO',
-          descricao: transaction.descricao,
-          // Use new UUID-based fields alongside legacy text fields
-          transaction_category_id: transaction.categoria_id,
-          account_id: transaction.conta_id,
-          cost_center_id: transaction.centro_custo_id,
-          // Keep legacy fields for backwards compatibility
-          categoria_id: transaction.categoria_id,
-          centro_custo_id: transaction.centro_custo_id,
-          conta_id: transaction.conta_id,
-          forma_pagamento_id: transaction.forma_pagamento_id,
-          documento_tipo: transaction.documento_tipo,
-          documento_numero: transaction.documento_numero,
-          notes: transaction.notes,
-          entity_id: (transaction as any).entity_id || null,
-        })
+        .insert(insertData)
         .select()
         .single();
 

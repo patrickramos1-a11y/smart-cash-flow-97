@@ -16,6 +16,7 @@ import { RevenueExpenseChart } from './RevenueExpenseChart';
 import { RecurringVsPontualChart } from './RecurringVsPontualChart';
 import { ClientRankingChart } from './ClientRankingChart';
 import { ProjectionChart } from './ProjectionChart';
+import { FiscalIndicators } from './FiscalIndicators';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -303,6 +304,9 @@ export function Dashboard() {
           subtitle="Vencidos"
         />
       </div>
+
+      {/* Fiscal Indicators */}
+      <FiscalIndicators month={selectedMonth} year={selectedYear} />
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-6">

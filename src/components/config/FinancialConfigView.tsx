@@ -84,6 +84,7 @@ import {
 } from '@/hooks/useFinancialConfig';
 import { useRecurringContracts, useContractPlans, useCreateContractPlan, useUpdateContractPlan, type ContractPlan } from '@/hooks/useRecurringContracts';
 import { MinimumWageConfigModal } from '@/components/contracts/MinimumWageConfigModal';
+import { useFiscalConfig, useUpdateFiscalConfig } from '@/hooks/useFiscalConfig';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -1840,6 +1841,108 @@ function ContractPlansTab() {
 }
 
 // =============================================
+// FISCAL CONFIG TAB
+// =============================================
+
+function FiscalConfigTab() {
+  const { data: configs, isLoading } = useFiscalConfig();
+  const updateConfig = useUpdateFiscalConfig();
+  
+  const nfPercentual = configs?.find(c => c.key === 'nf_percentual_padrao')?.value || '0.09';
+  const nfEditavel = configs?.find(c => c.key === 'nf_permitir_edicao_manual')?.value !== 'false';
+  
+  const [percentual, setPercentual] = useState('');
+  const [editavel, setEditavel] = useState(true);
+  const [initialized, setInitialized] = useState(false);
+
+  if (!initialized && configs) {
+    setPercentual((parseFloat(nfPercentual) * 100).toString());
+    setEditavel(nfEditavel);
+    setInitialized(true);
+  }
+
+  const handleSave = () => {
+    const pctValue = parseFloat(percentual) / 100;
+    if (isNaN(pctValue) || pctValue < 0 || pctValue > 1) return;
+    
+    updateConfig.mutate({ key: 'nf_percentual_padrao', value: pctValue.toString() });
+    updateConfig.mutate({ key: 'nf_permitir_edicao_manual', value: editavel.toString() });
+  };
+
+  if (isLoading) return <div className="text-center py-8 text-muted-foreground">Carregando...</div>;
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Parâmetros de Nota Fiscal</CardTitle>
+          <CardDescription>Configure o percentual padrão de imposto para Notas Fiscais e permissões de edição.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Percentual Padrão NF (%)</Label>
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={percentual}
+                onChange={(e) => setPercentual(e.target.value)}
+                placeholder="9"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Aplicado automaticamente quando o documento selecionado for Nota Fiscal.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <Label>Permitir Edição Manual</Label>
+              <div className="flex items-center gap-2">
+                <Switch checked={editavel} onCheckedChange={setEditavel} />
+                <span className="text-sm text-muted-foreground">
+                  {editavel ? 'Sim — usuários podem ajustar o %' : 'Não — percentual fixo'}
+                </span>
+              </div>
+            </div>
+          </div>
+          <Button onClick={handleSave} disabled={updateConfig.isPending}>
+            {updateConfig.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+            Salvar Configuração Fiscal
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Regras de Validação para Entradas</CardTitle>
+          <CardDescription>Campos obrigatórios ao criar lançamentos de entrada.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+            {[
+              { field: 'Cliente', desc: 'Obrigatório', active: true },
+              { field: 'Responsável / Entidade', desc: 'Obrigatório', active: true },
+              { field: 'Origem da Receita', desc: 'Serviço, Venda, Reembolso...', active: true },
+              { field: 'Documento de Recebimento', desc: 'NF, Recibo, Nota de Débito', active: true },
+              { field: 'Categoria', desc: 'Obrigatório', active: true },
+              { field: 'Observações', desc: 'Opcional', active: false },
+            ].map(rule => (
+              <div key={rule.field} className="flex items-center gap-2 p-2 rounded-lg border bg-muted/20">
+                <div className={`w-2 h-2 rounded-full ${rule.active ? 'bg-income' : 'bg-muted-foreground'}`} />
+                <div>
+                  <p className="text-sm font-medium">{rule.field}</p>
+                  <p className="text-[10px] text-muted-foreground">{rule.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// =============================================
 // MAIN COMPONENT
 // =============================================
 
@@ -1855,7 +1958,7 @@ export function FinancialConfigView() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="companies" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 mb-6">
+            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-9 mb-6">
               <TabsTrigger value="companies" className="flex items-center gap-2">
                 <Building2 className="w-4 h-4" />
                 <span className="hidden lg:inline">Empresas</span>
@@ -1888,6 +1991,10 @@ export function FinancialConfigView() {
                 <DollarSign className="w-4 h-4" />
                 <span className="hidden lg:inline">Salário Mínimo</span>
               </TabsTrigger>
+              <TabsTrigger value="fiscal" className="flex items-center gap-2">
+                <Target className="w-4 h-4" />
+                <span className="hidden lg:inline">Fiscal</span>
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="companies">
@@ -1913,6 +2020,9 @@ export function FinancialConfigView() {
             </TabsContent>
             <TabsContent value="minimum-wage">
               <MinimumWageTab />
+            </TabsContent>
+            <TabsContent value="fiscal">
+              <FiscalConfigTab />
             </TabsContent>
           </Tabs>
         </CardContent>
