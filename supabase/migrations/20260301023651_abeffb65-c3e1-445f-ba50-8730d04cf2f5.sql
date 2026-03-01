@@ -1,0 +1,1 @@
+ALTER TABLE public.recurring_contracts ADD COLUMN IF NOT EXISTS dia_vencimento integer NOT NULL DEFAULT 10;

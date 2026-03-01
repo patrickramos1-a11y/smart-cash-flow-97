@@ -1,6 +1,7 @@
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAccounts, useCostCenters, useTransactionCategories, type CategorySubtype } from '@/hooks/useFinancialConfig';
+import { getEntityIcon } from '@/utils/entityIcons';
 
 interface CategoryFilteredSelectorProps {
   tipo: 'ENTRADA' | 'SAIDA';
@@ -11,6 +12,25 @@ interface CategoryFilteredSelectorProps {
   onFilterAccountChange: (accountId: string) => void;
   filterCostCenterId: string;
   onFilterCostCenterChange: (costCenterId: string) => void;
+}
+
+// Ensure color is dark enough for good contrast (min luminance)
+function ensureDarkColor(hex: string): string {
+  if (!hex || !hex.startsWith('#')) return hex;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  // Relative luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  if (luminance > 0.6) {
+    // Darken the color by 40%
+    const factor = 0.5;
+    const dr = Math.round(r * factor);
+    const dg = Math.round(g * factor);
+    const db = Math.round(b * factor);
+    return `#${dr.toString(16).padStart(2, '0')}${dg.toString(16).padStart(2, '0')}${db.toString(16).padStart(2, '0')}`;
+  }
+  return hex;
 }
 
 export function CategoryFilteredSelector({
@@ -34,8 +54,8 @@ export function CategoryFilteredSelector({
   const categoryAccountIds = new Set(baseCategories.map(c => c.default_account_id).filter(Boolean));
   const categoryCostCenterIds = new Set(baseCategories.map(c => c.cost_center_id).filter(Boolean));
 
-  // Only show accounts/cost centers that have categories linked
-  const availableAccounts = accounts?.filter(a => a.active && categoryAccountIds.has(a.id)) || [];
+  // Show ALL active accounts, but highlight which ones have categories
+  const availableAccounts = accounts?.filter(a => a.active) || [];
   const availableCostCenters = costCenters?.filter(c => c.active && categoryCostCenterIds.has(c.id)) || [];
 
   // Apply filters to categories
@@ -62,7 +82,12 @@ export function CategoryFilteredSelector({
             <SelectContent>
               <SelectItem value="all">Todas as contas</SelectItem>
               {availableAccounts.map(a => (
-                <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                <SelectItem key={a.id} value={a.id}>
+                  {a.name}
+                  {!categoryAccountIds.has(a.id) && (
+                    <span className="text-muted-foreground ml-1">(sem categorias)</span>
+                  )}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -83,7 +108,7 @@ export function CategoryFilteredSelector({
         </div>
       </div>
 
-      {/* Category selector */}
+      {/* Category selector with icons */}
       <div>
         <Label>Categoria *</Label>
         <Select value={selectedCategoryId} onValueChange={onCategoryChange}>
@@ -91,14 +116,18 @@ export function CategoryFilteredSelector({
             <SelectValue placeholder="Selecionar categoria" />
           </SelectTrigger>
           <SelectContent>
-            {filteredCategories.map(c => (
-              <SelectItem key={c.id} value={c.id}>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: c.color || '#6366f1' }} />
-                  {c.name}
-                </div>
-              </SelectItem>
-            ))}
+            {filteredCategories.map(c => {
+              const Icon = getEntityIcon(c.name);
+              const color = ensureDarkColor(c.color || '#6366f1');
+              return (
+                <SelectItem key={c.id} value={c.id}>
+                  <div className="flex items-center gap-2">
+                    <Icon className="w-4 h-4 shrink-0" style={{ color }} />
+                    <span style={{ color }}>{c.name}</span>
+                  </div>
+                </SelectItem>
+              );
+            })}
             {filteredCategories.length === 0 && (
               <div className="px-2 py-4 text-center text-sm text-muted-foreground">
                 Nenhuma categoria encontrada

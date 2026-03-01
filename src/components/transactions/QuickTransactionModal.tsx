@@ -196,14 +196,13 @@ export function QuickTransactionModal({
     }
   };
 
-  // Validation: ENTRADA requires additional fields
+  // Validation: Client and Responsible always required; ENTRADA also requires fiscal fields
+  const baseFieldsValid = formData.cliente_id.length > 0 && entityIds.length > 0;
   const entradaFieldsValid = !isEntrada || (
-    formData.cliente_id.length > 0 &&
-    entityIds.length > 0 &&
     formData.documento_recebimento.length > 0 &&
     formData.origem_receita.length > 0
   );
-  const canSubmit = formData.descricao.trim().length > 0 && formData.valor.trim().length > 0 && entradaFieldsValid;
+  const canSubmit = formData.descricao.trim().length > 0 && formData.valor.trim().length > 0 && baseFieldsValid && entradaFieldsValid;
   const valorTotal = parseFloat(formData.valor.replace(/\./g, '').replace(',', '.')) || 0;
   const valorParcela = enableRepetition && repetitionMode === 'parcelamento' && repetitionCount > 1
     ? Math.round((valorTotal / repetitionCount) * 100) / 100
@@ -340,11 +339,11 @@ export function QuickTransactionModal({
             </div>
           )}
 
-          {/* Client - required for ENTRADA */}
+          {/* Client - always required */}
           <div>
-            <Label>{isEntrada ? 'Cliente *' : 'Cliente (opcional)'}</Label>
+            <Label>Cliente *</Label>
             <Select value={formData.cliente_id} onValueChange={(v) => setFormData({ ...formData, cliente_id: v })}>
-              <SelectTrigger className={isEntrada && !formData.cliente_id ? 'border-destructive' : ''}>
+              <SelectTrigger className={!formData.cliente_id ? 'border-destructive' : ''}>
                 <SelectValue placeholder="Selecionar cliente" />
               </SelectTrigger>
               <SelectContent>
@@ -355,15 +354,15 @@ export function QuickTransactionModal({
             </Select>
           </div>
 
-          {/* Multi-Entity Selector - required for ENTRADA */}
+          {/* Multi-Entity Selector - always required */}
           <div>
             <MultiEntitySelector
               selectedIds={entityIds}
               onChange={setEntityIds}
             />
-            {isEntrada && entityIds.length === 0 && (
+            {entityIds.length === 0 && (
               <p className="text-[10px] text-destructive mt-1 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" /> Responsável/Entidade obrigatório para entradas
+                <AlertCircle className="w-3 h-3" /> Responsável/Entidade obrigatório
               </p>
             )}
           </div>

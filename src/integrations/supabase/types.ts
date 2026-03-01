@@ -859,6 +859,7 @@ export type Database = {
           client_id: string
           created_at: string
           custom_minimum_wage_factor: number | null
+          dia_vencimento: number
           end_date: string | null
           exigir_emissao_nf: string
           id: string
@@ -872,6 +873,7 @@ export type Database = {
           client_id: string
           created_at?: string
           custom_minimum_wage_factor?: number | null
+          dia_vencimento?: number
           end_date?: string | null
           exigir_emissao_nf?: string
           id?: string
@@ -885,6 +887,7 @@ export type Database = {
           client_id?: string
           created_at?: string
           custom_minimum_wage_factor?: number | null
+          dia_vencimento?: number
           end_date?: string | null
           exigir_emissao_nf?: string
           id?: string

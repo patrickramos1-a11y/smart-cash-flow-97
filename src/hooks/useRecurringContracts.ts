@@ -339,16 +339,18 @@ export interface CreateContractInput {
   client_id: string;
   plan_id?: string;
   custom_minimum_wage_factor?: number;
-  fixed_value?: number; // New: support fixed R$ value instead of SM
+  fixed_value?: number;
   start_date: string;
   end_date?: string;
   notes?: string;
   discount_type?: 'factor' | 'value' | 'percent';
   discount_amount?: number;
-  discount_until?: string; // Date or number of months
+  discount_until?: string;
   discount_months?: number;
   default_account_id?: string;
   year?: number;
+  dia_vencimento?: number;
+  exigir_emissao_nf?: 'SEMPRE' | 'NUNCA' | 'PERGUNTAR';
 }
 
 export function useCreateContractWithInstallments() {
@@ -403,6 +405,8 @@ export function useCreateContractWithInstallments() {
           end_date: input.end_date || null,
           notes: input.notes || null,
           active: true,
+          dia_vencimento: input.dia_vencimento || 10,
+          exigir_emissao_nf: input.exigir_emissao_nf || 'PERGUNTAR',
         })
         .select()
         .single();
@@ -458,8 +462,9 @@ export function useCreateContractWithInstallments() {
           }
         }
 
-        // Due date: 10th of each month (configurable in future)
-        const dueDate = new Date(year, month - 1, 10);
+        // Due date: configurable day
+        const dueDay = input.dia_vencimento || 10;
+        const dueDate = new Date(year, month - 1, dueDay);
 
         installments.push({
           contract_id: contract.id,
@@ -516,6 +521,8 @@ export function useCreateClientWithContract() {
       fixed_value?: number;
       start_date: string;
       year?: number;
+      dia_vencimento?: number;
+      exigir_emissao_nf?: 'SEMPRE' | 'NUNCA' | 'PERGUNTAR';
     }) => {
       // 1. Create the client
       const { data: client, error: clientError } = await supabase
@@ -561,6 +568,8 @@ export function useCreateClientWithContract() {
           custom_minimum_wage_factor: input.custom_minimum_wage_factor || null,
           start_date: input.start_date,
           active: true,
+          dia_vencimento: input.dia_vencimento || 10,
+          exigir_emissao_nf: input.exigir_emissao_nf || 'PERGUNTAR',
         })
         .select()
         .single();
@@ -574,7 +583,8 @@ export function useCreateClientWithContract() {
       const installments = [];
       for (let month = startMonth; month <= 12; month++) {
         const monthlyValue = input.fixed_value || (effectiveFactor * minimumWageValue);
-        const dueDate = new Date(year, month - 1, 10);
+        const dueDay = input.dia_vencimento || 10;
+        const dueDate = new Date(year, month - 1, dueDay);
 
         installments.push({
           contract_id: contract.id,
