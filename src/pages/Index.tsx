@@ -17,6 +17,7 @@ import { RecurringContractsView } from '@/components/contracts/RecurringContract
 import { FinancialConfigView } from '@/components/config/FinancialConfigView';
 import { OpenPaymentsView } from '@/components/open-payments/OpenPaymentsView';
 import { BacklogView } from '@/components/backlog/BacklogView';
+import { ReclassificationView } from '@/components/reclassification/ReclassificationView';
 import { cn } from '@/lib/utils';
 
 const tabConfig: Record<string, { title: string; subtitle?: string }> = {
@@ -35,6 +36,7 @@ const tabConfig: Record<string, { title: string; subtitle?: string }> = {
   backlog: { title: 'Backlog', subtitle: 'Melhorias do produto' },
   config: { title: 'Configuração', subtitle: 'Estrutura financeira' },
   import: { title: 'Importar', subtitle: 'Dados em lote' },
+  reclassification: { title: 'Reclassificação', subtitle: 'Correção em lote de categorias' },
 };
 
 const Index = () => {
@@ -73,6 +75,8 @@ const Index = () => {
         return <FinancialConfigView />;
       case 'import':
         return <ImportExportView />;
+      case 'reclassification':
+        return <ReclassificationView />;
       default:
         return <Dashboard />;
     }

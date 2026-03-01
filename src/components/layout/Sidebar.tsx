@@ -66,6 +66,7 @@ const menuItems: MenuItemType[] = [
   { id: 'entities', label: 'Entidades', icon: Building2 },
   { id: 'backlog', label: 'Backlog', icon: ClipboardList, badge: 'new' },
   { id: 'config', label: 'Configuração', icon: Settings },
+  { id: 'reclassification', label: 'Reclassificação', icon: FileText },
   { id: 'import', label: 'Importar/Exportar', icon: FileSpreadsheet },
 ];
 
