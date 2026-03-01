@@ -660,6 +660,33 @@ export type Database = {
           },
         ]
       }
+      fiscal_config: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       fixed_expenses: {
         Row: {
           active: boolean
@@ -833,6 +860,7 @@ export type Database = {
           created_at: string
           custom_minimum_wage_factor: number | null
           end_date: string | null
+          exigir_emissao_nf: string
           id: string
           notes: string | null
           plan_id: string | null
@@ -845,6 +873,7 @@ export type Database = {
           created_at?: string
           custom_minimum_wage_factor?: number | null
           end_date?: string | null
+          exigir_emissao_nf?: string
           id?: string
           notes?: string | null
           plan_id?: string | null
@@ -857,6 +886,7 @@ export type Database = {
           created_at?: string
           custom_minimum_wage_factor?: number | null
           end_date?: string | null
+          exigir_emissao_nf?: string
           id?: string
           notes?: string | null
           plan_id?: string | null
@@ -1113,6 +1143,7 @@ export type Database = {
           data_vencimento: string
           descricao: string | null
           documento_numero: string | null
+          documento_recebimento: string | null
           documento_tipo: Database["public"]["Enums"]["documento_tipo"] | null
           entity_id: string | null
           fixed_expense_id: string | null
@@ -1120,13 +1151,18 @@ export type Database = {
           id: string
           installment_id: string | null
           natureza: Database["public"]["Enums"]["transaction_natureza"]
+          nf_percentual_aplicado: number | null
           notes: string | null
           origem: Database["public"]["Enums"]["transaction_origem"]
+          origem_receita: string | null
+          responsavel_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
           tipo_movimento: Database["public"]["Enums"]["transaction_tipo_movimento"]
           transaction_category_id: string | null
           updated_at: string
           valor: number
+          valor_imposto_nf: number | null
+          valor_liquido_nf: number | null
           valor_pago: number | null
         }
         Insert: {
@@ -1145,6 +1181,7 @@ export type Database = {
           data_vencimento: string
           descricao?: string | null
           documento_numero?: string | null
+          documento_recebimento?: string | null
           documento_tipo?: Database["public"]["Enums"]["documento_tipo"] | null
           entity_id?: string | null
           fixed_expense_id?: string | null
@@ -1152,13 +1189,18 @@ export type Database = {
           id?: string
           installment_id?: string | null
           natureza: Database["public"]["Enums"]["transaction_natureza"]
+          nf_percentual_aplicado?: number | null
           notes?: string | null
           origem: Database["public"]["Enums"]["transaction_origem"]
+          origem_receita?: string | null
+          responsavel_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           tipo_movimento: Database["public"]["Enums"]["transaction_tipo_movimento"]
           transaction_category_id?: string | null
           updated_at?: string
           valor?: number
+          valor_imposto_nf?: number | null
+          valor_liquido_nf?: number | null
           valor_pago?: number | null
         }
         Update: {
@@ -1177,6 +1219,7 @@ export type Database = {
           data_vencimento?: string
           descricao?: string | null
           documento_numero?: string | null
+          documento_recebimento?: string | null
           documento_tipo?: Database["public"]["Enums"]["documento_tipo"] | null
           entity_id?: string | null
           fixed_expense_id?: string | null
@@ -1184,13 +1227,18 @@ export type Database = {
           id?: string
           installment_id?: string | null
           natureza?: Database["public"]["Enums"]["transaction_natureza"]
+          nf_percentual_aplicado?: number | null
           notes?: string | null
           origem?: Database["public"]["Enums"]["transaction_origem"]
+          origem_receita?: string | null
+          responsavel_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           tipo_movimento?: Database["public"]["Enums"]["transaction_tipo_movimento"]
           transaction_category_id?: string | null
           updated_at?: string
           valor?: number
+          valor_imposto_nf?: number | null
+          valor_liquido_nf?: number | null
           valor_pago?: number | null
         }
         Relationships: [
@@ -1248,6 +1296,13 @@ export type Database = {
             columns: ["installment_id"]
             isOneToOne: false
             referencedRelation: "recurring_installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "financial_entities"
             referencedColumns: ["id"]
           },
           {

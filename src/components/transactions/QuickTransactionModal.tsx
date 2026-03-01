@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,10 +7,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Check, Loader2, ArrowDownCircle, ArrowUpCircle, Repeat, Split } from 'lucide-react';
+import { Check, Loader2, ArrowDownCircle, ArrowUpCircle, Repeat, Split, FileText, AlertCircle } from 'lucide-react';
 import { useCreateTransaction, useClients } from '@/hooks/useTransactions';
 import { useTransactionCategories, usePaymentMethods, type CategorySubtype } from '@/hooks/useFinancialConfig';
 import { useSaveTransactionEntities } from '@/hooks/useTransactionEntities';
+import { useNFPercentual, useNFEditavel, type OrigemReceita, type DocumentoRecebimento } from '@/hooks/useFiscalConfig';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { MultiEntitySelector } from './MultiEntitySelector';
@@ -43,6 +44,10 @@ export function QuickTransactionModal({
     competencia_mes: month,
     competencia_ano: year,
     notes: '',
+    // New fiscal fields for ENTRADA
+    origem_receita: '' as string,
+    documento_recebimento: '' as string,
+    nf_percentual_aplicado: '',
   });
 
   const [entityIds, setEntityIds] = useState<string[]>([]);
@@ -61,6 +66,8 @@ export function QuickTransactionModal({
   const saveEntities = useSaveTransactionEntities();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const nfPercentualPadrao = useNFPercentual();
+  const nfEditavel = useNFEditavel();
 
   const effectiveSubtype = filterSubtype || (tipo === 'ENTRADA' ? 'AVULSA' : 'VARIAVEL');
   const selectedCategory = categories?.find(c => c.id === formData.categoria_id);
@@ -69,12 +76,22 @@ export function QuickTransactionModal({
   const isVariavel = effectiveSubtype === 'VARIAVEL';
   const label = isEntrada ? 'Nova Entrada Avulsa' : 'Nova Despesa Variável';
 
+  // NF calculations
+  const isNF = formData.documento_recebimento === 'NOTA_FISCAL';
+  const nfPercentual = formData.nf_percentual_aplicado 
+    ? parseFloat(formData.nf_percentual_aplicado) 
+    : nfPercentualPadrao;
+  const valorBruto = parseFloat(formData.valor.replace(/\./g, '').replace(',', '.')) || 0;
+  const valorImpostoNF = isNF ? valorBruto * nfPercentual : 0;
+  const valorLiquidoNF = isNF ? valorBruto - valorImpostoNF : valorBruto;
+
   const resetForm = () => {
     setFormData({
       descricao: '', valor: '', cliente_id: '', categoria_id: '',
       forma_pagamento_id: '',
       data_vencimento: currentDate.toISOString().split('T')[0],
       competencia_mes: month, competencia_ano: year, notes: '',
+      origem_receita: '', documento_recebimento: '', nf_percentual_aplicado: '',
     });
     setEntityIds([]);
     setFilterAccountId('');
@@ -106,6 +123,14 @@ export function QuickTransactionModal({
         forma_pagamento_id: formData.forma_pagamento_id || null,
         notes: formData.notes || null,
         entity_id: entityIds[0] || null,
+        // Fiscal fields
+        ...(isEntrada ? {
+          origem_receita: formData.origem_receita || null,
+          documento_recebimento: formData.documento_recebimento || null,
+          nf_percentual_aplicado: isNF ? nfPercentual : null,
+          valor_imposto_nf: isNF ? valorImpostoNF : null,
+          valor_liquido_nf: isNF ? valorLiquidoNF : null,
+        } : {}),
       } as any);
 
       // Save multi-entity links
@@ -171,7 +196,14 @@ export function QuickTransactionModal({
     }
   };
 
-  const canSubmit = formData.descricao.trim().length > 0 && formData.valor.trim().length > 0;
+  // Validation: ENTRADA requires additional fields
+  const entradaFieldsValid = !isEntrada || (
+    formData.cliente_id.length > 0 &&
+    entityIds.length > 0 &&
+    formData.documento_recebimento.length > 0 &&
+    formData.origem_receita.length > 0
+  );
+  const canSubmit = formData.descricao.trim().length > 0 && formData.valor.trim().length > 0 && entradaFieldsValid;
   const valorTotal = parseFloat(formData.valor.replace(/\./g, '').replace(',', '.')) || 0;
   const valorParcela = enableRepetition && repetitionMode === 'parcelamento' && repetitionCount > 1
     ? Math.round((valorTotal / repetitionCount) * 100) / 100
@@ -308,11 +340,11 @@ export function QuickTransactionModal({
             </div>
           )}
 
-          {/* Client - available for ALL types now */}
+          {/* Client - required for ENTRADA */}
           <div>
-            <Label>{isEntrada ? 'Cliente' : 'Cliente (opcional)'}</Label>
+            <Label>{isEntrada ? 'Cliente *' : 'Cliente (opcional)'}</Label>
             <Select value={formData.cliente_id} onValueChange={(v) => setFormData({ ...formData, cliente_id: v })}>
-              <SelectTrigger>
+              <SelectTrigger className={isEntrada && !formData.cliente_id ? 'border-destructive' : ''}>
                 <SelectValue placeholder="Selecionar cliente" />
               </SelectTrigger>
               <SelectContent>
@@ -323,11 +355,99 @@ export function QuickTransactionModal({
             </Select>
           </div>
 
-          {/* Multi-Entity Selector */}
-          <MultiEntitySelector
-            selectedIds={entityIds}
-            onChange={setEntityIds}
-          />
+          {/* Multi-Entity Selector - required for ENTRADA */}
+          <div>
+            <MultiEntitySelector
+              selectedIds={entityIds}
+              onChange={setEntityIds}
+            />
+            {isEntrada && entityIds.length === 0 && (
+              <p className="text-[10px] text-destructive mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" /> Responsável/Entidade obrigatório para entradas
+              </p>
+            )}
+          </div>
+
+          {/* FISCAL FIELDS - Only for ENTRADA */}
+          {isEntrada && (
+            <div className="border rounded-lg p-3 space-y-3 bg-muted/20">
+              <div className="flex items-center gap-2 mb-1">
+                <FileText className="w-4 h-4 text-primary" />
+                <span className="text-xs font-semibold text-foreground">Dados Fiscais (Obrigatório)</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Origem da Receita *</Label>
+                  <Select value={formData.origem_receita} onValueChange={(v) => setFormData({ ...formData, origem_receita: v })}>
+                    <SelectTrigger className={!formData.origem_receita ? 'border-destructive' : ''}>
+                      <SelectValue placeholder="Selecionar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="SERVICO">Serviço</SelectItem>
+                      <SelectItem value="VENDA">Venda</SelectItem>
+                      <SelectItem value="REEMBOLSO">Reembolso</SelectItem>
+                      <SelectItem value="AJUSTE_FINANCEIRO">Ajuste Financeiro</SelectItem>
+                      <SelectItem value="OUTRO">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Documento de Recebimento *</Label>
+                  <Select 
+                    value={formData.documento_recebimento} 
+                    onValueChange={(v) => {
+                      setFormData({ 
+                        ...formData, 
+                        documento_recebimento: v,
+                        nf_percentual_aplicado: v === 'NOTA_FISCAL' ? (nfPercentualPadrao * 100).toString() : '',
+                      });
+                    }}
+                  >
+                    <SelectTrigger className={!formData.documento_recebimento ? 'border-destructive' : ''}>
+                      <SelectValue placeholder="Selecionar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NOTA_FISCAL">Nota Fiscal</SelectItem>
+                      <SelectItem value="RECIBO">Recibo</SelectItem>
+                      <SelectItem value="NOTA_DE_DEBITO">Nota de Débito</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* NF Tax calculation */}
+              {isNF && valorBruto > 0 && (
+                <div className="bg-background rounded-lg p-2.5 space-y-1.5 text-xs border">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Percentual NF:</span>
+                    {nfEditavel ? (
+                      <Input 
+                        className="w-20 h-6 text-xs text-right"
+                        value={formData.nf_percentual_aplicado || (nfPercentualPadrao * 100).toString()}
+                        onChange={(e) => setFormData({ ...formData, nf_percentual_aplicado: e.target.value })}
+                        placeholder="9"
+                      />
+                    ) : (
+                      <span className="font-medium">{(nfPercentualPadrao * 100).toFixed(0)}%</span>
+                    )}
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Valor Bruto:</span>
+                    <span className="font-medium">R$ {valorBruto.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-expense">
+                    <span>Imposto NF:</span>
+                    <span className="font-bold">- R$ {valorImpostoNF.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-1 text-income font-bold">
+                    <span>Valor Líquido:</span>
+                    <span>R$ {valorLiquidoNF.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
