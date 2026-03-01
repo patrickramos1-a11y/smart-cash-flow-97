@@ -43,9 +43,12 @@ import {
   Trash2,
   DollarSign,
   Loader2,
-  Users
+  Users,
+  Search,
+  ArrowUpDown,
+  Filter,
 } from 'lucide-react';
-import { Search, ArrowUpDown, Filter } from 'lucide-react';
+import { getEntityIcon, getEntityColor } from '@/utils/entityIcons';
 import { 
   useCompanies,
   useAccounts,
@@ -191,9 +194,19 @@ function CompaniesTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {companies?.map((company) => (
+          {companies?.map((company) => {
+            const Icon = getEntityIcon(company.name);
+            const color = getEntityColor(company.name);
+            return (
             <TableRow key={company.id}>
-              <TableCell className="font-medium">{company.name}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${color}18` }}>
+                    <Icon className="w-4 h-4" style={{ color }} />
+                  </div>
+                  <span className="font-medium" style={{ color }}>{company.name}</span>
+                </div>
+              </TableCell>
               <TableCell>{company.cnpj || '-'}</TableCell>
               <TableCell>
                 <Badge variant={company.active ? 'default' : 'secondary'}>
@@ -206,7 +219,8 @@ function CompaniesTab() {
                 </Button>
               </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
           {companies?.length === 0 && (
             <TableRow>
               <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
@@ -525,16 +539,20 @@ function AccountsTab() {
           return (
             <div key={account.id} className="border border-border/50 rounded-xl overflow-hidden">
               {/* Account header */}
+              {(() => {
+                const AccIcon = getEntityIcon(account.name);
+                const accColor = getEntityColor(account.name);
+                return (
               <div
                 className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors"
                 onClick={() => toggleExpand(account.id)}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Landmark className="w-5 h-5 text-primary" />
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${accColor}18` }}>
+                    <AccIcon className="w-5 h-5" style={{ color: accColor }} />
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground">{account.name}</p>
+                    <p className="font-semibold" style={{ color: accColor }}>{account.name}</p>
                     <p className="text-sm text-muted-foreground">{account.bank || 'Sem banco'}</p>
                   </div>
                 </div>
@@ -559,6 +577,8 @@ function AccountsTab() {
                   <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                 </div>
               </div>
+                );
+              })()}
 
               {/* Expanded categories */}
               {isExpanded && (
@@ -578,11 +598,15 @@ function AccountsTab() {
                     <p className="text-sm text-muted-foreground italic py-2">Nenhuma categoria vinculada a esta conta.</p>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {linkedCategories.map(cat => (
+                      {linkedCategories.map(cat => {
+                        const CatIcon = getEntityIcon(cat.name);
+                        return (
                         <div key={cat.id} className="flex items-center justify-between p-2.5 rounded-lg bg-background border border-border/30">
                           <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color || '#6366f1' }} />
-                            <span className="text-sm font-medium truncate">{cat.name}</span>
+                            <div className="w-6 h-6 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: `${cat.color || '#6366f1'}18` }}>
+                              <CatIcon className="w-3.5 h-3.5" style={{ color: cat.color || '#6366f1' }} />
+                            </div>
+                            <span className="text-sm font-medium truncate" style={{ color: cat.color || '#6366f1' }}>{cat.name}</span>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
                             <Badge variant="outline" className="text-[10px] px-1.5">
@@ -593,7 +617,8 @@ function AccountsTab() {
                             </Button>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -720,7 +745,6 @@ function AccountCategoriesTab() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Cor</TableHead>
             <TableHead>Nome</TableHead>
             <TableHead>Ordem</TableHead>
             <TableHead>Status</TableHead>
@@ -728,15 +752,19 @@ function AccountCategoriesTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {categories?.map((category) => (
+          {categories?.map((category) => {
+            const CatIcon = getEntityIcon(category.name);
+            const catColor = category.color || '#6366f1';
+            return (
             <TableRow key={category.id}>
               <TableCell>
-                <div 
-                  className="w-6 h-6 rounded-full" 
-                  style={{ backgroundColor: category.color || '#6366f1' }}
-                />
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${catColor}18` }}>
+                    <CatIcon className="w-4 h-4" style={{ color: catColor }} />
+                  </div>
+                  <span className="font-medium" style={{ color: catColor }}>{category.name}</span>
+                </div>
               </TableCell>
-              <TableCell className="font-medium">{category.name}</TableCell>
               <TableCell>{category.display_order}</TableCell>
               <TableCell>
                 <Badge variant={category.active ? 'default' : 'secondary'}>
@@ -759,7 +787,8 @@ function AccountCategoriesTab() {
                 </div>
               </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
         </TableBody>
       </Table>
     </div>
@@ -939,11 +968,21 @@ function CostCentersTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {costCenters?.map((cc) => (
+          {costCenters?.map((cc) => {
+            const CcIcon = getEntityIcon(cc.name);
+            const ccColor = getEntityColor(cc.name, cc.code);
+            return (
             <TableRow key={cc.id}>
               <TableCell>{cc.dre_order}</TableCell>
               <TableCell><Badge variant="outline">{cc.code}</Badge></TableCell>
-              <TableCell className="font-medium">{cc.name}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${ccColor}18` }}>
+                    <CcIcon className="w-3.5 h-3.5" style={{ color: ccColor }} />
+                  </div>
+                  <span className="font-medium" style={{ color: ccColor }}>{cc.name}</span>
+                </div>
+              </TableCell>
               <TableCell>{cc.dre_group}</TableCell>
               <TableCell className="text-muted-foreground text-sm">{cc.dre_label}</TableCell>
               <TableCell>
@@ -957,7 +996,8 @@ function CostCentersTab() {
                 </Button>
               </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
         </TableBody>
       </Table>
     </div>
@@ -1407,15 +1447,22 @@ function TransactionCategoriesTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredCategories.map((cat) => (
+              {filteredCategories.map((cat) => {
+                const CatIcon = getEntityIcon(cat.name);
+                const catColor = cat.color || '#6366f1';
+                return (
                 <TableRow key={cat.id} className={`${!cat.active ? 'opacity-50' : ''} ${selectedIds.has(cat.id) ? 'bg-primary/5' : ''}`}>
                   <TableCell>
                     <Checkbox checked={selectedIds.has(cat.id)} onCheckedChange={() => toggleSelect(cat.id)} />
                   </TableCell>
                   <TableCell>
-                    <div className="w-5 h-5 rounded-full border border-border" style={{ backgroundColor: cat.color || '#6366f1' }} />
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${catColor}18` }}>
+                      <CatIcon className="w-3.5 h-3.5" style={{ color: catColor }} />
+                    </div>
                   </TableCell>
-                  <TableCell className="font-medium text-sm">{cat.name}</TableCell>
+                  <TableCell>
+                    <span className="font-medium text-sm" style={{ color: catColor }}>{cat.name}</span>
+                  </TableCell>
                   <TableCell>
                     <Badge className={SUBTYPE_COLORS[cat.subtype || ''] || 'bg-muted text-muted-foreground'} variant="secondary">
                       {SUBTYPE_LABELS[cat.subtype || ''] || 'Sem subtipo'}
@@ -1443,7 +1490,8 @@ function TransactionCategoriesTab() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
               {filteredCategories.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
@@ -1547,12 +1595,17 @@ function PaymentMethodsTab() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {methods?.map((method) => (
+        {methods?.map((method) => {
+          const MIcon = getEntityIcon(method.name);
+          const mColor = getEntityColor(method.name);
+          return (
           <Card key={method.id} className={!method.active ? 'opacity-50' : ''}>
             <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium">{method.name}</span>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${mColor}18` }}>
+                  <MIcon className="w-4 h-4" style={{ color: mColor }} />
+                </div>
+                <span className="font-medium" style={{ color: mColor }}>{method.name}</span>
               </div>
               <div className="flex gap-1">
                 <Button variant="ghost" size="icon" onClick={() => openEdit(method)}>
@@ -1569,7 +1622,8 @@ function PaymentMethodsTab() {
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -1740,9 +1794,19 @@ function ContractPlansTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {plans?.map((plan) => (
+          {plans?.map((plan) => {
+            const PlanIcon = getEntityIcon(plan.name);
+            const planColor = getEntityColor(plan.name);
+            return (
             <TableRow key={plan.id}>
-              <TableCell className="font-medium">{plan.name}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${planColor}18` }}>
+                    <PlanIcon className="w-4 h-4" style={{ color: planColor }} />
+                  </div>
+                  <span className="font-medium" style={{ color: planColor }}>{plan.name}</span>
+                </div>
+              </TableCell>
               <TableCell>
                 <Badge variant="outline" className="font-mono">
                   {plan.minimum_wage_factor} SM
@@ -1760,7 +1824,8 @@ function ContractPlansTab() {
                 </Button>
               </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
           {plans?.length === 0 && (
             <TableRow>
               <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
