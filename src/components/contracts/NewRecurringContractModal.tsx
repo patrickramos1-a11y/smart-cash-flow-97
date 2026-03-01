@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { 
   ChevronLeft, ChevronRight, Check, Loader2, UserPlus, Users,
-  DollarSign, Percent, Calendar, Info
+  DollarSign, Percent, Calendar, Info, FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
@@ -69,6 +69,8 @@ export function NewRecurringContractModal({ open, onClose, defaultYear }: NewRec
   // Contract data
   const [startDate, setStartDate] = useState(`${currentYear}-01-01`);
   const [year, setYear] = useState(currentYear);
+  const [diaVencimento, setDiaVencimento] = useState(10);
+  const [exigirNF, setExigirNF] = useState<'SEMPRE' | 'NUNCA' | 'PERGUNTAR'>('PERGUNTAR');
   const [notes, setNotes] = useState('');
   
   // Data hooks
@@ -138,6 +140,8 @@ export function NewRecurringContractModal({ open, onClose, defaultYear }: NewRec
     setDiscountUntil('');
     setStartDate(`${currentYear}-01-01`);
     setYear(currentYear);
+    setDiaVencimento(10);
+    setExigirNF('PERGUNTAR');
     setNotes('');
   };
 
@@ -161,6 +165,8 @@ export function NewRecurringContractModal({ open, onClose, defaultYear }: NewRec
         fixed_value: pricingModel === 'FIXED' ? parseFloat(fixedValue.replace(/\./g, '').replace(',', '.')) : undefined,
         start_date: startDate,
         year,
+        dia_vencimento: diaVencimento,
+        exigir_emissao_nf: exigirNF,
       });
     } else {
       const input: CreateContractInput = {
@@ -171,6 +177,8 @@ export function NewRecurringContractModal({ open, onClose, defaultYear }: NewRec
         start_date: startDate,
         notes: notes || undefined,
         year,
+        dia_vencimento: diaVencimento,
+        exigir_emissao_nf: exigirNF,
         ...(hasDiscount && discountAmountNum > 0 ? {
           discount_type: discountType,
           discount_amount: discountAmountNum,
@@ -426,13 +434,21 @@ export function NewRecurringContractModal({ open, onClose, defaultYear }: NewRec
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <Label>Data de Início</Label>
                 <Input 
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>Dia Vencimento</Label>
+                <Input 
+                  type="number" min={1} max={31}
+                  value={diaVencimento}
+                  onChange={(e) => setDiaVencimento(parseInt(e.target.value) || 10)}
                 />
               </div>
               <div>
@@ -450,6 +466,26 @@ export function NewRecurringContractModal({ open, onClose, defaultYear }: NewRec
               </div>
             </div>
 
+            {/* NF Requirement */}
+            <div>
+              <Label className="flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-primary" />
+                Emissão de Nota Fiscal
+              </Label>
+              <Select value={exigirNF} onValueChange={(v) => setExigirNF(v as any)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SEMPRE">Sempre emitir NF</SelectItem>
+                  <SelectItem value="NUNCA">Nunca emitir NF (Recibo)</SelectItem>
+                  <SelectItem value="PERGUNTAR">Perguntar a cada lançamento</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Define se os lançamentos deste contrato terão Nota Fiscal
+              </p>
+            </div>
           </div>
         )}
 
@@ -604,6 +640,14 @@ export function NewRecurringContractModal({ open, onClose, defaultYear }: NewRec
                   <span className="text-muted-foreground">Início:</span>
                   <span className="font-medium">{new Date(startDate + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
 
+                  <span className="text-muted-foreground">Vencimento:</span>
+                  <span className="font-medium">Dia {diaVencimento} de cada mês</span>
+
+                  <span className="text-muted-foreground">Nota Fiscal:</span>
+                  <span className="font-medium">
+                    {exigirNF === 'SEMPRE' ? 'Sempre' : exigirNF === 'NUNCA' ? 'Nunca' : 'Perguntar'}
+                  </span>
+
                   <span className="text-muted-foreground">Competências:</span>
                   <span className="font-medium">{installmentsCount} meses ({year})</span>
                 </div>
@@ -623,7 +667,7 @@ export function NewRecurringContractModal({ open, onClose, defaultYear }: NewRec
               <p className="text-sm">
                 <strong>{installmentsCount} transações</strong> de entrada serão geradas automaticamente, 
                 cada uma com status <Badge variant="outline" className="text-xs">Em Aberto</Badge> e 
-                vencimento no dia <strong>10</strong> de cada mês.
+                vencimento no dia <strong>{diaVencimento}</strong> de cada mês.
               </p>
             </div>
           </div>
