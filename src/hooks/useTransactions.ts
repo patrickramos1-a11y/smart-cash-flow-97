@@ -62,6 +62,16 @@ export interface TransactionWithClient extends TransactionRow {
       minimum_wage_factor: number;
     } | null;
   } | null;
+  // Resolved names from JOINs
+  category_name?: string | null;
+  category_color?: string | null;
+  account_name?: string | null;
+  cost_center_name?: string | null;
+  entity_name?: string | null;
+  responsible_name?: string | null;
+  // Expense type info
+  expense_type?: string | null;
+  category_subtype?: string | null;
 }
 
 export interface TransactionFilters {
