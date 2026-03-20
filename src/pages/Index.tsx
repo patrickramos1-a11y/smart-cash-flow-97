@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import Login from '@/pages/Login';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
@@ -18,7 +20,9 @@ import { FinancialConfigView } from '@/components/config/FinancialConfigView';
 import { OpenPaymentsView } from '@/components/open-payments/OpenPaymentsView';
 import { BacklogView } from '@/components/backlog/BacklogView';
 import { ReclassificationView } from '@/components/reclassification/ReclassificationView';
+import { ApprovalView } from '@/components/approval/ApprovalView';
 import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
 
 const tabConfig: Record<string, { title: string; subtitle?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Visão geral financeira' },
@@ -33,6 +37,7 @@ const tabConfig: Record<string, { title: string; subtitle?: string }> = {
   reports: { title: 'Relatórios', subtitle: 'Análises e DRE' },
   clients: { title: 'Clientes', subtitle: 'Gerencie sua carteira' },
   entities: { title: 'Entidades', subtitle: 'Pessoas, fornecedores e grupos' },
+  approval: { title: 'Aprovações', subtitle: 'Fluxo de aprovação financeira' },
   backlog: { title: 'Backlog', subtitle: 'Melhorias do produto' },
   config: { title: 'Configuração', subtitle: 'Estrutura financeira' },
   import: { title: 'Importar', subtitle: 'Dados em lote' },
@@ -40,45 +45,42 @@ const tabConfig: Record<string, { title: string; subtitle?: string }> = {
 };
 
 const Index = () => {
+  const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login />;
+  }
+
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard':
-        return <Dashboard />;
-      case 'accounts':
-        return <AccountsView />;
-      case 'transactions':
-        return <TransactionsHub />;
-      case 'entradas-recorrentes':
-        return <EntradasRecorrentesPage />;
-      case 'entradas-avulsas':
-        return <EntradasAvulsasPage />;
-      case 'despesas-fixas':
-        return <DespesasFixasPage />;
-      case 'despesas-variaveis':
-        return <DespesasVariaveisPage />;
-      case 'open-payments':
-        return <OpenPaymentsView />;
-      case 'recurring-contracts':
-        return <RecurringContractsView />;
-      case 'reports':
-        return <ReportsView />;
-      case 'clients':
-        return <ClientsView />;
-      case 'entities':
-        return <EntitiesView />;
-      case 'backlog':
-        return <BacklogView />;
-      case 'config':
-        return <FinancialConfigView />;
-      case 'import':
-        return <ImportExportView />;
-      case 'reclassification':
-        return <ReclassificationView />;
-      default:
-        return <Dashboard />;
+      case 'dashboard': return <Dashboard />;
+      case 'accounts': return <AccountsView />;
+      case 'transactions': return <TransactionsHub />;
+      case 'entradas-recorrentes': return <EntradasRecorrentesPage />;
+      case 'entradas-avulsas': return <EntradasAvulsasPage />;
+      case 'despesas-fixas': return <DespesasFixasPage />;
+      case 'despesas-variaveis': return <DespesasVariaveisPage />;
+      case 'open-payments': return <OpenPaymentsView />;
+      case 'recurring-contracts': return <RecurringContractsView />;
+      case 'reports': return <ReportsView />;
+      case 'clients': return <ClientsView />;
+      case 'entities': return <EntitiesView />;
+      case 'approval': return <ApprovalView />;
+      case 'backlog': return <BacklogView />;
+      case 'config': return <FinancialConfigView />;
+      case 'import': return <ImportExportView />;
+      case 'reclassification': return <ReclassificationView />;
+      default: return <Dashboard />;
     }
   };
 
@@ -106,7 +108,6 @@ const Index = () => {
         </div>
       </main>
 
-      {/* Mobile Bottom Navigation */}
       <MobileBottomNav 
         activeTab={activeTab} 
         onTabChange={setActiveTab}

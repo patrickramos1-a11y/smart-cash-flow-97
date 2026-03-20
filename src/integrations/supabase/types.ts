@@ -814,6 +814,33 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       recurring_clients: {
         Row: {
           active: boolean
@@ -1132,6 +1159,9 @@ export type Database = {
       transactions: {
         Row: {
           account_id: string | null
+          approval_status: Database["public"]["Enums"]["approval_status"]
+          approved_at: string | null
+          approved_by: string | null
           categoria_id: string | null
           centro_custo_id: string | null
           cliente_id: string | null
@@ -1142,6 +1172,7 @@ export type Database = {
           contrato_id: string | null
           cost_center_id: string | null
           created_at: string
+          created_by: string | null
           data_pagamento: string | null
           data_vencimento: string
           descricao: string | null
@@ -1158,6 +1189,7 @@ export type Database = {
           notes: string | null
           origem: Database["public"]["Enums"]["transaction_origem"]
           origem_receita: string | null
+          rejection_reason: string | null
           responsavel_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
           tipo_movimento: Database["public"]["Enums"]["transaction_tipo_movimento"]
@@ -1170,6 +1202,9 @@ export type Database = {
         }
         Insert: {
           account_id?: string | null
+          approval_status?: Database["public"]["Enums"]["approval_status"]
+          approved_at?: string | null
+          approved_by?: string | null
           categoria_id?: string | null
           centro_custo_id?: string | null
           cliente_id?: string | null
@@ -1180,6 +1215,7 @@ export type Database = {
           contrato_id?: string | null
           cost_center_id?: string | null
           created_at?: string
+          created_by?: string | null
           data_pagamento?: string | null
           data_vencimento: string
           descricao?: string | null
@@ -1196,6 +1232,7 @@ export type Database = {
           notes?: string | null
           origem: Database["public"]["Enums"]["transaction_origem"]
           origem_receita?: string | null
+          rejection_reason?: string | null
           responsavel_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           tipo_movimento: Database["public"]["Enums"]["transaction_tipo_movimento"]
@@ -1208,6 +1245,9 @@ export type Database = {
         }
         Update: {
           account_id?: string | null
+          approval_status?: Database["public"]["Enums"]["approval_status"]
+          approved_at?: string | null
+          approved_by?: string | null
           categoria_id?: string | null
           centro_custo_id?: string | null
           cliente_id?: string | null
@@ -1218,6 +1258,7 @@ export type Database = {
           contrato_id?: string | null
           cost_center_id?: string | null
           created_at?: string
+          created_by?: string | null
           data_pagamento?: string | null
           data_vencimento?: string
           descricao?: string | null
@@ -1234,6 +1275,7 @@ export type Database = {
           notes?: string | null
           origem?: Database["public"]["Enums"]["transaction_origem"]
           origem_receita?: string | null
+          rejection_reason?: string | null
           responsavel_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           tipo_movimento?: Database["public"]["Enums"]["transaction_tipo_movimento"]
@@ -1317,17 +1359,44 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       recalculate_account_balance: {
         Args: { p_account_id: string }
         Returns: undefined
       }
     }
     Enums: {
+      app_role: "admin" | "financeiro"
+      approval_status: "pendente" | "aprovado" | "rejeitado"
       backlog_category:
         | "NOVA_FUNCIONALIDADE"
         | "MELHORIA_EXISTENTE"
@@ -1506,6 +1575,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "financeiro"],
+      approval_status: ["pendente", "aprovado", "rejeitado"],
       backlog_category: [
         "NOVA_FUNCIONALIDADE",
         "MELHORIA_EXISTENTE",
