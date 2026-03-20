@@ -62,6 +62,16 @@ export interface TransactionWithClient extends TransactionRow {
       minimum_wage_factor: number;
     } | null;
   } | null;
+  // Resolved names from JOINs
+  category_name?: string | null;
+  category_color?: string | null;
+  account_name?: string | null;
+  cost_center_name?: string | null;
+  entity_name?: string | null;
+  responsible_name?: string | null;
+  // Expense type info
+  expense_type?: string | null;
+  category_subtype?: string | null;
 }
 
 export interface TransactionFilters {
@@ -109,6 +119,29 @@ export function useTransactions(filters: TransactionFilters = {}) {
               name,
               minimum_wage_factor
             )
+          ),
+          transaction_categories:transaction_category_id (
+            id,
+            name,
+            color,
+            expense_type,
+            subtype
+          ),
+          accounts:account_id (
+            id,
+            name
+          ),
+          cost_centers:cost_center_id (
+            id,
+            name
+          ),
+          entity:financial_entities!transactions_entity_id_fkey (
+            id,
+            name
+          ),
+          responsible:financial_entities!transactions_responsavel_id_fkey (
+            id,
+            name
           )
         `)
         .order('data_vencimento', { ascending: false });
@@ -140,13 +173,27 @@ export function useTransactions(filters: TransactionFilters = {}) {
 
       if (error) throw error;
 
+      // Map joined data to flat names
+      let results: TransactionWithClient[] = (data || []).map((t: any) => ({
+        ...t,
+        category_name: t.transaction_categories?.name || null,
+        category_color: t.transaction_categories?.color || null,
+        account_name: t.accounts?.name || null,
+        cost_center_name: t.cost_centers?.name || null,
+        entity_name: t.entity?.name || null,
+        responsible_name: t.responsible?.name || null,
+        expense_type: t.transaction_categories?.expense_type || null,
+        category_subtype: t.transaction_categories?.subtype || null,
+      }));
+
       // Apply text search filter client-side
-      let results = data as TransactionWithClient[];
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
         results = results.filter(t => 
           t.descricao?.toLowerCase().includes(searchLower) ||
-          t.recurring_clients?.name?.toLowerCase().includes(searchLower)
+          t.recurring_clients?.name?.toLowerCase().includes(searchLower) ||
+          t.category_name?.toLowerCase().includes(searchLower) ||
+          t.account_name?.toLowerCase().includes(searchLower)
         );
       }
 

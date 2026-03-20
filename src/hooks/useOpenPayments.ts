@@ -56,6 +56,9 @@ export function useOpenPayments(filters?: OpenPaymentFilters) {
   return useQuery({
     queryKey: ['open-payments', filters],
     queryFn: async () => {
+      const today = new Date();
+      const todayStr = format(today, 'yyyy-MM-dd');
+      
       let query = supabase
         .from('transactions')
         .select(`
@@ -63,6 +66,8 @@ export function useOpenPayments(filters?: OpenPaymentFilters) {
           cliente:recurring_clients(name)
         `)
         .in('status', ['EM_ABERTO', 'ATRASADO'])
+        // ONLY show items that are already overdue (vencimento <= today)
+        .lte('data_vencimento', todayStr)
         .order('data_vencimento', { ascending: true });
       
       if (filters?.type && filters.type !== 'all') {
@@ -77,19 +82,10 @@ export function useOpenPayments(filters?: OpenPaymentFilters) {
         query = query.eq('cliente_id', filters.clientId);
       }
       
-      if (filters?.startDate) {
-        query = query.gte('data_vencimento', filters.startDate);
-      }
-      
-      if (filters?.endDate) {
-        query = query.lte('data_vencimento', filters.endDate);
-      }
-      
       const { data, error } = await query;
       
       if (error) throw error;
       
-      const today = new Date();
       const payments: OpenPayment[] = (data || []).map(item => ({
         ...item,
         days_overdue: item.data_vencimento 
@@ -111,29 +107,29 @@ export function useOpenPaymentStats() {
   return useQuery({
     queryKey: ['open-payment-stats'],
     queryFn: async () => {
-      // Current open payments
+      const today = new Date();
+      const todayStr = format(today, 'yyyy-MM-dd');
+      
+      // Only fetch OVERDUE items (vencimento <= today)
       const { data: currentData, error: currentError } = await supabase
         .from('transactions')
         .select('tipo_movimento, valor, status, data_vencimento')
-        .in('status', ['EM_ABERTO', 'ATRASADO']);
+        .in('status', ['EM_ABERTO', 'ATRASADO'])
+        .lte('data_vencimento', todayStr);
       
       if (currentError) throw currentError;
       
       // Previous month comparison
       const lastMonth = subMonths(new Date(), 1);
-      const lastMonthStart = format(startOfMonth(lastMonth), 'yyyy-MM-dd');
       const lastMonthEnd = format(endOfMonth(lastMonth), 'yyyy-MM-dd');
       
       const { data: previousData, error: previousError } = await supabase
         .from('transactions')
         .select('tipo_movimento, valor')
         .in('status', ['EM_ABERTO', 'ATRASADO'])
-        .gte('created_at', lastMonthStart)
-        .lte('created_at', lastMonthEnd);
+        .lte('data_vencimento', lastMonthEnd);
       
       if (previousError) throw previousError;
-      
-      const today = new Date();
       
       const stats: OpenPaymentStats = {
         totalReceivable: 0,
@@ -147,8 +143,6 @@ export function useOpenPaymentStats() {
       };
       
       currentData?.forEach(item => {
-        const isOverdue = item.data_vencimento && differenceInDays(today, parseISO(item.data_vencimento)) > 0;
-        
         if (item.tipo_movimento === 'ENTRADA') {
           stats.totalReceivable += item.valor;
           stats.countReceivable++;
@@ -157,10 +151,9 @@ export function useOpenPaymentStats() {
           stats.countPayable++;
         }
         
-        if (isOverdue || item.status === 'ATRASADO') {
-          stats.totalOverdue += item.valor;
-          stats.countOverdue++;
-        }
+        // All are overdue since we filtered by lte today
+        stats.totalOverdue += item.valor;
+        stats.countOverdue++;
       });
       
       // Calculate trend
