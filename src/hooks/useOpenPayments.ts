@@ -56,6 +56,9 @@ export function useOpenPayments(filters?: OpenPaymentFilters) {
   return useQuery({
     queryKey: ['open-payments', filters],
     queryFn: async () => {
+      const today = new Date();
+      const todayStr = format(today, 'yyyy-MM-dd');
+      
       let query = supabase
         .from('transactions')
         .select(`
@@ -63,6 +66,8 @@ export function useOpenPayments(filters?: OpenPaymentFilters) {
           cliente:recurring_clients(name)
         `)
         .in('status', ['EM_ABERTO', 'ATRASADO'])
+        // ONLY show items that are already overdue (vencimento <= today)
+        .lte('data_vencimento', todayStr)
         .order('data_vencimento', { ascending: true });
       
       if (filters?.type && filters.type !== 'all') {
@@ -77,19 +82,10 @@ export function useOpenPayments(filters?: OpenPaymentFilters) {
         query = query.eq('cliente_id', filters.clientId);
       }
       
-      if (filters?.startDate) {
-        query = query.gte('data_vencimento', filters.startDate);
-      }
-      
-      if (filters?.endDate) {
-        query = query.lte('data_vencimento', filters.endDate);
-      }
-      
       const { data, error } = await query;
       
       if (error) throw error;
       
-      const today = new Date();
       const payments: OpenPayment[] = (data || []).map(item => ({
         ...item,
         days_overdue: item.data_vencimento 
