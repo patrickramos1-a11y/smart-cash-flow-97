@@ -70,7 +70,7 @@ export function ApprovalView() {
         .order('created_at', { ascending: false });
 
       if (filterStatus !== 'todos') {
-        query = query.eq('approval_status', filterStatus);
+        query = query.eq('approval_status', filterStatus as any);
       }
 
       const { data, error } = await query;
