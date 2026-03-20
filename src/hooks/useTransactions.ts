@@ -119,6 +119,29 @@ export function useTransactions(filters: TransactionFilters = {}) {
               name,
               minimum_wage_factor
             )
+          ),
+          transaction_categories:transaction_category_id (
+            id,
+            name,
+            color,
+            expense_type,
+            subtype
+          ),
+          accounts:account_id (
+            id,
+            name
+          ),
+          cost_centers:cost_center_id (
+            id,
+            name
+          ),
+          entity:financial_entities!transactions_entity_id_fkey (
+            id,
+            name
+          ),
+          responsible:financial_entities!transactions_responsavel_id_fkey (
+            id,
+            name
           )
         `)
         .order('data_vencimento', { ascending: false });
