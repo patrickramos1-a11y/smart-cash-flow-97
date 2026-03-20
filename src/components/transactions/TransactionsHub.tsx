@@ -97,7 +97,15 @@ export function TransactionsHub() {
     natureza: 'AVULSA'
   });
 
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+  // Only show years that have transactions
+  const { data: allTxForYears } = useTransactions({});
+  const years = useMemo(() => {
+    const yearSet = new Set<number>();
+    allTxForYears?.forEach(t => yearSet.add(t.competencia_ano));
+    // Always include current year
+    yearSet.add(currentYear);
+    return Array.from(yearSet).sort();
+  }, [allTxForYears, currentYear]);
 
   // Auto-update chart filter based on tab
   const effectiveChartFilter = mainTab === 'entradas' ? 'ENTRADA' : mainTab === 'saidas' ? 'SAIDA' : chartFilter;

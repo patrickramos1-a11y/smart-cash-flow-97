@@ -173,13 +173,27 @@ export function useTransactions(filters: TransactionFilters = {}) {
 
       if (error) throw error;
 
+      // Map joined data to flat names
+      let results: TransactionWithClient[] = (data || []).map((t: any) => ({
+        ...t,
+        category_name: t.transaction_categories?.name || null,
+        category_color: t.transaction_categories?.color || null,
+        account_name: t.accounts?.name || null,
+        cost_center_name: t.cost_centers?.name || null,
+        entity_name: t.entity?.name || null,
+        responsible_name: t.responsible?.name || null,
+        expense_type: t.transaction_categories?.expense_type || null,
+        category_subtype: t.transaction_categories?.subtype || null,
+      }));
+
       // Apply text search filter client-side
-      let results = data as TransactionWithClient[];
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
         results = results.filter(t => 
           t.descricao?.toLowerCase().includes(searchLower) ||
-          t.recurring_clients?.name?.toLowerCase().includes(searchLower)
+          t.recurring_clients?.name?.toLowerCase().includes(searchLower) ||
+          t.category_name?.toLowerCase().includes(searchLower) ||
+          t.account_name?.toLowerCase().includes(searchLower)
         );
       }
 
