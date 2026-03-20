@@ -348,6 +348,21 @@ export function TransactionsList({ filters }: TransactionsListProps) {
                       const StatusIcon = status.icon;
                       const natureza = naturezaLabels[t.natureza];
                       const NaturezaIcon = natureza.icon;
+
+                      // Type badge
+                      const getTypeBadge = () => {
+                        if (t.tipo_movimento === 'ENTRADA') {
+                          return t.natureza === 'RECORRENTE' 
+                            ? { label: 'Recorrente', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' }
+                            : { label: 'Avulso', color: 'bg-blue-100 text-blue-700 border-blue-200' };
+                        }
+                        // SAIDA
+                        if (t.natureza === 'RECORRENTE' || t.expense_type === 'FIXA' || t.category_subtype === 'FIXA') {
+                          return { label: 'Fixo', color: 'bg-red-100 text-red-700 border-red-200' };
+                        }
+                        return { label: 'Variável', color: 'bg-amber-100 text-amber-700 border-amber-200' };
+                      };
+                      const typeBadge = getTypeBadge();
                       
                       return (
                         <tr key={t.id} className="hover:bg-muted/30 transition-colors">
@@ -367,25 +382,32 @@ export function TransactionsList({ filters }: TransactionsListProps) {
                           )}
                           {visibleColumns.has('natureza') && (
                             <td className="p-4">
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className={cn("text-xs", typeBadge.color)}>
                                 <NaturezaIcon className="w-3 h-3 mr-1" />
-                                {natureza.label}
+                                {typeBadge.label}
                               </Badge>
                             </td>
                           )}
                           {visibleColumns.has('categoria') && (
                             <td className="p-4">
-                              <span className="text-xs text-muted-foreground">{t.categoria_id || '-'}</span>
+                              <span className="text-xs font-medium" style={{ color: t.category_color || undefined }}>
+                                {t.category_name || 'Não vinculado'}
+                              </span>
                             </td>
                           )}
                           {visibleColumns.has('conta') && (
                             <td className="p-4">
-                              <span className="text-xs text-muted-foreground">{t.conta_id || '-'}</span>
+                              <span className="text-xs text-muted-foreground">{t.account_name || 'Não vinculado'}</span>
                             </td>
                           )}
                           {visibleColumns.has('centro_custo') && (
                             <td className="p-4">
-                              <span className="text-xs text-muted-foreground">{t.centro_custo_id || '-'}</span>
+                              <span className="text-xs text-muted-foreground">{t.cost_center_name || 'Não vinculado'}</span>
+                            </td>
+                          )}
+                          {visibleColumns.has('responsavel') && (
+                            <td className="p-4">
+                              <span className="text-xs text-muted-foreground">{t.responsible_name || t.entity_name || '-'}</span>
                             </td>
                           )}
                           {visibleColumns.has('vencimento') && (
