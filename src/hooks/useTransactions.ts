@@ -295,7 +295,7 @@ export function useCreateTransaction() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (transaction: Partial<TransactionRow>) => {
+    mutationFn: async (transaction: Partial<TransactionRow> & { created_by_user_id?: string }) => {
       const insertData: any = {
         tipo_movimento: transaction.tipo_movimento!,
         natureza: transaction.natureza || 'AVULSA',
@@ -307,11 +307,9 @@ export function useCreateTransaction() {
         data_vencimento: transaction.data_vencimento!,
         status: transaction.status || 'EM_ABERTO',
         descricao: transaction.descricao,
-        // UUID-based fields
         transaction_category_id: transaction.categoria_id,
         account_id: transaction.conta_id,
         cost_center_id: transaction.centro_custo_id,
-        // Legacy fields
         categoria_id: transaction.categoria_id,
         centro_custo_id: transaction.centro_custo_id,
         conta_id: transaction.conta_id,
@@ -320,13 +318,15 @@ export function useCreateTransaction() {
         documento_numero: transaction.documento_numero,
         notes: transaction.notes,
         entity_id: (transaction as any).entity_id || null,
-        // Fiscal fields
         origem_receita: (transaction as any).origem_receita || null,
         documento_recebimento: (transaction as any).documento_recebimento || null,
         responsavel_id: (transaction as any).responsavel_id || null,
         nf_percentual_aplicado: (transaction as any).nf_percentual_aplicado || null,
         valor_imposto_nf: (transaction as any).valor_imposto_nf || null,
         valor_liquido_nf: (transaction as any).valor_liquido_nf || null,
+        // Approval fields
+        approval_status: 'pendente',
+        created_by: (transaction as any).created_by_user_id || null,
       };
 
       const { data, error } = await supabase
@@ -337,21 +337,21 @@ export function useCreateTransaction() {
 
       if (error) throw error;
 
-      // Create history entry
       await supabase
         .from('transaction_history')
         .insert({
           transaction_id: data.id,
           evento: 'CRIADO',
           modulo_origem: 'TRANSACOES',
-          user_id: 'system',
+          user_id: (transaction as any).created_by_user_id || 'system',
         });
 
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      toast.success('Transação criada com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['pending-approval-count'] });
+      toast.success('Transação criada! Aguardando aprovação.');
     },
     onError: (error) => {
       console.error('Error creating transaction:', error);
