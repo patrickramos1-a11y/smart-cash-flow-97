@@ -51,12 +51,13 @@ const ALL_COLUMNS = [
   { key: 'descricao', label: 'Descrição', default: true },
   { key: 'cliente', label: 'Cliente', default: true },
   { key: 'natureza', label: 'Natureza', default: true },
+  { key: 'categoria', label: 'Categoria', default: true },
+  { key: 'conta', label: 'Conta', default: true },
+  { key: 'centro_custo', label: 'C. Custo', default: false },
+  { key: 'responsavel', label: 'Responsável', default: true },
   { key: 'vencimento', label: 'Vencimento', default: true },
   { key: 'status', label: 'Status', default: true },
   { key: 'valor', label: 'Valor', default: true },
-  { key: 'categoria', label: 'Categoria', default: false },
-  { key: 'conta', label: 'Conta', default: false },
-  { key: 'centro_custo', label: 'Centro de Custo', default: false },
 ] as const;
 
 type ColumnKey = typeof ALL_COLUMNS[number]['key'];
