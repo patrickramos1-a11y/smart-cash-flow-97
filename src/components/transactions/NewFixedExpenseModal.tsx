@@ -176,15 +176,31 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
           )}
 
           <div>
-            <Label>Forma de Pagamento</Label>
+            <Label>Forma de Pagamento *</Label>
             <Select value={formData.forma_pagamento_id} onValueChange={(v) => setFormData({ ...formData, forma_pagamento_id: v })}>
-              <SelectTrigger>
+              <SelectTrigger className={!formData.forma_pagamento_id ? 'border-destructive' : ''}>
                 <SelectValue placeholder="Selecionar" />
               </SelectTrigger>
               <SelectContent>
                 {paymentMethods?.filter(p => p.active).map(p => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Documento Fiscal - obrigatório */}
+          <div>
+            <Label>Documento Fiscal *</Label>
+            <Select value={formData.documento_tipo} onValueChange={(v) => setFormData({ ...formData, documento_tipo: v })}>
+              <SelectTrigger className={!formData.documento_tipo ? 'border-destructive' : ''}>
+                <SelectValue placeholder="Selecionar tipo de documento" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="NOTA_FISCAL">Nota Fiscal</SelectItem>
+                <SelectItem value="RECIBO">Recibo</SelectItem>
+                <SelectItem value="NOTA_DE_DEBITO">Nota de Débito</SelectItem>
+                <SelectItem value="SEM_DOCUMENTO">Sem Documento</SelectItem>
               </SelectContent>
             </Select>
           </div>
