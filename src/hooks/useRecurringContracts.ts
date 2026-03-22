@@ -351,6 +351,7 @@ export interface CreateContractInput {
   year?: number;
   dia_vencimento?: number;
   exigir_emissao_nf?: 'SEMPRE' | 'NUNCA' | 'PERGUNTAR';
+  responsavel_id?: string | null;
 }
 
 export function useCreateContractWithInstallments() {
