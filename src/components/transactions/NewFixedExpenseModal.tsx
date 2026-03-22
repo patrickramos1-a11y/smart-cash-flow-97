@@ -35,6 +35,7 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
     data_inicio: `${currentYear}-01-01`,
     data_fim: '',
     notes: '',
+    documento_tipo: '' as string,
   });
 
   const [entityIds, setEntityIds] = useState<string[]>([]);
@@ -62,6 +63,7 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
       nome: '', valor: '', dia_vencimento: 10, categoria_id: '',
       forma_pagamento_id: '', cliente_id: '',
       data_inicio: `${currentYear}-01-01`, data_fim: '', notes: '',
+      documento_tipo: '',
     });
     setEntityIds([]);
     setFilterAccountId('');
@@ -101,7 +103,7 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
   };
 
   const isSubmitting = createFixedExpense.isPending || generateTransactions.isPending;
-  const canSubmit = formData.nome.trim().length > 0 && valor > 0 && formData.dia_vencimento >= 1 && formData.dia_vencimento <= 31;
+  const canSubmit = formData.nome.trim().length > 0 && valor > 0 && formData.dia_vencimento >= 1 && formData.dia_vencimento <= 31 && formData.categoria_id.length > 0 && formData.forma_pagamento_id.length > 0 && formData.cliente_id.length > 0 && entityIds.length > 0 && formData.documento_tipo.length > 0;
 
   const startDate = new Date(formData.data_inicio);
   const startMonth = startDate.getMonth() + 1;
@@ -174,9 +176,9 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
           )}
 
           <div>
-            <Label>Forma de Pagamento</Label>
+            <Label>Forma de Pagamento *</Label>
             <Select value={formData.forma_pagamento_id} onValueChange={(v) => setFormData({ ...formData, forma_pagamento_id: v })}>
-              <SelectTrigger>
+              <SelectTrigger className={!formData.forma_pagamento_id ? 'border-destructive' : ''}>
                 <SelectValue placeholder="Selecionar" />
               </SelectTrigger>
               <SelectContent>
@@ -187,11 +189,27 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
             </Select>
           </div>
 
-          {/* Client */}
+          {/* Documento Fiscal - obrigatório */}
           <div>
-            <Label>Cliente (opcional)</Label>
+            <Label>Documento Fiscal *</Label>
+            <Select value={formData.documento_tipo} onValueChange={(v) => setFormData({ ...formData, documento_tipo: v })}>
+              <SelectTrigger className={!formData.documento_tipo ? 'border-destructive' : ''}>
+                <SelectValue placeholder="Selecionar tipo de documento" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="NOTA_FISCAL">Nota Fiscal</SelectItem>
+                <SelectItem value="RECIBO">Recibo</SelectItem>
+                <SelectItem value="NOTA_DE_DEBITO">Nota de Débito</SelectItem>
+                <SelectItem value="SEM_DOCUMENTO">Sem Documento</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Client - obrigatório */}
+          <div>
+            <Label>Cliente *</Label>
             <Select value={formData.cliente_id} onValueChange={(v) => setFormData({ ...formData, cliente_id: v })}>
-              <SelectTrigger>
+              <SelectTrigger className={!formData.cliente_id ? 'border-destructive' : ''}>
                 <SelectValue placeholder="Vincular a um cliente" />
               </SelectTrigger>
               <SelectContent>

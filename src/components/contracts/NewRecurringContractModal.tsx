@@ -12,6 +12,7 @@ import {
   ChevronLeft, ChevronRight, Check, Loader2, UserPlus, Users,
   DollarSign, Percent, Calendar, Info, FileText
 } from 'lucide-react';
+import { useFinancialEntities } from '@/hooks/useFinancialEntities';
 import { cn } from '@/lib/utils';
 import { 
   useRecurringClients, 
@@ -78,6 +79,13 @@ export function NewRecurringContractModal({ open, onClose, defaultYear }: NewRec
   const { data: plans } = useContractPlans();
   const { data: minimumWageConfigs } = useMinimumWageConfig(year);
   const { data: categories } = useTransactionCategories();
+  const { data: entities } = useFinancialEntities();
+
+  // Auto-set Patrick as responsible
+  const patrickEntity = useMemo(() => 
+    entities?.find(e => e.name?.toUpperCase() === 'PATRICK' && e.type === 'SOCIO'),
+    [entities]
+  );
   
   const createContract = useCreateContractWithInstallments();
   const createClientWithContract = useCreateClientWithContract();
@@ -154,6 +162,9 @@ export function NewRecurringContractModal({ open, onClose, defaultYear }: NewRec
     const discountAmountNum = parseFloat(discountAmount?.replace(',', '.') || '0') || 0;
     const discountMonthsNum = parseInt(discountMonths) || undefined;
 
+    // Responsável padrão: Patrick (sócio)
+    const responsavelId = patrickEntity?.id || null;
+
     if (isNewClient) {
       await createClientWithContract.mutateAsync({
         clientName: newClient.name,
@@ -167,6 +178,7 @@ export function NewRecurringContractModal({ open, onClose, defaultYear }: NewRec
         year,
         dia_vencimento: diaVencimento,
         exigir_emissao_nf: exigirNF,
+        responsavel_id: responsavelId,
       });
     } else {
       const input: CreateContractInput = {
@@ -179,6 +191,7 @@ export function NewRecurringContractModal({ open, onClose, defaultYear }: NewRec
         year,
         dia_vencimento: diaVencimento,
         exigir_emissao_nf: exigirNF,
+        responsavel_id: responsavelId,
         ...(hasDiscount && discountAmountNum > 0 ? {
           discount_type: discountType,
           discount_amount: discountAmountNum,

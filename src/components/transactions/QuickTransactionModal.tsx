@@ -196,13 +196,20 @@ export function QuickTransactionModal({
     }
   };
 
-  // Validation: Client and Responsible always required; ENTRADA also requires fiscal fields
-  const baseFieldsValid = formData.cliente_id.length > 0 && entityIds.length > 0;
+  // Validation: ALL fields required except observações
+  const baseFieldsValid = formData.descricao.trim().length > 0 
+    && formData.valor.trim().length > 0 
+    && formData.cliente_id.length > 0 
+    && entityIds.length > 0 
+    && formData.categoria_id.length > 0
+    && formData.forma_pagamento_id.length > 0;
   const entradaFieldsValid = !isEntrada || (
     formData.documento_recebimento.length > 0 &&
     formData.origem_receita.length > 0
   );
-  const canSubmit = formData.descricao.trim().length > 0 && formData.valor.trim().length > 0 && baseFieldsValid && entradaFieldsValid;
+  // Despesas fixas também precisam de documento fiscal
+  const despesaDocValid = isEntrada || formData.documento_recebimento?.length > 0;
+  const canSubmit = baseFieldsValid && entradaFieldsValid && despesaDocValid;
   const valorTotal = parseFloat(formData.valor.replace(/\./g, '').replace(',', '.')) || 0;
   const valorParcela = enableRepetition && repetitionMode === 'parcelamento' && repetitionCount > 1
     ? Math.round((valorTotal / repetitionCount) * 100) / 100
@@ -448,11 +455,32 @@ export function QuickTransactionModal({
             </div>
           )}
 
+          {/* DOCUMENTO FISCAL - For SAIDA (despesas) */}
+          {!isEntrada && (
+            <div>
+              <Label>Documento Fiscal *</Label>
+              <Select 
+                value={formData.documento_recebimento} 
+                onValueChange={(v) => setFormData({ ...formData, documento_recebimento: v })}
+              >
+                <SelectTrigger className={!formData.documento_recebimento ? 'border-destructive' : ''}>
+                  <SelectValue placeholder="Selecionar tipo de documento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NOTA_FISCAL">Nota Fiscal</SelectItem>
+                  <SelectItem value="RECIBO">Recibo</SelectItem>
+                  <SelectItem value="NOTA_DE_DEBITO">Nota de Débito</SelectItem>
+                  <SelectItem value="SEM_DOCUMENTO">Sem Documento</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Forma de Pagamento</Label>
+              <Label>Forma de Pagamento *</Label>
               <Select value={formData.forma_pagamento_id} onValueChange={(v) => setFormData({ ...formData, forma_pagamento_id: v })}>
-                <SelectTrigger>
+                <SelectTrigger className={!formData.forma_pagamento_id ? 'border-destructive' : ''}>
                   <SelectValue placeholder="Selecionar" />
                 </SelectTrigger>
                 <SelectContent>
