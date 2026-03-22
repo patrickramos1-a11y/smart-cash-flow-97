@@ -205,11 +205,11 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
             </Select>
           </div>
 
-          {/* Client */}
+          {/* Client - obrigatório */}
           <div>
-            <Label>Cliente (opcional)</Label>
+            <Label>Cliente *</Label>
             <Select value={formData.cliente_id} onValueChange={(v) => setFormData({ ...formData, cliente_id: v })}>
-              <SelectTrigger>
+              <SelectTrigger className={!formData.cliente_id ? 'border-destructive' : ''}>
                 <SelectValue placeholder="Vincular a um cliente" />
               </SelectTrigger>
               <SelectContent>
