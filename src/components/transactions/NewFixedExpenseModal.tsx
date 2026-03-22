@@ -35,6 +35,7 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
     data_inicio: `${currentYear}-01-01`,
     data_fim: '',
     notes: '',
+    documento_tipo: '' as string,
   });
 
   const [entityIds, setEntityIds] = useState<string[]>([]);
