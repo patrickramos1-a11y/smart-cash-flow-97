@@ -528,6 +528,7 @@ export function useCreateClientWithContract() {
       year?: number;
       dia_vencimento?: number;
       exigir_emissao_nf?: 'SEMPRE' | 'NUNCA' | 'PERGUNTAR';
+      responsavel_id?: string | null;
     }) => {
       // 1. Create the client
       const { data: client, error: clientError } = await supabase
