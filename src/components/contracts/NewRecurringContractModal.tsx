@@ -12,6 +12,7 @@ import {
   ChevronLeft, ChevronRight, Check, Loader2, UserPlus, Users,
   DollarSign, Percent, Calendar, Info, FileText
 } from 'lucide-react';
+import { useFinancialEntities } from '@/hooks/useFinancialEntities';
 import { cn } from '@/lib/utils';
 import { 
   useRecurringClients, 
