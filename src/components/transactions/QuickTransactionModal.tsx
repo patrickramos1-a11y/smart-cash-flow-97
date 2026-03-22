@@ -196,13 +196,20 @@ export function QuickTransactionModal({
     }
   };
 
-  // Validation: Client and Responsible always required; ENTRADA also requires fiscal fields
-  const baseFieldsValid = formData.cliente_id.length > 0 && entityIds.length > 0;
+  // Validation: ALL fields required except observações
+  const baseFieldsValid = formData.descricao.trim().length > 0 
+    && formData.valor.trim().length > 0 
+    && formData.cliente_id.length > 0 
+    && entityIds.length > 0 
+    && formData.categoria_id.length > 0
+    && formData.forma_pagamento_id.length > 0;
   const entradaFieldsValid = !isEntrada || (
     formData.documento_recebimento.length > 0 &&
     formData.origem_receita.length > 0
   );
-  const canSubmit = formData.descricao.trim().length > 0 && formData.valor.trim().length > 0 && baseFieldsValid && entradaFieldsValid;
+  // Despesas fixas também precisam de documento fiscal
+  const despesaDocValid = isEntrada || formData.documento_recebimento?.length > 0;
+  const canSubmit = baseFieldsValid && entradaFieldsValid && despesaDocValid;
   const valorTotal = parseFloat(formData.valor.replace(/\./g, '').replace(',', '.')) || 0;
   const valorParcela = enableRepetition && repetitionMode === 'parcelamento' && repetitionCount > 1
     ? Math.round((valorTotal / repetitionCount) * 100) / 100
