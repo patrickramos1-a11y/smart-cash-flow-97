@@ -79,6 +79,13 @@ export function NewRecurringContractModal({ open, onClose, defaultYear }: NewRec
   const { data: plans } = useContractPlans();
   const { data: minimumWageConfigs } = useMinimumWageConfig(year);
   const { data: categories } = useTransactionCategories();
+  const { data: entities } = useFinancialEntities();
+
+  // Auto-set Patrick as responsible
+  const patrickEntity = useMemo(() => 
+    entities?.find(e => e.name?.toUpperCase() === 'PATRICK' && e.type === 'SOCIO'),
+    [entities]
+  );
   
   const createContract = useCreateContractWithInstallments();
   const createClientWithContract = useCreateClientWithContract();
