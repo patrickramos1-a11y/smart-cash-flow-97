@@ -63,6 +63,7 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
       nome: '', valor: '', dia_vencimento: 10, categoria_id: '',
       forma_pagamento_id: '', cliente_id: '',
       data_inicio: `${currentYear}-01-01`, data_fim: '', notes: '',
+      documento_tipo: '',
     });
     setEntityIds([]);
     setFilterAccountId('');
