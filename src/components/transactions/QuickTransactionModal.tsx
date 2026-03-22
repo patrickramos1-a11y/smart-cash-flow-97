@@ -455,11 +455,32 @@ export function QuickTransactionModal({
             </div>
           )}
 
+          {/* DOCUMENTO FISCAL - For SAIDA (despesas) */}
+          {!isEntrada && (
+            <div>
+              <Label>Documento Fiscal *</Label>
+              <Select 
+                value={formData.documento_recebimento} 
+                onValueChange={(v) => setFormData({ ...formData, documento_recebimento: v })}
+              >
+                <SelectTrigger className={!formData.documento_recebimento ? 'border-destructive' : ''}>
+                  <SelectValue placeholder="Selecionar tipo de documento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NOTA_FISCAL">Nota Fiscal</SelectItem>
+                  <SelectItem value="RECIBO">Recibo</SelectItem>
+                  <SelectItem value="NOTA_DE_DEBITO">Nota de Débito</SelectItem>
+                  <SelectItem value="SEM_DOCUMENTO">Sem Documento</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Forma de Pagamento</Label>
+              <Label>Forma de Pagamento *</Label>
               <Select value={formData.forma_pagamento_id} onValueChange={(v) => setFormData({ ...formData, forma_pagamento_id: v })}>
-                <SelectTrigger>
+                <SelectTrigger className={!formData.forma_pagamento_id ? 'border-destructive' : ''}>
                   <SelectValue placeholder="Selecionar" />
                 </SelectTrigger>
                 <SelectContent>

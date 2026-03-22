@@ -103,7 +103,7 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
   };
 
   const isSubmitting = createFixedExpense.isPending || generateTransactions.isPending;
-  const canSubmit = formData.nome.trim().length > 0 && valor > 0 && formData.dia_vencimento >= 1 && formData.dia_vencimento <= 31;
+  const canSubmit = formData.nome.trim().length > 0 && valor > 0 && formData.dia_vencimento >= 1 && formData.dia_vencimento <= 31 && formData.categoria_id.length > 0 && formData.forma_pagamento_id.length > 0 && formData.cliente_id.length > 0 && entityIds.length > 0 && formData.documento_tipo.length > 0;
 
   const startDate = new Date(formData.data_inicio);
   const startMonth = startDate.getMonth() + 1;
