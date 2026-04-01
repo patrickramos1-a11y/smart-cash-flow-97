@@ -12,7 +12,7 @@ import {
   Search, ArrowUpCircle, ArrowDownCircle, MoreVertical, 
   CheckCircle, Clock, AlertTriangle, Send, Copy, Pencil, Trash2,
   RefreshCw, FileText, Loader2, DollarSign, ArrowUpDown, Settings2,
-  ArrowUp, ArrowDown
+  ArrowUp, ArrowDown, Undo2
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { 
@@ -20,6 +20,7 @@ import {
   useMarkTransactionPaid, 
   useDuplicateTransaction, 
   useDeleteTransaction,
+  useUpdateTransaction,
   TransactionFilters,
   TransactionWithClient,
   TransactionStatusType
@@ -78,10 +79,13 @@ export function TransactionsList({ filters }: TransactionsListProps) {
   const [sortField, setSortField] = useState<SortField>('data_vencimento');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [editingTransaction, setEditingTransaction] = useState<TransactionWithClient | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(
     new Set(ALL_COLUMNS.filter(c => c.default).map(c => c.key))
   );
   const isMobile = useIsMobile();
+  const updateMutation = useUpdateTransaction();
 
   const combinedFilters: TransactionFilters = {
     ...filters,
@@ -183,6 +187,39 @@ export function TransactionsList({ filters }: TransactionsListProps) {
       else next.add(key);
       return next;
     });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === sortedTransactions.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedTransactions.map(t => t.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    selectedIds.forEach(id => deleteMutation.mutate(id));
+    setSelectedIds(new Set());
+    toast.success(`${selectedIds.size} transações excluídas`);
+  };
+
+  const handleRevertToPending = (t: TransactionWithClient) => {
+    updateMutation.mutate({ 
+      id: t.id, 
+      status: 'EM_ABERTO', 
+      valor_pago: null, 
+      data_pagamento: null 
+    } as any);
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
@@ -304,11 +341,29 @@ export function TransactionsList({ filters }: TransactionsListProps) {
       ) : (
         /* Desktop Table */
         <Card>
+          {/* Bulk actions bar */}
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-3 p-3 bg-primary/5 border-b">
+              <span className="text-sm font-medium">{selectedIds.size} selecionada(s)</span>
+              <Button size="sm" variant="destructive" onClick={handleBulkDelete} className="h-7 text-xs">
+                <Trash2 className="w-3 h-3 mr-1" /> Excluir Selecionadas
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setSelectedIds(new Set())} className="h-7 text-xs">
+                Limpar Seleção
+              </Button>
+            </div>
+          )}
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-muted/50">
                   <tr>
+                    <th className="p-4 w-10">
+                      <Checkbox 
+                        checked={sortedTransactions.length > 0 && selectedIds.size === sortedTransactions.length}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </th>
                     {visibleColumns.has('tipo') && <th className="text-left p-4 text-sm font-medium">Tipo</th>}
                     {visibleColumns.has('descricao') && (
                       <th className="text-left p-4 text-sm font-medium">
@@ -365,7 +420,10 @@ export function TransactionsList({ filters }: TransactionsListProps) {
                       const typeBadge = getTypeBadge();
                       
                       return (
-                        <tr key={t.id} className="hover:bg-muted/30 transition-colors">
+                        <tr key={t.id} className={cn("hover:bg-muted/30 transition-colors", selectedIds.has(t.id) && "bg-primary/5")}>
+                          <td className="p-4">
+                            <Checkbox checked={selectedIds.has(t.id)} onCheckedChange={() => toggleSelect(t.id)} />
+                          </td>
                           {visibleColumns.has('tipo') && <td className="p-4">{getNatureIcon(t.tipo_movimento)}</td>}
                           {visibleColumns.has('descricao') && (
                             <td className="p-4">
@@ -454,17 +512,20 @@ export function TransactionsList({ filters }: TransactionsListProps) {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => setEditingTransaction(t)}>
+                                    <Pencil className="w-4 h-4 mr-2" /> Editar Valor
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handleDuplicate(t)}>
                                     <Copy className="w-4 h-4 mr-2" /> Duplicar
                                   </DropdownMenuItem>
-                                  {t.natureza === 'RECORRENTE' && t.status !== 'PAGO' && (
-                                    <DropdownMenuItem onClick={() => setEditingTransaction(t)}>
-                                      <Pencil className="w-4 h-4 mr-2" /> Editar Valor
-                                    </DropdownMenuItem>
-                                  )}
                                   {t.status !== 'PAGO' && (
                                     <DropdownMenuItem onClick={() => handleOpenPay(t)}>
                                       <CheckCircle className="w-4 h-4 mr-2" /> Marcar Pago
+                                    </DropdownMenuItem>
+                                  )}
+                                  {t.status === 'PAGO' && (
+                                    <DropdownMenuItem onClick={() => handleRevertToPending(t)}>
+                                      <Undo2 className="w-4 h-4 mr-2" /> Reverter p/ Em Aberto
                                     </DropdownMenuItem>
                                   )}
                                   {t.tipo_movimento === 'ENTRADA' && t.status !== 'PAGO' && (
@@ -472,14 +533,12 @@ export function TransactionsList({ filters }: TransactionsListProps) {
                                       <Send className="w-4 h-4 mr-2" /> Enviar Cobrança
                                     </DropdownMenuItem>
                                   )}
-                                  {t.natureza === 'AVULSA' && (
-                                    <DropdownMenuItem 
-                                      className="text-destructive"
-                                      onClick={() => confirmDelete(t)}
-                                    >
-                                      <Trash2 className="w-4 h-4 mr-2" /> Excluir
-                                    </DropdownMenuItem>
-                                  )}
+                                  <DropdownMenuItem 
+                                    className="text-destructive"
+                                    onClick={() => confirmDelete(t)}
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                                  </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
