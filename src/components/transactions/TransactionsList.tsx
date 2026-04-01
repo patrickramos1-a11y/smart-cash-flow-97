@@ -78,10 +78,13 @@ export function TransactionsList({ filters }: TransactionsListProps) {
   const [sortField, setSortField] = useState<SortField>('data_vencimento');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [editingTransaction, setEditingTransaction] = useState<TransactionWithClient | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(
     new Set(ALL_COLUMNS.filter(c => c.default).map(c => c.key))
   );
   const isMobile = useIsMobile();
+  const updateMutation = useUpdateTransaction();
 
   const combinedFilters: TransactionFilters = {
     ...filters,
