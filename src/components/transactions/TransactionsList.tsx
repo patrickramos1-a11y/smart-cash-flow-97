@@ -341,11 +341,29 @@ export function TransactionsList({ filters }: TransactionsListProps) {
       ) : (
         /* Desktop Table */
         <Card>
+          {/* Bulk actions bar */}
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-3 p-3 bg-primary/5 border-b">
+              <span className="text-sm font-medium">{selectedIds.size} selecionada(s)</span>
+              <Button size="sm" variant="destructive" onClick={handleBulkDelete} className="h-7 text-xs">
+                <Trash2 className="w-3 h-3 mr-1" /> Excluir Selecionadas
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setSelectedIds(new Set())} className="h-7 text-xs">
+                Limpar Seleção
+              </Button>
+            </div>
+          )}
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-muted/50">
                   <tr>
+                    <th className="p-4 w-10">
+                      <Checkbox 
+                        checked={sortedTransactions.length > 0 && selectedIds.size === sortedTransactions.length}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </th>
                     {visibleColumns.has('tipo') && <th className="text-left p-4 text-sm font-medium">Tipo</th>}
                     {visibleColumns.has('descricao') && (
                       <th className="text-left p-4 text-sm font-medium">
