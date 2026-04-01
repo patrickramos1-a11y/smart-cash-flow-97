@@ -10,14 +10,20 @@ import {
   ChevronUp,
   Filter,
   Settings2,
-  Trash2
+  Trash2,
+  LayoutGrid,
+  List
 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { 
   useRecurringContracts, 
   useRecurringInstallments, 
   useRecurringKPIs,
   useMarkInstallmentPaid,
   useCancelContract,
+  useContractPlans,
   RecurringInstallment
 } from '@/hooks/useRecurringContracts';
 import { formatCurrency } from '@/data/mockData';
@@ -33,14 +39,17 @@ interface RecurringContractsViewProps {
 }
 
 export function RecurringContractsView({ activeSection }: RecurringContractsViewProps) {
-  const [selectedYear, setSelectedYear] = useState(2025);
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [expandedClient, setExpandedClient] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<{ contractId: string; clientName: string } | null>(null);
   const { kpis, isLoading: loadingKPIs } = useRecurringKPIs(selectedYear);
   const { data: contracts, isLoading: loadingContracts } = useRecurringContracts();
+  const { data: plans } = useContractPlans();
   const { data: installments, isLoading: loadingInstallments } = useRecurringInstallments({
     year: selectedYear,
     month: selectedMonth || undefined,
@@ -51,27 +60,74 @@ export function RecurringContractsView({ activeSection }: RecurringContractsView
 
   const isLoading = loadingKPIs || loadingContracts || loadingInstallments;
 
-  // Group installments by client
-  const installmentsByClient = useMemo(() => {
-    if (!installments) return {};
-    
-    return installments.reduce((acc, inst) => {
-      const clientId = inst.contract?.client_id || 'unknown';
-      if (!acc[clientId]) {
-        acc[clientId] = {
-          client: inst.contract?.client,
-          contract: inst.contract,
-          installments: [],
-        };
+  // Group contracts by plan
+  const contractsByPlan = useMemo(() => {
+    if (!contracts || !installments) return [];
+
+    const planMap = new Map<string, {
+      planName: string;
+      planId: string;
+      factor: number;
+      clients: {
+        clientName: string;
+        contractId: string;
+        clientId: string;
+        factor: number;
+        installments: RecurringInstallment[];
+        totalExpected: number;
+        totalPaid: number;
+      }[];
+      totalExpected: number;
+      totalPaid: number;
+      totalClients: number;
+    }>();
+
+    // Group installments by contract
+    const instByContract = new Map<string, RecurringInstallment[]>();
+    installments.forEach(inst => {
+      const cid = inst.contract_id;
+      if (!instByContract.has(cid)) instByContract.set(cid, []);
+      instByContract.get(cid)!.push(inst);
+    });
+
+    contracts.forEach(contract => {
+      const planName = contract.plan?.name || 'Sem Plano';
+      const planId = contract.plan_id || 'no-plan';
+      const factor = contract.custom_minimum_wage_factor || contract.plan?.minimum_wage_factor || 0;
+      const contractInstallments = instByContract.get(contract.id) || [];
+      
+      if (!planMap.has(planId)) {
+        planMap.set(planId, {
+          planName,
+          planId,
+          factor,
+          clients: [],
+          totalExpected: 0,
+          totalPaid: 0,
+          totalClients: 0,
+        });
       }
-      acc[clientId].installments.push(inst);
-      return acc;
-    }, {} as Record<string, { 
-      client: any; 
-      contract: any; 
-      installments: RecurringInstallment[];
-    }>);
-  }, [installments]);
+
+      const plan = planMap.get(planId)!;
+      const totalExpected = contractInstallments.reduce((s, i) => s + Number(i.expected_value), 0);
+      const totalPaid = contractInstallments.reduce((s, i) => s + (Number(i.paid_value) || 0), 0);
+
+      plan.clients.push({
+        clientName: contract.client?.name || 'N/A',
+        contractId: contract.id,
+        clientId: contract.client_id,
+        factor,
+        installments: contractInstallments,
+        totalExpected,
+        totalPaid,
+      });
+      plan.totalExpected += totalExpected;
+      plan.totalPaid += totalPaid;
+      plan.totalClients++;
+    });
+
+    return Array.from(planMap.values()).sort((a, b) => b.totalExpected - a.totalExpected);
+  }, [contracts, installments]);
 
   const handleMarkPaid = async (installment: RecurringInstallment) => {
     try {
@@ -88,11 +144,11 @@ export function RecurringContractsView({ activeSection }: RecurringContractsView
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PAGO':
-        return <span className="status-badge status-paid"><CheckCircle2 className="w-3 h-3" /> Pago</span>;
+        return <Badge variant="outline" className="bg-income/10 text-income border-income/20 text-xs"><CheckCircle2 className="w-3 h-3 mr-1" /> Pago</Badge>;
       case 'ATRASADO':
-        return <span className="status-badge status-overdue"><AlertCircle className="w-3 h-3" /> Atrasado</span>;
+        return <Badge variant="outline" className="bg-expense/10 text-expense border-expense/20 text-xs"><AlertCircle className="w-3 h-3 mr-1" /> Atrasado</Badge>;
       default:
-        return <span className="status-badge status-pending"><Calendar className="w-3 h-3" /> Em Aberto</span>;
+        return <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20 text-xs"><Calendar className="w-3 h-3 mr-1" /> Em Aberto</Badge>;
     }
   };
 
@@ -107,28 +163,44 @@ export function RecurringContractsView({ activeSection }: RecurringContractsView
   return (
     <div className="space-y-6">
       {/* Header Actions */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(Number(e.target.value))}
             className="form-input w-32"
           >
-            <option value={2024}>2024</option>
-            <option value={2025}>2025</option>
-            <option value={2026}>2026</option>
+            {[currentYear - 1, currentYear, currentYear + 1].map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
           </select>
           <span className="text-sm text-muted-foreground">
             SM: {formatCurrency(kpis.minimumWageValue)}
           </span>
         </div>
-        <button 
-          onClick={() => setShowConfigModal(true)}
-          className="btn-secondary"
-        >
-          <Settings2 className="w-4 h-4" />
-          Configurar SM
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex border rounded-md overflow-hidden">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={cn("p-2 transition-colors", viewMode === 'cards' ? "bg-primary text-primary-foreground" : "hover:bg-muted")}
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={cn("p-2 transition-colors", viewMode === 'table' ? "bg-primary text-primary-foreground" : "hover:bg-muted")}
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
+          <button 
+            onClick={() => setShowConfigModal(true)}
+            className="btn-secondary"
+          >
+            <Settings2 className="w-4 h-4" />
+            Configurar SM
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -139,7 +211,7 @@ export function RecurringContractsView({ activeSection }: RecurringContractsView
               <Users className="w-6 h-6 text-info" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Clientes Recorrentes</p>
+              <p className="text-sm text-muted-foreground">Clientes Ativos</p>
               <p className="text-2xl font-bold text-foreground">{kpis.totalClients}</p>
             </div>
           </div>
@@ -164,7 +236,7 @@ export function RecurringContractsView({ activeSection }: RecurringContractsView
               <DollarSign className="w-6 h-6 text-income" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Valor Esperado Anual</p>
+              <p className="text-sm text-muted-foreground">Esperado Anual</p>
               <p className="text-2xl font-bold text-income">{formatCurrency(kpis.expectedValueYearly)}</p>
             </div>
           </div>
@@ -191,12 +263,12 @@ export function RecurringContractsView({ activeSection }: RecurringContractsView
         </div>
       </div>
 
-      {/* Overdue Clients Alert */}
+      {/* Overdue Alert */}
       {kpis.overdueClients.length > 0 && (
         <div className="bg-expense-muted border border-expense/20 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <AlertCircle className="w-5 h-5 text-expense" />
-            <span className="font-semibold text-expense">Clientes Inadimplentes ({kpis.overdueClients.length})</span>
+            <span className="font-semibold text-expense">Inadimplentes ({kpis.overdueClients.length})</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
             {kpis.overdueClients.slice(0, 6).map((client, idx) => (
@@ -210,131 +282,204 @@ export function RecurringContractsView({ activeSection }: RecurringContractsView
       )}
 
       {/* Filters */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-wrap items-center gap-2">
         <Filter className="w-4 h-4 text-muted-foreground" />
-        <button
-          onClick={() => setSelectedMonth(null)}
-          className={cn("filter-pill", !selectedMonth && "active")}
-        >
-          Todos os meses
-        </button>
+        <button onClick={() => setSelectedMonth(null)} className={cn("filter-pill", !selectedMonth && "active")}>Todos</button>
         {MONTHS.map((month, idx) => (
-          <button
-            key={month}
-            onClick={() => setSelectedMonth(idx + 1)}
-            className={cn("filter-pill", selectedMonth === idx + 1 && "active")}
-          >
-            {month}
-          </button>
+          <button key={month} onClick={() => setSelectedMonth(idx + 1)} className={cn("filter-pill", selectedMonth === idx + 1 && "active")}>{month}</button>
         ))}
       </div>
-
       <div className="flex items-center gap-2">
-        <button
-          onClick={() => setStatusFilter(null)}
-          className={cn("filter-pill", !statusFilter && "active")}
-        >
-          Todos
-        </button>
-        <button
-          onClick={() => setStatusFilter('PAGO')}
-          className={cn("filter-pill", statusFilter === 'PAGO' && "active")}
-        >
-          <CheckCircle2 className="w-3 h-3" /> Pagos
-        </button>
-        <button
-          onClick={() => setStatusFilter('EM_ABERTO')}
-          className={cn("filter-pill", statusFilter === 'EM_ABERTO' && "active")}
-        >
-          <Calendar className="w-3 h-3" /> Em Aberto
-        </button>
-        <button
-          onClick={() => setStatusFilter('ATRASADO')}
-          className={cn("filter-pill", statusFilter === 'ATRASADO' && "active")}
-        >
-          <AlertCircle className="w-3 h-3" /> Atrasados
-        </button>
+        <button onClick={() => setStatusFilter(null)} className={cn("filter-pill", !statusFilter && "active")}>Todos</button>
+        <button onClick={() => setStatusFilter('PAGO')} className={cn("filter-pill", statusFilter === 'PAGO' && "active")}><CheckCircle2 className="w-3 h-3" /> Pagos</button>
+        <button onClick={() => setStatusFilter('EM_ABERTO')} className={cn("filter-pill", statusFilter === 'EM_ABERTO' && "active")}><Calendar className="w-3 h-3" /> Em Aberto</button>
+        <button onClick={() => setStatusFilter('ATRASADO')} className={cn("filter-pill", statusFilter === 'ATRASADO' && "active")}><AlertCircle className="w-3 h-3" /> Atrasados</button>
       </div>
 
-      {/* Contracts List */}
-      <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th className="w-8"></th>
-                <th>Cliente</th>
-                <th>Plano</th>
-                <th className="text-center">Fator SM</th>
-                <th className="text-right">Valor Mensal</th>
-                <th className="text-center">Competência</th>
-                <th className="text-center">Status</th>
-                <th className="text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(installmentsByClient).map(([clientId, data]) => (
-                <>
-                  {data.installments.map((inst, idx) => (
-                    <tr key={inst.id} className="hover:bg-muted/30">
-                      <td>
-                        {idx === 0 && data.installments.length > 1 && (
-                          <button
-                            onClick={() => setExpandedClient(expandedClient === clientId ? null : clientId)}
-                            className="p-1 rounded hover:bg-muted"
-                          >
-                            {expandedClient === clientId ? (
-                              <ChevronUp className="w-4 h-4" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4" />
-                            )}
-                          </button>
+      {/* Cards by Plan View */}
+      {viewMode === 'cards' ? (
+        <div className="space-y-6">
+          {contractsByPlan.map(plan => (
+            <Card key={plan.planId} className="overflow-hidden">
+              <CardHeader 
+                className="cursor-pointer hover:bg-muted/30 transition-colors"
+                onClick={() => setExpandedPlan(expandedPlan === plan.planId ? null : plan.planId)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Badge className="bg-primary/10 text-primary border-primary/20 text-sm px-3 py-1">
+                      {plan.planName}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">{plan.totalClients} cliente(s)</span>
+                    <span className="text-sm text-muted-foreground">• Fator: {plan.factor.toFixed(2)} SM</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">Faturamento no período</p>
+                      <p className="text-lg font-bold text-income">{formatCurrency(plan.totalExpected)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">Recebido</p>
+                      <p className="text-lg font-bold text-foreground">{formatCurrency(plan.totalPaid)}</p>
+                    </div>
+                    {expandedPlan === plan.planId ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                  </div>
+                </div>
+              </CardHeader>
+              {expandedPlan === plan.planId && (
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="text-left p-3 text-xs font-medium">Cliente</th>
+                          <th className="text-center p-3 text-xs font-medium">Fator SM</th>
+                          <th className="text-center p-3 text-xs font-medium">Competência</th>
+                          <th className="text-right p-3 text-xs font-medium">Valor Esperado</th>
+                          <th className="text-center p-3 text-xs font-medium">Status</th>
+                          <th className="text-right p-3 text-xs font-medium">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {plan.clients.map(client => 
+                          client.installments.map((inst, idx) => (
+                            <tr key={inst.id} className="hover:bg-muted/30">
+                              <td className="p-3 font-medium text-sm">{idx === 0 ? client.clientName : ''}</td>
+                              <td className="p-3 text-center text-sm">{client.factor.toFixed(2)}</td>
+                              <td className="p-3 text-center text-sm">{MONTHS[inst.competence_month - 1]}/{inst.competence_year}</td>
+                              <td className="p-3 text-right font-medium text-sm">{formatCurrency(Number(inst.expected_value))}</td>
+                              <td className="p-3 text-center">{getStatusBadge(inst.status)}</td>
+                              <td className="p-3 text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  {inst.status !== 'PAGO' && (
+                                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleMarkPaid(inst)} disabled={markPaidMutation.isPending}>
+                                      Marcar Pago
+                                    </Button>
+                                  )}
+                                  {idx === 0 && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 w-7 p-0 text-muted-foreground hover:text-expense"
+                                      onClick={(e) => { e.stopPropagation(); setCancelTarget({ contractId: client.contractId, clientName: client.clientName }); }}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))
                         )}
-                      </td>
-                      <td className="font-medium">{data.client?.name || 'N/A'}</td>
-                      <td>
-                        <span className="px-2 py-1 rounded bg-primary/10 text-primary text-xs font-medium">
-                          {data.contract?.plan?.name || 'N/A'}
-                        </span>
-                      </td>
-                      <td className="text-center">
-                        {(data.contract?.custom_minimum_wage_factor || data.contract?.plan?.minimum_wage_factor || 0).toFixed(2)}
-                      </td>
-                      <td className="text-right font-medium">{formatCurrency(Number(inst.expected_value))}</td>
-                      <td className="text-center">
-                        {MONTHS[inst.competence_month - 1]}/{inst.competence_year}
-                      </td>
-                      <td className="text-center">{getStatusBadge(inst.status)}</td>
-                      <td className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {inst.status !== 'PAGO' && (
-                            <button
-                              onClick={() => handleMarkPaid(inst)}
-                              disabled={markPaidMutation.isPending}
-                              className="btn-primary text-xs py-1 px-2"
-                            >
-                              Marcar Pago
-                            </button>
-                          )}
-                          {idx === 0 && (
-                            <button
-                              onClick={() => setCancelTarget({ contractId: data.contract?.id, clientName: data.client?.name || 'N/A' })}
-                              className="p-1.5 rounded hover:bg-expense/10 text-muted-foreground hover:text-expense transition-colors"
-                              title="Cancelar contrato"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </>
-              ))}
-            </tbody>
-          </table>
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+          ))}
+          {contractsByPlan.length === 0 && (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                Nenhum contrato encontrado para os filtros selecionados.
+              </CardContent>
+            </Card>
+          )}
         </div>
-      </div>
+      ) : (
+        /* Table View (original style) */
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left p-4 text-sm font-medium">Cliente</th>
+                    <th className="text-left p-4 text-sm font-medium">Plano</th>
+                    <th className="text-center p-4 text-sm font-medium">Fator SM</th>
+                    <th className="text-right p-4 text-sm font-medium">Valor Mensal</th>
+                    <th className="text-center p-4 text-sm font-medium">Competência</th>
+                    <th className="text-center p-4 text-sm font-medium">Status</th>
+                    <th className="text-right p-4 text-sm font-medium">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {contractsByPlan.flatMap(plan =>
+                    plan.clients.flatMap(client =>
+                      client.installments.map((inst) => (
+                        <tr key={inst.id} className="hover:bg-muted/30">
+                          <td className="p-4 font-medium text-sm">{client.clientName}</td>
+                          <td className="p-4">
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-xs">
+                              {plan.planName}
+                            </Badge>
+                          </td>
+                          <td className="p-4 text-center text-sm">{client.factor.toFixed(2)}</td>
+                          <td className="p-4 text-right font-medium text-sm">{formatCurrency(Number(inst.expected_value))}</td>
+                          <td className="p-4 text-center text-sm">{MONTHS[inst.competence_month - 1]}/{inst.competence_year}</td>
+                          <td className="p-4 text-center">{getStatusBadge(inst.status)}</td>
+                          <td className="p-4 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {inst.status !== 'PAGO' && (
+                                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleMarkPaid(inst)} disabled={markPaidMutation.isPending}>
+                                  Marcar Pago
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0 text-muted-foreground hover:text-expense"
+                                onClick={() => setCancelTarget({ contractId: client.contractId, clientName: client.clientName })}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Plan Summary Cards */}
+      {contractsByPlan.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {contractsByPlan.map(plan => (
+            <Card key={`summary-${plan.planId}`}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <Badge className="bg-primary/10 text-primary border-primary/20">{plan.planName}</Badge>
+                  <span className="text-xs text-muted-foreground">{plan.totalClients} cliente(s)</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Faturamento</span>
+                    <span className="font-bold text-income">{formatCurrency(plan.totalExpected)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Recebido</span>
+                    <span className="font-bold">{formatCurrency(plan.totalPaid)}</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div 
+                      className="bg-income rounded-full h-2 transition-all" 
+                      style={{ width: `${plan.totalExpected > 0 ? Math.min((plan.totalPaid / plan.totalExpected) * 100, 100) : 0}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground text-right">
+                    {plan.totalExpected > 0 ? ((plan.totalPaid / plan.totalExpected) * 100).toFixed(0) : 0}% recebido
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Config Modal */}
       <MinimumWageConfigModal
