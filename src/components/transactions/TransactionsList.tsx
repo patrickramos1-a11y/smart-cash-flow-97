@@ -512,17 +512,20 @@ export function TransactionsList({ filters }: TransactionsListProps) {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => setEditingTransaction(t)}>
+                                    <Pencil className="w-4 h-4 mr-2" /> Editar Valor
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handleDuplicate(t)}>
                                     <Copy className="w-4 h-4 mr-2" /> Duplicar
                                   </DropdownMenuItem>
-                                  {t.natureza === 'RECORRENTE' && t.status !== 'PAGO' && (
-                                    <DropdownMenuItem onClick={() => setEditingTransaction(t)}>
-                                      <Pencil className="w-4 h-4 mr-2" /> Editar Valor
-                                    </DropdownMenuItem>
-                                  )}
                                   {t.status !== 'PAGO' && (
                                     <DropdownMenuItem onClick={() => handleOpenPay(t)}>
                                       <CheckCircle className="w-4 h-4 mr-2" /> Marcar Pago
+                                    </DropdownMenuItem>
+                                  )}
+                                  {t.status === 'PAGO' && (
+                                    <DropdownMenuItem onClick={() => handleRevertToPending(t)}>
+                                      <Undo2 className="w-4 h-4 mr-2" /> Reverter p/ Em Aberto
                                     </DropdownMenuItem>
                                   )}
                                   {t.tipo_movimento === 'ENTRADA' && t.status !== 'PAGO' && (
@@ -530,14 +533,12 @@ export function TransactionsList({ filters }: TransactionsListProps) {
                                       <Send className="w-4 h-4 mr-2" /> Enviar Cobrança
                                     </DropdownMenuItem>
                                   )}
-                                  {t.natureza === 'AVULSA' && (
-                                    <DropdownMenuItem 
-                                      className="text-destructive"
-                                      onClick={() => confirmDelete(t)}
-                                    >
-                                      <Trash2 className="w-4 h-4 mr-2" /> Excluir
-                                    </DropdownMenuItem>
-                                  )}
+                                  <DropdownMenuItem 
+                                    className="text-destructive"
+                                    onClick={() => confirmDelete(t)}
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                                  </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
