@@ -189,6 +189,39 @@ export function TransactionsList({ filters }: TransactionsListProps) {
     });
   };
 
+  const toggleSelectAll = () => {
+    if (selectedIds.size === sortedTransactions.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedTransactions.map(t => t.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    selectedIds.forEach(id => deleteMutation.mutate(id));
+    setSelectedIds(new Set());
+    toast.success(`${selectedIds.size} transações excluídas`);
+  };
+
+  const handleRevertToPending = (t: TransactionWithClient) => {
+    updateMutation.mutate({ 
+      id: t.id, 
+      status: 'EM_ABERTO', 
+      valor_pago: null, 
+      data_pagamento: null 
+    } as any);
+  };
+
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-30" />;
     return sortDir === 'asc' ? <ArrowUp className="w-3 h-3 ml-1" /> : <ArrowDown className="w-3 h-3 ml-1" />;
