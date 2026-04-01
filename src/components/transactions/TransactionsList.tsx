@@ -420,7 +420,10 @@ export function TransactionsList({ filters }: TransactionsListProps) {
                       const typeBadge = getTypeBadge();
                       
                       return (
-                        <tr key={t.id} className="hover:bg-muted/30 transition-colors">
+                        <tr key={t.id} className={cn("hover:bg-muted/30 transition-colors", selectedIds.has(t.id) && "bg-primary/5")}>
+                          <td className="p-4">
+                            <Checkbox checked={selectedIds.has(t.id)} onCheckedChange={() => toggleSelect(t.id)} />
+                          </td>
                           {visibleColumns.has('tipo') && <td className="p-4">{getNatureIcon(t.tipo_movimento)}</td>}
                           {visibleColumns.has('descricao') && (
                             <td className="p-4">
