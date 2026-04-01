@@ -12,7 +12,7 @@ import {
   Search, ArrowUpCircle, ArrowDownCircle, MoreVertical, 
   CheckCircle, Clock, AlertTriangle, Send, Copy, Pencil, Trash2,
   RefreshCw, FileText, Loader2, DollarSign, ArrowUpDown, Settings2,
-  ArrowUp, ArrowDown
+  ArrowUp, ArrowDown, Undo2
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { 
