@@ -20,6 +20,7 @@ import {
   useMarkTransactionPaid, 
   useDuplicateTransaction, 
   useDeleteTransaction,
+  useUpdateTransaction,
   TransactionFilters,
   TransactionWithClient,
   TransactionStatusType
