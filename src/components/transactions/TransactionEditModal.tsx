@@ -85,9 +85,9 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
       setStatus(transaction.status);
       setValorPago(transaction.valor_pago ? String(transaction.valor_pago) : '');
       setDescricao(transaction.descricao || '');
-      setCategoryId(transaction.transaction_category_id || transaction.categoria_id || '');
-      setAccountId(transaction.account_id || transaction.conta_id || '');
-      setCostCenterId(transaction.cost_center_id || transaction.centro_custo_id || '');
+      setCategoryId((transaction as any).transaction_category_id || transaction.categoria_id || '');
+      setAccountId((transaction as any).account_id || transaction.conta_id || '');
+      setCostCenterId((transaction as any).cost_center_id || transaction.centro_custo_id || '');
       setEntityId(transaction.entity_id || '');
       setResponsavelId(transaction.responsavel_id || '');
       setDocumentoTipo(transaction.documento_tipo || '');
