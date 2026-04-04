@@ -328,6 +328,8 @@ export function TransactionsList({ filters }: TransactionsListProps) {
                 onDuplicate={handleDuplicate}
                 onSendCollection={handleSendCollection}
                 onDelete={confirmDelete}
+                onEdit={setEditingTransaction}
+                onRevert={handleRevertToPending}
               />
             ))
           ) : (
