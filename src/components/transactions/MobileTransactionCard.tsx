@@ -1,6 +1,6 @@
 import { 
   ArrowDownCircle, ArrowUpCircle, CheckCircle, Clock, AlertTriangle,
-  MoreVertical, RefreshCw, FileText, Copy, Send, Trash2
+  MoreVertical, RefreshCw, FileText, Copy, Send, Trash2, Pencil, Undo2
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
