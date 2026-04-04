@@ -28,8 +28,8 @@ import {
 import { formatCurrency } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { ConfirmModal } from '@/components/modals/ConfirmModal';
+import { TransactionEditModal } from './TransactionEditModal';
 import { MobileTransactionCard } from './MobileTransactionCard';
-import { EditRecurringValueModal } from './EditRecurringValueModal';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 
@@ -328,6 +328,8 @@ export function TransactionsList({ filters }: TransactionsListProps) {
                 onDuplicate={handleDuplicate}
                 onSendCollection={handleSendCollection}
                 onDelete={confirmDelete}
+                onEdit={setEditingTransaction}
+                onRevert={handleRevertToPending}
               />
             ))
           ) : (
@@ -513,7 +515,7 @@ export function TransactionsList({ filters }: TransactionsListProps) {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem onClick={() => setEditingTransaction(t)}>
-                                    <Pencil className="w-4 h-4 mr-2" /> Editar Valor
+                                    <Pencil className="w-4 h-4 mr-2" /> Editar
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handleDuplicate(t)}>
                                     <Copy className="w-4 h-4 mr-2" /> Duplicar
@@ -628,7 +630,7 @@ export function TransactionsList({ filters }: TransactionsListProps) {
       />
 
       {/* Edit Recurring Value Modal */}
-      <EditRecurringValueModal
+      <TransactionEditModal
         open={!!editingTransaction}
         onClose={() => setEditingTransaction(null)}
         transaction={editingTransaction}

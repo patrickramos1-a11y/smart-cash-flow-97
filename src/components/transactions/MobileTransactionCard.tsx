@@ -1,6 +1,6 @@
 import { 
   ArrowDownCircle, ArrowUpCircle, CheckCircle, Clock, AlertTriangle,
-  MoreVertical, RefreshCw, FileText, Copy, Send, Trash2
+  MoreVertical, RefreshCw, FileText, Copy, Send, Trash2, Pencil, Undo2
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,8 @@ interface MobileTransactionCardProps {
   onDuplicate: (t: TransactionWithClient) => void;
   onSendCollection: (t: TransactionWithClient) => void;
   onDelete: (t: TransactionWithClient) => void;
+  onEdit: (t: TransactionWithClient) => void;
+  onRevert?: (t: TransactionWithClient) => void;
 }
 
 export function MobileTransactionCard({ 
@@ -30,7 +32,9 @@ export function MobileTransactionCard({
   onMarkPaid, 
   onDuplicate, 
   onSendCollection, 
-  onDelete 
+  onDelete,
+  onEdit,
+  onRevert,
 }: MobileTransactionCardProps) {
   const status = statusConfig[t.status];
   const StatusIcon = status.icon;
@@ -93,6 +97,9 @@ export function MobileTransactionCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onEdit(t)}>
+                <Pencil className="w-4 h-4 mr-2" /> Editar
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onDuplicate(t)}>
                 <Copy className="w-4 h-4 mr-2" /> Duplicar
               </DropdownMenuItem>
@@ -101,16 +108,19 @@ export function MobileTransactionCard({
                   <CheckCircle className="w-4 h-4 mr-2" /> Marcar Pago
                 </DropdownMenuItem>
               )}
+              {t.status === 'PAGO' && onRevert && (
+                <DropdownMenuItem onClick={() => onRevert(t)}>
+                  <Undo2 className="w-4 h-4 mr-2" /> Reverter p/ Em Aberto
+                </DropdownMenuItem>
+              )}
               {isEntry && t.status !== 'PAGO' && (
                 <DropdownMenuItem onClick={() => onSendCollection(t)}>
                   <Send className="w-4 h-4 mr-2" /> Enviar Cobrança
                 </DropdownMenuItem>
               )}
-              {t.natureza === 'AVULSA' && (
-                <DropdownMenuItem className="text-destructive" onClick={() => onDelete(t)}>
-                  <Trash2 className="w-4 h-4 mr-2" /> Excluir
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem className="text-destructive" onClick={() => onDelete(t)}>
+                <Trash2 className="w-4 h-4 mr-2" /> Excluir
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
