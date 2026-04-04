@@ -97,6 +97,9 @@ export function MobileTransactionCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onEdit(t)}>
+                <Pencil className="w-4 h-4 mr-2" /> Editar
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onDuplicate(t)}>
                 <Copy className="w-4 h-4 mr-2" /> Duplicar
               </DropdownMenuItem>
@@ -105,16 +108,19 @@ export function MobileTransactionCard({
                   <CheckCircle className="w-4 h-4 mr-2" /> Marcar Pago
                 </DropdownMenuItem>
               )}
+              {t.status === 'PAGO' && onRevert && (
+                <DropdownMenuItem onClick={() => onRevert(t)}>
+                  <Undo2 className="w-4 h-4 mr-2" /> Reverter p/ Em Aberto
+                </DropdownMenuItem>
+              )}
               {isEntry && t.status !== 'PAGO' && (
                 <DropdownMenuItem onClick={() => onSendCollection(t)}>
                   <Send className="w-4 h-4 mr-2" /> Enviar Cobrança
                 </DropdownMenuItem>
               )}
-              {t.natureza === 'AVULSA' && (
-                <DropdownMenuItem className="text-destructive" onClick={() => onDelete(t)}>
-                  <Trash2 className="w-4 h-4 mr-2" /> Excluir
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem className="text-destructive" onClick={() => onDelete(t)}>
+                <Trash2 className="w-4 h-4 mr-2" /> Excluir
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
