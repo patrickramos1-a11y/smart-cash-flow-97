@@ -32,7 +32,9 @@ export function MobileTransactionCard({
   onMarkPaid, 
   onDuplicate, 
   onSendCollection, 
-  onDelete 
+  onDelete,
+  onEdit,
+  onRevert,
 }: MobileTransactionCardProps) {
   const status = statusConfig[t.status];
   const StatusIcon = status.icon;
