@@ -29,6 +29,7 @@ import { formatCurrency } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { ConfirmModal } from '@/components/modals/ConfirmModal';
 import { TransactionEditModal } from './TransactionEditModal';
+import { MobileTransactionCard } from './MobileTransactionCard';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 
