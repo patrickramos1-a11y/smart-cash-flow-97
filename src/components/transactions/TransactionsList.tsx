@@ -628,7 +628,7 @@ export function TransactionsList({ filters }: TransactionsListProps) {
       />
 
       {/* Edit Recurring Value Modal */}
-      <EditRecurringValueModal
+      <TransactionEditModal
         open={!!editingTransaction}
         onClose={() => setEditingTransaction(null)}
         transaction={editingTransaction}
