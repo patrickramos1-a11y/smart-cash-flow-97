@@ -513,7 +513,7 @@ export function TransactionsList({ filters }: TransactionsListProps) {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem onClick={() => setEditingTransaction(t)}>
-                                    <Pencil className="w-4 h-4 mr-2" /> Editar Valor
+                                    <Pencil className="w-4 h-4 mr-2" /> Editar
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handleDuplicate(t)}>
                                     <Copy className="w-4 h-4 mr-2" /> Duplicar
