@@ -23,6 +23,8 @@ interface MobileTransactionCardProps {
   onDuplicate: (t: TransactionWithClient) => void;
   onSendCollection: (t: TransactionWithClient) => void;
   onDelete: (t: TransactionWithClient) => void;
+  onEdit: (t: TransactionWithClient) => void;
+  onRevert?: (t: TransactionWithClient) => void;
 }
 
 export function MobileTransactionCard({ 
