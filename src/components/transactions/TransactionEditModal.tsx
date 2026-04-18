@@ -76,6 +76,14 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
     },
   });
 
+  const { data: clients } = useQuery({
+    queryKey: ['clients_list'],
+    queryFn: async () => {
+      const { data } = await supabase.from('recurring_clients').select('id, name').eq('active', true).order('name');
+      return data || [];
+    },
+  });
+
   const isRecurring = transaction?.natureza === 'RECORRENTE';
 
   useEffect(() => {
