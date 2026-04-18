@@ -120,6 +120,11 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
       return;
     }
 
+    if (!entityId) {
+      toast.error('Entidade é obrigatória');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       // Audit history
@@ -405,6 +410,27 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
             </Select>
           </div>
 
+          {/* Entidade (obrigatória) */}
+          <div>
+            <Label>Entidade <span className="text-destructive">*</span></Label>
+            <Select value={entityId || '__none__'} onValueChange={(v) => setEntityId(v === '__none__' ? '' : v)}>
+              <SelectTrigger className={!entityId ? 'border-destructive' : ''}>
+                <SelectValue placeholder="Selecione uma entidade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Nenhuma</SelectItem>
+                {entities?.map(e => (
+                  <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!entityId && (
+              <p className="text-[10px] text-destructive mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" /> Entidade é obrigatória
+              </p>
+            )}
+          </div>
+
           {/* Cost Center + Responsible */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -513,7 +539,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
 
         <div className="flex gap-2 pt-2 border-t">
           <Button variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting} className="flex-1">
+          <Button onClick={handleSubmit} disabled={isSubmitting || !entityId} className="flex-1">
             {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             Salvar Alterações
           </Button>
