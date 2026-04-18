@@ -387,6 +387,10 @@ export function ApprovalView() {
     if (bulkCategoryId) updates.transaction_category_id = bulkCategoryId;
     if (bulkAccountId) updates.account_id = bulkAccountId;
     if (bulkCostCenterId) updates.cost_center_id = bulkCostCenterId;
+    if (bulkClienteId) updates.cliente_id = bulkClienteId;
+    if (bulkEntityId) updates.entity_id = bulkEntityId;
+    if (bulkResponsavelId) updates.responsavel_id = bulkResponsavelId;
+    if (bulkOrigem) updates.origem = bulkOrigem;
     if (Object.keys(updates).length === 0) {
       toast.error('Selecione pelo menos um campo para alterar');
       return;
