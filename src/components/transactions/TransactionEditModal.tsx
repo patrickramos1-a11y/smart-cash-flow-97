@@ -466,7 +466,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
                 <AlertCircle className="w-4 h-4 text-warning" />
                 Aplicar alteração em:
               </p>
-              <RadioGroup value={scope} onValueChange={(v) => setScope(v as 'single' | 'future')}>
+              <RadioGroup value={scope} onValueChange={(v) => setScope(v as 'single' | 'future' | 'all')}>
                 <div className="flex items-start gap-3 p-2 rounded hover:bg-muted/30 cursor-pointer">
                   <RadioGroupItem value="single" id="edit-scope-single" className="mt-0.5" />
                   <label htmlFor="edit-scope-single" className="cursor-pointer">
@@ -481,6 +481,15 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
                   <label htmlFor="edit-scope-future" className="cursor-pointer">
                     <p className="text-sm font-medium">Este e todos os próximos</p>
                     <p className="text-xs text-muted-foreground">Atualiza este e todos os lançamentos futuros em aberto</p>
+                  </label>
+                </div>
+                <div className="flex items-start gap-3 p-2 rounded hover:bg-destructive/5 cursor-pointer border border-destructive/20">
+                  <RadioGroupItem value="all" id="edit-scope-all" className="mt-0.5" />
+                  <label htmlFor="edit-scope-all" className="cursor-pointer">
+                    <p className="text-sm font-medium text-destructive">Todas (passadas, em aberto e futuras)</p>
+                    <p className="text-xs text-muted-foreground">
+                      ⚠️ Corrige toda a série, inclusive parcelas já pagas. Use para corrigir um cadastro errado em massa.
+                    </p>
                   </label>
                 </div>
               </RadioGroup>
