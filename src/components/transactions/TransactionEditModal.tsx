@@ -38,6 +38,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
   const [costCenterId, setCostCenterId] = useState('');
   const [entityId, setEntityId] = useState('');
   const [responsavelId, setResponsavelId] = useState('');
+  const [clienteId, setClienteId] = useState('');
   const [documentoTipo, setDocumentoTipo] = useState('');
   const [documentoNumero, setDocumentoNumero] = useState('');
   const [notes, setNotes] = useState('');
