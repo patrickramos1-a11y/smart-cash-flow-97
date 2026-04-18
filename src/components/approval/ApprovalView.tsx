@@ -506,31 +506,66 @@ export function ApprovalView() {
             <p className="text-sm font-semibold flex items-center gap-2">
               <Layers className="w-4 h-4" /> Despesas Fixas Pendentes (aprovação em conjunto)
             </p>
-            <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Verifique os dados do cadastro antes de aprovar. Use o botão "Editar Cadastro" para ajustar antes da aprovação em massa.
+            </p>
+            <div className="space-y-3">
               {fixedGroups.map(g => {
                 const total = g.items.reduce((s, i) => s + Number(i.valor), 0);
+                const sample = g.items[0];
                 return (
-                  <div key={g.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30">
-                    <div>
-                      <p className="font-medium text-sm">{g.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {g.items.length} parcela(s) • Total: <strong>{formatCurrency(total)}</strong>
-                      </p>
+                  <div key={g.id} className="border rounded-lg overflow-hidden">
+                    <div className="flex items-center justify-between p-3 bg-muted/40">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{g.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {g.items.length} parcela(s) • Total: <strong>{formatCurrency(total)}</strong>
+                        </p>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button size="sm" variant="outline" onClick={() => openEdit(sample.id)}>
+                          <Pencil className="w-3 h-3 mr-1" /> Editar Cadastro
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => selectGroup(g.items)}>
+                          Selecionar grupo
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                          onClick={() => approveMutation.mutate(g.items.map(i => i.id))}
+                          disabled={approveMutation.isPending}
+                        >
+                          <CheckCheck className="w-4 h-4 mr-1" />
+                          Aprovar Todas ({g.items.length})
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => selectGroup(g.items)}>
-                        Selecionar grupo
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                        onClick={() => approveMutation.mutate(g.items.map(i => i.id))}
-                        disabled={approveMutation.isPending}
-                      >
-                        <CheckCheck className="w-4 h-4 mr-1" />
-                        Aprovar Todas ({g.items.length})
-                      </Button>
+                    {/* Cadastro snapshot */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 p-3 text-xs bg-card">
+                      <div><span className="text-muted-foreground">Cliente:</span> <strong>{sample.client_name || <span className="text-amber-600 italic">não preenchido</span>}</strong></div>
+                      <div><span className="text-muted-foreground">Categoria:</span> <strong>{sample.category_name || <span className="text-amber-600 italic">não preenchido</span>}</strong></div>
+                      <div><span className="text-muted-foreground">Conta:</span> <strong>{sample.account_name || <span className="text-amber-600 italic">não preenchido</span>}</strong></div>
+                      <div><span className="text-muted-foreground">C. Custo:</span> <strong>{sample.cost_center_name || '-'}</strong></div>
+                      <div><span className="text-muted-foreground">Entidade:</span> <strong>{sample.entity_name || '-'}</strong></div>
+                      <div><span className="text-muted-foreground">Responsável:</span> <strong>{sample.responsible_name || '-'}</strong></div>
+                      <div><span className="text-muted-foreground">Vencimento:</span> <strong>dia {new Date(sample.data_vencimento).getDate()}</strong></div>
+                      <div><span className="text-muted-foreground">Valor unit.:</span> <strong>{formatCurrency(Number(sample.valor))}</strong></div>
+                      <div><span className="text-muted-foreground">Origem:</span> <strong>{getOrigemLabel(sample.origem)}</strong></div>
                     </div>
+                    {/* Parcelas list */}
+                    <details className="border-t">
+                      <summary className="text-xs px-3 py-2 cursor-pointer hover:bg-muted/30 text-muted-foreground">
+                        Ver {g.items.length} parcela(s)
+                      </summary>
+                      <div className="px-3 pb-3 space-y-1">
+                        {g.items.map(it => (
+                          <div key={it.id} className="flex items-center justify-between text-xs py-1 border-b last:border-0">
+                            <span>{it.competencia_mes.toString().padStart(2, '0')}/{it.competencia_ano} • Venc. {formatDate(it.data_vencimento)}</span>
+                            <span className="font-medium">{formatCurrency(Number(it.valor))}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
                   </div>
                 );
               })}
