@@ -70,6 +70,10 @@ export function ApprovalView() {
   const [bulkCategoryId, setBulkCategoryId] = useState<string>('');
   const [bulkAccountId, setBulkAccountId] = useState<string>('');
   const [bulkCostCenterId, setBulkCostCenterId] = useState<string>('');
+  const [bulkClienteId, setBulkClienteId] = useState<string>('');
+  const [bulkEntityId, setBulkEntityId] = useState<string>('');
+  const [bulkResponsavelId, setBulkResponsavelId] = useState<string>('');
+  const [bulkOrigem, setBulkOrigem] = useState<string>('');
 
   // Lookup data for bulk edit
   const { data: categoriesList } = useQuery({
@@ -90,6 +94,20 @@ export function ApprovalView() {
     queryKey: ['approval_cost_centers_list'],
     queryFn: async () => {
       const { data } = await supabase.from('cost_centers').select('id, name').eq('active', true).order('name');
+      return data || [];
+    },
+  });
+  const { data: clientsList } = useQuery({
+    queryKey: ['approval_clients_list'],
+    queryFn: async () => {
+      const { data } = await supabase.from('recurring_clients').select('id, name').eq('active', true).order('name');
+      return data || [];
+    },
+  });
+  const { data: entitiesList } = useQuery({
+    queryKey: ['approval_entities_list'],
+    queryFn: async () => {
+      const { data } = await supabase.from('financial_entities').select('id, name, type').eq('active', true).order('name');
       return data || [];
     },
   });
@@ -235,6 +253,10 @@ export function ApprovalView() {
       setBulkCategoryId('');
       setBulkAccountId('');
       setBulkCostCenterId('');
+      setBulkClienteId('');
+      setBulkEntityId('');
+      setBulkResponsavelId('');
+      setBulkOrigem('');
       setSelectedIds(new Set());
     },
     onError: (e: any) => toast.error('Erro ao atualizar: ' + (e?.message || '')),
@@ -365,6 +387,10 @@ export function ApprovalView() {
     if (bulkCategoryId) updates.transaction_category_id = bulkCategoryId;
     if (bulkAccountId) updates.account_id = bulkAccountId;
     if (bulkCostCenterId) updates.cost_center_id = bulkCostCenterId;
+    if (bulkClienteId) updates.cliente_id = bulkClienteId;
+    if (bulkEntityId) updates.entity_id = bulkEntityId;
+    if (bulkResponsavelId) updates.responsavel_id = bulkResponsavelId;
+    if (bulkOrigem) updates.origem = bulkOrigem;
     if (Object.keys(updates).length === 0) {
       toast.error('Selecione pelo menos um campo para alterar');
       return;
@@ -480,31 +506,66 @@ export function ApprovalView() {
             <p className="text-sm font-semibold flex items-center gap-2">
               <Layers className="w-4 h-4" /> Despesas Fixas Pendentes (aprovação em conjunto)
             </p>
-            <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Verifique os dados do cadastro antes de aprovar. Use o botão "Editar Cadastro" para ajustar antes da aprovação em massa.
+            </p>
+            <div className="space-y-3">
               {fixedGroups.map(g => {
                 const total = g.items.reduce((s, i) => s + Number(i.valor), 0);
+                const sample = g.items[0];
                 return (
-                  <div key={g.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30">
-                    <div>
-                      <p className="font-medium text-sm">{g.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {g.items.length} parcela(s) • Total: <strong>{formatCurrency(total)}</strong>
-                      </p>
+                  <div key={g.id} className="border rounded-lg overflow-hidden">
+                    <div className="flex items-center justify-between p-3 bg-muted/40">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{g.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {g.items.length} parcela(s) • Total: <strong>{formatCurrency(total)}</strong>
+                        </p>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button size="sm" variant="outline" onClick={() => openEdit(sample.id)}>
+                          <Pencil className="w-3 h-3 mr-1" /> Editar Cadastro
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => selectGroup(g.items)}>
+                          Selecionar grupo
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                          onClick={() => approveMutation.mutate(g.items.map(i => i.id))}
+                          disabled={approveMutation.isPending}
+                        >
+                          <CheckCheck className="w-4 h-4 mr-1" />
+                          Aprovar Todas ({g.items.length})
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => selectGroup(g.items)}>
-                        Selecionar grupo
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                        onClick={() => approveMutation.mutate(g.items.map(i => i.id))}
-                        disabled={approveMutation.isPending}
-                      >
-                        <CheckCheck className="w-4 h-4 mr-1" />
-                        Aprovar Todas ({g.items.length})
-                      </Button>
+                    {/* Cadastro snapshot */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 p-3 text-xs bg-card">
+                      <div><span className="text-muted-foreground">Cliente:</span> <strong>{sample.client_name || <span className="text-amber-600 italic">não preenchido</span>}</strong></div>
+                      <div><span className="text-muted-foreground">Categoria:</span> <strong>{sample.category_name || <span className="text-amber-600 italic">não preenchido</span>}</strong></div>
+                      <div><span className="text-muted-foreground">Conta:</span> <strong>{sample.account_name || <span className="text-amber-600 italic">não preenchido</span>}</strong></div>
+                      <div><span className="text-muted-foreground">C. Custo:</span> <strong>{sample.cost_center_name || '-'}</strong></div>
+                      <div><span className="text-muted-foreground">Entidade:</span> <strong>{sample.entity_name || '-'}</strong></div>
+                      <div><span className="text-muted-foreground">Responsável:</span> <strong>{sample.responsible_name || '-'}</strong></div>
+                      <div><span className="text-muted-foreground">Vencimento:</span> <strong>dia {new Date(sample.data_vencimento).getDate()}</strong></div>
+                      <div><span className="text-muted-foreground">Valor unit.:</span> <strong>{formatCurrency(Number(sample.valor))}</strong></div>
+                      <div><span className="text-muted-foreground">Origem:</span> <strong>{getOrigemLabel(sample.origem)}</strong></div>
                     </div>
+                    {/* Parcelas list */}
+                    <details className="border-t">
+                      <summary className="text-xs px-3 py-2 cursor-pointer hover:bg-muted/30 text-muted-foreground">
+                        Ver {g.items.length} parcela(s)
+                      </summary>
+                      <div className="px-3 pb-3 space-y-1">
+                        {g.items.map(it => (
+                          <div key={it.id} className="flex items-center justify-between text-xs py-1 border-b last:border-0">
+                            <span>{it.competencia_mes.toString().padStart(2, '0')}/{it.competencia_ano} • Venc. {formatDate(it.data_vencimento)}</span>
+                            <span className="font-medium">{formatCurrency(Number(it.valor))}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
                   </div>
                 );
               })}
@@ -702,7 +763,7 @@ export function ApprovalView() {
 
       {/* Bulk edit modal */}
       <Dialog open={bulkEditOpen} onOpenChange={setBulkEditOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar {selectedIds.size} lançamento(s) em massa</DialogTitle>
           </DialogHeader>
@@ -710,38 +771,85 @@ export function ApprovalView() {
             <p className="text-xs text-muted-foreground">
               Preencha apenas os campos que deseja alterar. Os demais permanecerão inalterados.
             </p>
-            <div className="space-y-2">
-              <Label>Categoria</Label>
-              <Select value={bulkCategoryId} onValueChange={setBulkCategoryId}>
-                <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
-                <SelectContent>
-                  {(categoriesList || []).map((c: any) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Conta</Label>
-              <Select value={bulkAccountId} onValueChange={setBulkAccountId}>
-                <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
-                <SelectContent>
-                  {(accountsList || []).map((a: any) => (
-                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Centro de Custo</Label>
-              <Select value={bulkCostCenterId} onValueChange={setBulkCostCenterId}>
-                <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
-                <SelectContent>
-                  {(costCentersList || []).map((c: any) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Cliente</Label>
+                <Select value={bulkClienteId} onValueChange={setBulkClienteId}>
+                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                  <SelectContent>
+                    {(clientsList || []).map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Select value={bulkCategoryId} onValueChange={setBulkCategoryId}>
+                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                  <SelectContent>
+                    {(categoriesList || []).map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Conta</Label>
+                <Select value={bulkAccountId} onValueChange={setBulkAccountId}>
+                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                  <SelectContent>
+                    {(accountsList || []).map((a: any) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Centro de Custo</Label>
+                <Select value={bulkCostCenterId} onValueChange={setBulkCostCenterId}>
+                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                  <SelectContent>
+                    {(costCentersList || []).map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Entidade</Label>
+                <Select value={bulkEntityId} onValueChange={setBulkEntityId}>
+                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                  <SelectContent>
+                    {(entitiesList || []).map((e: any) => (
+                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Responsável</Label>
+                <Select value={bulkResponsavelId} onValueChange={setBulkResponsavelId}>
+                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                  <SelectContent>
+                    {(entitiesList || []).map((e: any) => (
+                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label>Origem</Label>
+                <Select value={bulkOrigem} onValueChange={setBulkOrigem}>
+                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="LANCAMENTO_MANUAL">Manual</SelectItem>
+                    <SelectItem value="CONTRATO_RECORRENTE">Contrato Recorrente</SelectItem>
+                    <SelectItem value="DESPESA_FIXA">Despesa Fixa</SelectItem>
+                    <SelectItem value="IMPORTACAO">Importação</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <DialogFooter>

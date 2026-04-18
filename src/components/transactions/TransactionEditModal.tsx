@@ -38,6 +38,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
   const [costCenterId, setCostCenterId] = useState('');
   const [entityId, setEntityId] = useState('');
   const [responsavelId, setResponsavelId] = useState('');
+  const [clienteId, setClienteId] = useState('');
   const [documentoTipo, setDocumentoTipo] = useState('');
   const [documentoNumero, setDocumentoNumero] = useState('');
   const [notes, setNotes] = useState('');
@@ -75,6 +76,14 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
     },
   });
 
+  const { data: clients } = useQuery({
+    queryKey: ['clients_list'],
+    queryFn: async () => {
+      const { data } = await supabase.from('recurring_clients').select('id, name').eq('active', true).order('name');
+      return data || [];
+    },
+  });
+
   const isRecurring = transaction?.natureza === 'RECORRENTE';
 
   useEffect(() => {
@@ -90,6 +99,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
       setCostCenterId((transaction as any).cost_center_id || transaction.centro_custo_id || '');
       setEntityId(transaction.entity_id || '');
       setResponsavelId(transaction.responsavel_id || '');
+      setClienteId((transaction as any).cliente_id || '');
       setDocumentoTipo(transaction.documento_tipo || '');
       setDocumentoNumero(transaction.documento_numero || '');
       setNotes(transaction.notes || '');
@@ -137,6 +147,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
         cost_center_id: costCenterId || null,
         entity_id: entityId || null,
         responsavel_id: responsavelId || null,
+        cliente_id: clienteId || null,
       };
 
       // Handle payment fields
@@ -290,14 +301,28 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
             <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} />
           </div>
 
+          {/* Cliente */}
+          <div>
+            <Label>Cliente</Label>
+            <Select value={clienteId || '__none__'} onValueChange={(v) => setClienteId(v === '__none__' ? '' : v)}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Nenhum</SelectItem>
+                {clients?.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Category + Account */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Categoria</Label>
-              <Select value={categoryId} onValueChange={setCategoryId}>
+              <Select value={categoryId || '__none__'} onValueChange={(v) => setCategoryId(v === '__none__' ? '' : v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhuma</SelectItem>
+                  <SelectItem value="__none__">Nenhuma</SelectItem>
                   {filteredCategories.map(c => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
@@ -306,10 +331,10 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
             </div>
             <div>
               <Label>Conta</Label>
-              <Select value={accountId} onValueChange={setAccountId}>
+              <Select value={accountId || '__none__'} onValueChange={(v) => setAccountId(v === '__none__' ? '' : v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhuma</SelectItem>
+                  <SelectItem value="__none__">Nenhuma</SelectItem>
                   {accounts?.map(a => (
                     <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
                   ))}
@@ -322,10 +347,10 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Centro de Custo</Label>
-              <Select value={costCenterId} onValueChange={setCostCenterId}>
+              <Select value={costCenterId || '__none__'} onValueChange={(v) => setCostCenterId(v === '__none__' ? '' : v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
+                  <SelectItem value="__none__">Nenhum</SelectItem>
                   {costCenters?.map(cc => (
                     <SelectItem key={cc.id} value={cc.id}>{cc.name}</SelectItem>
                   ))}
@@ -334,10 +359,10 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
             </div>
             <div>
               <Label>Responsável</Label>
-              <Select value={responsavelId} onValueChange={setResponsavelId}>
+              <Select value={responsavelId || '__none__'} onValueChange={(v) => setResponsavelId(v === '__none__' ? '' : v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
+                  <SelectItem value="__none__">Nenhum</SelectItem>
                   {entities?.map(e => (
                     <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
                   ))}
