@@ -24,7 +24,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
   const { role, user } = useAuth();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [scope, setScope] = useState<'single' | 'future'>('single');
+  const [scope, setScope] = useState<'single' | 'future' | 'all'>('single');
 
   // Form state
   const [valor, setValor] = useState('');
@@ -45,9 +45,13 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
 
   // Fetch lookup data
   const { data: categories } = useQuery({
-    queryKey: ['transaction_categories'],
+    queryKey: ['transaction_categories_with_account'],
     queryFn: async () => {
-      const { data } = await supabase.from('transaction_categories').select('id, name, type, expense_type, subtype').eq('active', true).order('name');
+      const { data } = await supabase
+        .from('transaction_categories')
+        .select('id, name, type, expense_type, subtype, default_account_id')
+        .eq('active', true)
+        .order('name');
       return data || [];
     },
   });
@@ -166,46 +170,50 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
 
       await supabase.from('transactions').update(updates).eq('id', transaction.id);
 
-      // Handle recurring scope
-      if (scope === 'future' && isRecurring) {
-        const futureUpdates: any = {};
-        
-        // Copy fields that should propagate
-        if (categoryId) futureUpdates.transaction_category_id = categoryId;
-        if (accountId) futureUpdates.account_id = accountId;
-        if (costCenterId) futureUpdates.cost_center_id = costCenterId;
-        if (entityId) futureUpdates.entity_id = entityId;
-        if (responsavelId) futureUpdates.responsavel_id = responsavelId;
-        if (documentoTipo) futureUpdates.documento_tipo = documentoTipo;
-        futureUpdates.valor = parsedValor;
+      // Handle recurring scope (future or all)
+      if ((scope === 'future' || scope === 'all') && isRecurring) {
+        const propagateUpdates: any = { valor: parsedValor };
+        if (categoryId) propagateUpdates.transaction_category_id = categoryId;
+        if (accountId) propagateUpdates.account_id = accountId;
+        if (costCenterId) propagateUpdates.cost_center_id = costCenterId;
+        if (entityId) propagateUpdates.entity_id = entityId;
+        if (responsavelId) propagateUpdates.responsavel_id = responsavelId;
+        if (clienteId) propagateUpdates.cliente_id = clienteId;
+        if (documentoTipo) propagateUpdates.documento_tipo = documentoTipo;
 
         if (transaction.contrato_id) {
-          const { data: futureInstallments } = await supabase
+          let q = supabase
             .from('recurring_installments')
             .select('id')
-            .eq('contract_id', transaction.contrato_id)
-            .neq('status', 'PAGO')
-            .or(`competence_year.gt.${transaction.competencia_ano},and(competence_year.eq.${transaction.competencia_ano},competence_month.gt.${transaction.competencia_mes})`);
-
-          if (futureInstallments?.length) {
-            const ids = futureInstallments.map(i => i.id);
+            .eq('contract_id', transaction.contrato_id);
+          if (scope === 'future') {
+            q = q.neq('status', 'PAGO').or(`competence_year.gt.${transaction.competencia_ano},and(competence_year.eq.${transaction.competencia_ano},competence_month.gt.${transaction.competencia_mes})`);
+          }
+          const { data: insts } = await q;
+          if (insts?.length) {
+            const ids = insts.map(i => i.id);
             await supabase.from('recurring_installments').update({ expected_value: parsedValor }).in('id', ids);
-            await supabase.from('transactions').update(futureUpdates).in('installment_id', ids).neq('status', 'PAGO');
+            let txQ = supabase.from('transactions').update(propagateUpdates).in('installment_id', ids).neq('id', transaction.id);
+            if (scope === 'future') txQ = txQ.neq('status', 'PAGO');
+            await txQ;
           }
         } else if (transaction.fixed_expense_id) {
-          await supabase
+          let q = supabase
             .from('transactions')
-            .update(futureUpdates)
+            .update(propagateUpdates)
             .eq('fixed_expense_id', transaction.fixed_expense_id)
-            .neq('status', 'PAGO')
-            .neq('id', transaction.id)
-            .or(`competencia_ano.gt.${transaction.competencia_ano},and(competencia_ano.eq.${transaction.competencia_ano},competencia_mes.gt.${transaction.competencia_mes})`);
-          
-          // Update base fixed expense
+            .neq('id', transaction.id);
+          if (scope === 'future') {
+            q = q.neq('status', 'PAGO').or(`competencia_ano.gt.${transaction.competencia_ano},and(competencia_ano.eq.${transaction.competencia_ano},competencia_mes.gt.${transaction.competencia_mes})`);
+          }
+          await q;
+
+          // Update base fixed expense template
           const feUpdates: any = { valor: parsedValor };
           if (categoryId) feUpdates.categoria_id = categoryId;
           if (accountId) feUpdates.conta_id = accountId;
           if (costCenterId) feUpdates.centro_custo_id = costCenterId;
+          if (clienteId) feUpdates.cliente_id = clienteId;
           await supabase.from('fixed_expenses').update(feUpdates).eq('id', transaction.fixed_expense_id);
         }
       }
@@ -215,7 +223,9 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
       queryClient.invalidateQueries({ queryKey: ['fixed-expenses'] });
       queryClient.invalidateQueries({ queryKey: ['pending-approval-count'] });
 
-      const msg = scope === 'future' && isRecurring
+      const msg = scope === 'all' && isRecurring
+        ? 'Lançamento atualizado em TODAS as parcelas (passadas e futuras).'
+        : scope === 'future' && isRecurring
         ? 'Lançamento atualizado neste e em todos os próximos.'
         : 'Lançamento atualizado com sucesso.';
       toast.success(msg);
@@ -231,6 +241,46 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
   if (!transaction) return null;
 
   const filteredCategories = categories?.filter(c => c.type === transaction.tipo_movimento) || [];
+
+  // Bidirectional category/account filtering
+  // If account selected → show only categories whose default_account_id matches (or no default)
+  // Categories displayed grouped by their default account
+  const categoriesForAccount = accountId
+    ? filteredCategories.filter(c => !c.default_account_id || c.default_account_id === accountId)
+    : filteredCategories;
+
+  const groupedCategories = (() => {
+    const groups: Record<string, { accountName: string; items: typeof filteredCategories }> = {};
+    categoriesForAccount.forEach(c => {
+      const accId = c.default_account_id || '__nodef__';
+      const accName = accounts?.find(a => a.id === accId)?.name || 'Sem conta padrão';
+      if (!groups[accId]) groups[accId] = { accountName: accName, items: [] };
+      groups[accId].items.push(c);
+    });
+    return Object.values(groups).sort((a, b) => a.accountName.localeCompare(b.accountName));
+  })();
+
+  // When category is selected, auto-fill account from its default
+  const handleCategoryChange = (newCategoryId: string) => {
+    setCategoryId(newCategoryId);
+    if (newCategoryId) {
+      const cat = filteredCategories.find(c => c.id === newCategoryId);
+      if (cat?.default_account_id && !accountId) {
+        setAccountId(cat.default_account_id);
+      }
+    }
+  };
+
+  // When account changes, if current category doesn't belong, clear it
+  const handleAccountChange = (newAccountId: string) => {
+    setAccountId(newAccountId);
+    if (newAccountId && categoryId) {
+      const cat = filteredCategories.find(c => c.id === categoryId);
+      if (cat?.default_account_id && cat.default_account_id !== newAccountId) {
+        setCategoryId('');
+      }
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -315,32 +365,44 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
             </Select>
           </div>
 
-          {/* Category + Account */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Categoria</Label>
-              <Select value={categoryId || '__none__'} onValueChange={(v) => setCategoryId(v === '__none__' ? '' : v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Nenhuma</SelectItem>
-                  {filteredCategories.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Conta</Label>
-              <Select value={accountId || '__none__'} onValueChange={(v) => setAccountId(v === '__none__' ? '' : v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Nenhuma</SelectItem>
-                  {accounts?.map(a => (
-                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Account first (filters categories) */}
+          <div>
+            <Label>Conta</Label>
+            <Select value={accountId || '__none__'} onValueChange={(v) => handleAccountChange(v === '__none__' ? '' : v)}>
+              <SelectTrigger><SelectValue placeholder="Todas as contas" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Todas as contas</SelectItem>
+                {accounts?.map(a => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Category grouped by account */}
+          <div>
+            <Label>Categoria {accountId && <span className="text-xs text-muted-foreground">(filtrada pela conta)</span>}</Label>
+            <Select value={categoryId || '__none__'} onValueChange={(v) => handleCategoryChange(v === '__none__' ? '' : v)}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                <SelectItem value="__none__">Nenhuma</SelectItem>
+                {groupedCategories.map(group => (
+                  <div key={group.accountName}>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/40 sticky top-0">
+                      {group.accountName}
+                    </div>
+                    {group.items.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </div>
+                ))}
+                {groupedCategories.length === 0 && (
+                  <div className="px-2 py-3 text-xs text-muted-foreground text-center">
+                    Nenhuma categoria para esta conta
+                  </div>
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Cost Center + Responsible */}
@@ -404,7 +466,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
                 <AlertCircle className="w-4 h-4 text-warning" />
                 Aplicar alteração em:
               </p>
-              <RadioGroup value={scope} onValueChange={(v) => setScope(v as 'single' | 'future')}>
+              <RadioGroup value={scope} onValueChange={(v) => setScope(v as 'single' | 'future' | 'all')}>
                 <div className="flex items-start gap-3 p-2 rounded hover:bg-muted/30 cursor-pointer">
                   <RadioGroupItem value="single" id="edit-scope-single" className="mt-0.5" />
                   <label htmlFor="edit-scope-single" className="cursor-pointer">
@@ -419,6 +481,15 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
                   <label htmlFor="edit-scope-future" className="cursor-pointer">
                     <p className="text-sm font-medium">Este e todos os próximos</p>
                     <p className="text-xs text-muted-foreground">Atualiza este e todos os lançamentos futuros em aberto</p>
+                  </label>
+                </div>
+                <div className="flex items-start gap-3 p-2 rounded hover:bg-destructive/5 cursor-pointer border border-destructive/20">
+                  <RadioGroupItem value="all" id="edit-scope-all" className="mt-0.5" />
+                  <label htmlFor="edit-scope-all" className="cursor-pointer">
+                    <p className="text-sm font-medium text-destructive">Todas (passadas, em aberto e futuras)</p>
+                    <p className="text-xs text-muted-foreground">
+                      ⚠️ Corrige toda a série, inclusive parcelas já pagas. Use para corrigir um cadastro errado em massa.
+                    </p>
                   </label>
                 </div>
               </RadioGroup>
