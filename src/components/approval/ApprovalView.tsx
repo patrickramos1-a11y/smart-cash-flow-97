@@ -763,7 +763,7 @@ export function ApprovalView() {
 
       {/* Bulk edit modal */}
       <Dialog open={bulkEditOpen} onOpenChange={setBulkEditOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar {selectedIds.size} lançamento(s) em massa</DialogTitle>
           </DialogHeader>
@@ -771,38 +771,85 @@ export function ApprovalView() {
             <p className="text-xs text-muted-foreground">
               Preencha apenas os campos que deseja alterar. Os demais permanecerão inalterados.
             </p>
-            <div className="space-y-2">
-              <Label>Categoria</Label>
-              <Select value={bulkCategoryId} onValueChange={setBulkCategoryId}>
-                <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
-                <SelectContent>
-                  {(categoriesList || []).map((c: any) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Conta</Label>
-              <Select value={bulkAccountId} onValueChange={setBulkAccountId}>
-                <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
-                <SelectContent>
-                  {(accountsList || []).map((a: any) => (
-                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Centro de Custo</Label>
-              <Select value={bulkCostCenterId} onValueChange={setBulkCostCenterId}>
-                <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
-                <SelectContent>
-                  {(costCentersList || []).map((c: any) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Cliente</Label>
+                <Select value={bulkClienteId} onValueChange={setBulkClienteId}>
+                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                  <SelectContent>
+                    {(clientsList || []).map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Select value={bulkCategoryId} onValueChange={setBulkCategoryId}>
+                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                  <SelectContent>
+                    {(categoriesList || []).map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Conta</Label>
+                <Select value={bulkAccountId} onValueChange={setBulkAccountId}>
+                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                  <SelectContent>
+                    {(accountsList || []).map((a: any) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Centro de Custo</Label>
+                <Select value={bulkCostCenterId} onValueChange={setBulkCostCenterId}>
+                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                  <SelectContent>
+                    {(costCentersList || []).map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Entidade</Label>
+                <Select value={bulkEntityId} onValueChange={setBulkEntityId}>
+                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                  <SelectContent>
+                    {(entitiesList || []).map((e: any) => (
+                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Responsável</Label>
+                <Select value={bulkResponsavelId} onValueChange={setBulkResponsavelId}>
+                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                  <SelectContent>
+                    {(entitiesList || []).map((e: any) => (
+                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label>Origem</Label>
+                <Select value={bulkOrigem} onValueChange={setBulkOrigem}>
+                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="LANCAMENTO_MANUAL">Manual</SelectItem>
+                    <SelectItem value="CONTRATO_RECORRENTE">Contrato Recorrente</SelectItem>
+                    <SelectItem value="DESPESA_FIXA">Despesa Fixa</SelectItem>
+                    <SelectItem value="IMPORTACAO">Importação</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <DialogFooter>
