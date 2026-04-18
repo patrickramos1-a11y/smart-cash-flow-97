@@ -170,46 +170,50 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
 
       await supabase.from('transactions').update(updates).eq('id', transaction.id);
 
-      // Handle recurring scope
-      if (scope === 'future' && isRecurring) {
-        const futureUpdates: any = {};
-        
-        // Copy fields that should propagate
-        if (categoryId) futureUpdates.transaction_category_id = categoryId;
-        if (accountId) futureUpdates.account_id = accountId;
-        if (costCenterId) futureUpdates.cost_center_id = costCenterId;
-        if (entityId) futureUpdates.entity_id = entityId;
-        if (responsavelId) futureUpdates.responsavel_id = responsavelId;
-        if (documentoTipo) futureUpdates.documento_tipo = documentoTipo;
-        futureUpdates.valor = parsedValor;
+      // Handle recurring scope (future or all)
+      if ((scope === 'future' || scope === 'all') && isRecurring) {
+        const propagateUpdates: any = { valor: parsedValor };
+        if (categoryId) propagateUpdates.transaction_category_id = categoryId;
+        if (accountId) propagateUpdates.account_id = accountId;
+        if (costCenterId) propagateUpdates.cost_center_id = costCenterId;
+        if (entityId) propagateUpdates.entity_id = entityId;
+        if (responsavelId) propagateUpdates.responsavel_id = responsavelId;
+        if (clienteId) propagateUpdates.cliente_id = clienteId;
+        if (documentoTipo) propagateUpdates.documento_tipo = documentoTipo;
 
         if (transaction.contrato_id) {
-          const { data: futureInstallments } = await supabase
+          let q = supabase
             .from('recurring_installments')
             .select('id')
-            .eq('contract_id', transaction.contrato_id)
-            .neq('status', 'PAGO')
-            .or(`competence_year.gt.${transaction.competencia_ano},and(competence_year.eq.${transaction.competencia_ano},competence_month.gt.${transaction.competencia_mes})`);
-
-          if (futureInstallments?.length) {
-            const ids = futureInstallments.map(i => i.id);
+            .eq('contract_id', transaction.contrato_id);
+          if (scope === 'future') {
+            q = q.neq('status', 'PAGO').or(`competence_year.gt.${transaction.competencia_ano},and(competence_year.eq.${transaction.competencia_ano},competence_month.gt.${transaction.competencia_mes})`);
+          }
+          const { data: insts } = await q;
+          if (insts?.length) {
+            const ids = insts.map(i => i.id);
             await supabase.from('recurring_installments').update({ expected_value: parsedValor }).in('id', ids);
-            await supabase.from('transactions').update(futureUpdates).in('installment_id', ids).neq('status', 'PAGO');
+            let txQ = supabase.from('transactions').update(propagateUpdates).in('installment_id', ids).neq('id', transaction.id);
+            if (scope === 'future') txQ = txQ.neq('status', 'PAGO');
+            await txQ;
           }
         } else if (transaction.fixed_expense_id) {
-          await supabase
+          let q = supabase
             .from('transactions')
-            .update(futureUpdates)
+            .update(propagateUpdates)
             .eq('fixed_expense_id', transaction.fixed_expense_id)
-            .neq('status', 'PAGO')
-            .neq('id', transaction.id)
-            .or(`competencia_ano.gt.${transaction.competencia_ano},and(competencia_ano.eq.${transaction.competencia_ano},competencia_mes.gt.${transaction.competencia_mes})`);
-          
-          // Update base fixed expense
+            .neq('id', transaction.id);
+          if (scope === 'future') {
+            q = q.neq('status', 'PAGO').or(`competencia_ano.gt.${transaction.competencia_ano},and(competencia_ano.eq.${transaction.competencia_ano},competencia_mes.gt.${transaction.competencia_mes})`);
+          }
+          await q;
+
+          // Update base fixed expense template
           const feUpdates: any = { valor: parsedValor };
           if (categoryId) feUpdates.categoria_id = categoryId;
           if (accountId) feUpdates.conta_id = accountId;
           if (costCenterId) feUpdates.centro_custo_id = costCenterId;
+          if (clienteId) feUpdates.cliente_id = clienteId;
           await supabase.from('fixed_expenses').update(feUpdates).eq('id', transaction.fixed_expense_id);
         }
       }
