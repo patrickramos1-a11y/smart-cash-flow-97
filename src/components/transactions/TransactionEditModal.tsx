@@ -301,6 +301,20 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
             <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} />
           </div>
 
+          {/* Cliente */}
+          <div>
+            <Label>Cliente</Label>
+            <Select value={clienteId || '__none__'} onValueChange={(v) => setClienteId(v === '__none__' ? '' : v)}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Nenhum</SelectItem>
+                {clients?.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Category + Account */}
           <div className="grid grid-cols-2 gap-3">
             <div>
