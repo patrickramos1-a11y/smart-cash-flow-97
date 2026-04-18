@@ -120,6 +120,11 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
       return;
     }
 
+    if (!entityId) {
+      toast.error('Entidade é obrigatória');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       // Audit history
