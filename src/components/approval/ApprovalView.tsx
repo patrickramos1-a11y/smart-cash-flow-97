@@ -70,6 +70,10 @@ export function ApprovalView() {
   const [bulkCategoryId, setBulkCategoryId] = useState<string>('');
   const [bulkAccountId, setBulkAccountId] = useState<string>('');
   const [bulkCostCenterId, setBulkCostCenterId] = useState<string>('');
+  const [bulkClienteId, setBulkClienteId] = useState<string>('');
+  const [bulkEntityId, setBulkEntityId] = useState<string>('');
+  const [bulkResponsavelId, setBulkResponsavelId] = useState<string>('');
+  const [bulkOrigem, setBulkOrigem] = useState<string>('');
 
   // Lookup data for bulk edit
   const { data: categoriesList } = useQuery({
@@ -90,6 +94,20 @@ export function ApprovalView() {
     queryKey: ['approval_cost_centers_list'],
     queryFn: async () => {
       const { data } = await supabase.from('cost_centers').select('id, name').eq('active', true).order('name');
+      return data || [];
+    },
+  });
+  const { data: clientsList } = useQuery({
+    queryKey: ['approval_clients_list'],
+    queryFn: async () => {
+      const { data } = await supabase.from('recurring_clients').select('id, name').eq('active', true).order('name');
+      return data || [];
+    },
+  });
+  const { data: entitiesList } = useQuery({
+    queryKey: ['approval_entities_list'],
+    queryFn: async () => {
+      const { data } = await supabase.from('financial_entities').select('id, name, type').eq('active', true).order('name');
       return data || [];
     },
   });
