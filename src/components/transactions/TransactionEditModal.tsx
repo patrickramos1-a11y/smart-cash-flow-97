@@ -365,32 +365,44 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
             </Select>
           </div>
 
-          {/* Category + Account */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Categoria</Label>
-              <Select value={categoryId || '__none__'} onValueChange={(v) => setCategoryId(v === '__none__' ? '' : v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Nenhuma</SelectItem>
-                  {filteredCategories.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Conta</Label>
-              <Select value={accountId || '__none__'} onValueChange={(v) => setAccountId(v === '__none__' ? '' : v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Nenhuma</SelectItem>
-                  {accounts?.map(a => (
-                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Account first (filters categories) */}
+          <div>
+            <Label>Conta</Label>
+            <Select value={accountId || '__none__'} onValueChange={(v) => handleAccountChange(v === '__none__' ? '' : v)}>
+              <SelectTrigger><SelectValue placeholder="Todas as contas" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Todas as contas</SelectItem>
+                {accounts?.map(a => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Category grouped by account */}
+          <div>
+            <Label>Categoria {accountId && <span className="text-xs text-muted-foreground">(filtrada pela conta)</span>}</Label>
+            <Select value={categoryId || '__none__'} onValueChange={(v) => handleCategoryChange(v === '__none__' ? '' : v)}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                <SelectItem value="__none__">Nenhuma</SelectItem>
+                {groupedCategories.map(group => (
+                  <div key={group.accountName}>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/40 sticky top-0">
+                      {group.accountName}
+                    </div>
+                    {group.items.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </div>
+                ))}
+                {groupedCategories.length === 0 && (
+                  <div className="px-2 py-3 text-xs text-muted-foreground text-center">
+                    Nenhuma categoria para esta conta
+                  </div>
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Cost Center + Responsible */}
