@@ -99,6 +99,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
       setCostCenterId((transaction as any).cost_center_id || transaction.centro_custo_id || '');
       setEntityId(transaction.entity_id || '');
       setResponsavelId(transaction.responsavel_id || '');
+      setClienteId((transaction as any).cliente_id || '');
       setDocumentoTipo(transaction.documento_tipo || '');
       setDocumentoNumero(transaction.documento_numero || '');
       setNotes(transaction.notes || '');
