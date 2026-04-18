@@ -24,7 +24,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
   const { role, user } = useAuth();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [scope, setScope] = useState<'single' | 'future'>('single');
+  const [scope, setScope] = useState<'single' | 'future' | 'all'>('single');
 
   // Form state
   const [valor, setValor] = useState('');
