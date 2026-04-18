@@ -223,7 +223,9 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
       queryClient.invalidateQueries({ queryKey: ['fixed-expenses'] });
       queryClient.invalidateQueries({ queryKey: ['pending-approval-count'] });
 
-      const msg = scope === 'future' && isRecurring
+      const msg = scope === 'all' && isRecurring
+        ? 'Lançamento atualizado em TODAS as parcelas (passadas e futuras).'
+        : scope === 'future' && isRecurring
         ? 'Lançamento atualizado neste e em todos os próximos.'
         : 'Lançamento atualizado com sucesso.';
       toast.success(msg);
