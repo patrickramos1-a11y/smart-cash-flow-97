@@ -242,6 +242,46 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
 
   const filteredCategories = categories?.filter(c => c.type === transaction.tipo_movimento) || [];
 
+  // Bidirectional category/account filtering
+  // If account selected → show only categories whose default_account_id matches (or no default)
+  // Categories displayed grouped by their default account
+  const categoriesForAccount = accountId
+    ? filteredCategories.filter(c => !c.default_account_id || c.default_account_id === accountId)
+    : filteredCategories;
+
+  const groupedCategories = (() => {
+    const groups: Record<string, { accountName: string; items: typeof filteredCategories }> = {};
+    categoriesForAccount.forEach(c => {
+      const accId = c.default_account_id || '__nodef__';
+      const accName = accounts?.find(a => a.id === accId)?.name || 'Sem conta padrão';
+      if (!groups[accId]) groups[accId] = { accountName: accName, items: [] };
+      groups[accId].items.push(c);
+    });
+    return Object.values(groups).sort((a, b) => a.accountName.localeCompare(b.accountName));
+  })();
+
+  // When category is selected, auto-fill account from its default
+  const handleCategoryChange = (newCategoryId: string) => {
+    setCategoryId(newCategoryId);
+    if (newCategoryId) {
+      const cat = filteredCategories.find(c => c.id === newCategoryId);
+      if (cat?.default_account_id && !accountId) {
+        setAccountId(cat.default_account_id);
+      }
+    }
+  };
+
+  // When account changes, if current category doesn't belong, clear it
+  const handleAccountChange = (newAccountId: string) => {
+    setAccountId(newAccountId);
+    if (newAccountId && categoryId) {
+      const cat = filteredCategories.find(c => c.id === categoryId);
+      if (cat?.default_account_id && cat.default_account_id !== newAccountId) {
+        setCategoryId('');
+      }
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
