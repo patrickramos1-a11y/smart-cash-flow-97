@@ -45,9 +45,13 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
 
   // Fetch lookup data
   const { data: categories } = useQuery({
-    queryKey: ['transaction_categories'],
+    queryKey: ['transaction_categories_with_account'],
     queryFn: async () => {
-      const { data } = await supabase.from('transaction_categories').select('id, name, type, expense_type, subtype').eq('active', true).order('name');
+      const { data } = await supabase
+        .from('transaction_categories')
+        .select('id, name, type, expense_type, subtype, default_account_id')
+        .eq('active', true)
+        .order('name');
       return data || [];
     },
   });
