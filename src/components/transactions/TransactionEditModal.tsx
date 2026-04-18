@@ -147,6 +147,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
         cost_center_id: costCenterId || null,
         entity_id: entityId || null,
         responsavel_id: responsavelId || null,
+        cliente_id: clienteId || null,
       };
 
       // Handle payment fields
