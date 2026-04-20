@@ -91,7 +91,7 @@ export function useFiscalIndicators(month?: number, year?: number) {
     queryFn: async () => {
       let query = supabase
         .from('transactions')
-        .select('id, tipo_movimento, natureza, valor, valor_pago, documento_recebimento, origem_receita, valor_imposto_nf, valor_liquido_nf, nf_percentual_aplicado, cliente_id, forma_pagamento_id, status')
+        .select('id, tipo_movimento, natureza, valor, valor_pago, documento_recebimento, origem_receita, valor_imposto_nf, valor_liquido_nf, nf_percentual_aplicado, cliente_id, status')
         .eq('tipo_movimento', 'ENTRADA');
 
       if (month) query = query.eq('competencia_mes', month);
@@ -128,10 +128,10 @@ export function useFiscalIndicators(month?: number, year?: number) {
         }
       });
 
-      // Payment method distribution
+      // Payment method distribution (legacy field removed; group by document type instead)
       const valorPorFormaPagamento: Record<string, number> = {};
       entries.forEach(e => {
-        const key = e.forma_pagamento_id || 'sem_forma';
+        const key = e.documento_recebimento || 'sem_forma';
         valorPorFormaPagamento[key] = (valorPorFormaPagamento[key] || 0) + Number(e.valor);
       });
 

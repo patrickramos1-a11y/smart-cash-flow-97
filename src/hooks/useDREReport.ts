@@ -81,7 +81,7 @@ export function useDREData(year: number) {
       const valuesByCostCenter: Record<string, Record<number, number>> = {};
       
       transactions?.forEach(t => {
-        const ccId = t.cost_center_id || t.centro_custo_id;
+        const ccId = t.cost_center_id;
         if (!ccId) return;
         
         if (!valuesByCostCenter[ccId]) {
