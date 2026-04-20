@@ -211,29 +211,56 @@ export function ApprovalView() {
     onError: () => toast.error('Erro ao aprovar'),
   });
 
-  // Reject mutation (supports bulk)
+  // Reject mutation: archives to rejected_transactions and DELETES from transactions
   const rejectMutation = useMutation({
     mutationFn: async ({ ids, reason }: { ids: string[]; reason: string }) => {
-      const { error } = await supabase
-        .from('transactions')
-        .update({
-          approval_status: 'rejeitado',
-          approved_by: user?.id,
-          approved_at: new Date().toISOString(),
-          rejection_reason: reason,
-        })
-        .in('id', ids);
+      const { error } = await supabase.rpc('archive_and_delete_rejected', {
+        p_ids: ids,
+        p_reason: reason,
+        p_rejected_by: user?.id ?? null,
+      });
       if (error) throw error;
     },
     onSuccess: (_, { ids }) => {
       queryClient.invalidateQueries({ queryKey: ['approval-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['rejected-transactions'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       setSelectedIds(new Set());
-      toast.success(`${ids.length} lançamento(s) rejeitado(s)`);
+      toast.success(`${ids.length} lançamento(s) rejeitado(s) e arquivado(s)`);
       setRejectingIds([]);
       setRejectReason('');
     },
-    onError: () => toast.error('Erro ao rejeitar'),
+    onError: (e: any) => toast.error('Erro ao rejeitar: ' + (e?.message || '')),
+  });
+
+  // Rejected transactions audit log
+  const { data: rejectedLog } = useQuery({
+    queryKey: ['rejected-transactions'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('rejected_transactions')
+        .select(`
+          id, original_transaction_id, tipo_movimento, descricao, valor,
+          data_vencimento, competencia_mes, competencia_ano, origem,
+          rejection_reason, rejected_at, rejected_by,
+          recurring_clients:cliente_id(name),
+          transaction_categories:transaction_category_id(name),
+          accounts:account_id(name),
+          entity:financial_entities!rejected_transactions_entity_id_fkey(name)
+        `)
+        .order('rejected_at', { ascending: false })
+        .limit(500);
+      if (error) {
+        // Fallback without FK alias if relation isn't named yet
+        const r2 = await supabase
+          .from('rejected_transactions')
+          .select('*')
+          .order('rejected_at', { ascending: false })
+          .limit(500);
+        return r2.data || [];
+      }
+      return data || [];
+    },
   });
 
   // Bulk edit mutation
