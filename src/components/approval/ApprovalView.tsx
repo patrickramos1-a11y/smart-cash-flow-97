@@ -211,29 +211,56 @@ export function ApprovalView() {
     onError: () => toast.error('Erro ao aprovar'),
   });
 
-  // Reject mutation (supports bulk)
+  // Reject mutation: archives to rejected_transactions and DELETES from transactions
   const rejectMutation = useMutation({
     mutationFn: async ({ ids, reason }: { ids: string[]; reason: string }) => {
-      const { error } = await supabase
-        .from('transactions')
-        .update({
-          approval_status: 'rejeitado',
-          approved_by: user?.id,
-          approved_at: new Date().toISOString(),
-          rejection_reason: reason,
-        })
-        .in('id', ids);
+      const { error } = await supabase.rpc('archive_and_delete_rejected', {
+        p_ids: ids,
+        p_reason: reason,
+        p_rejected_by: user?.id ?? null,
+      });
       if (error) throw error;
     },
     onSuccess: (_, { ids }) => {
       queryClient.invalidateQueries({ queryKey: ['approval-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['rejected-transactions'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       setSelectedIds(new Set());
-      toast.success(`${ids.length} lançamento(s) rejeitado(s)`);
+      toast.success(`${ids.length} lançamento(s) rejeitado(s) e arquivado(s)`);
       setRejectingIds([]);
       setRejectReason('');
     },
-    onError: () => toast.error('Erro ao rejeitar'),
+    onError: (e: any) => toast.error('Erro ao rejeitar: ' + (e?.message || '')),
+  });
+
+  // Rejected transactions audit log
+  const { data: rejectedLog } = useQuery({
+    queryKey: ['rejected-transactions'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('rejected_transactions')
+        .select(`
+          id, original_transaction_id, tipo_movimento, descricao, valor,
+          data_vencimento, competencia_mes, competencia_ano, origem,
+          rejection_reason, rejected_at, rejected_by,
+          recurring_clients:cliente_id(name),
+          transaction_categories:transaction_category_id(name),
+          accounts:account_id(name),
+          entity:financial_entities!rejected_transactions_entity_id_fkey(name)
+        `)
+        .order('rejected_at', { ascending: false })
+        .limit(500);
+      if (error) {
+        // Fallback without FK alias if relation isn't named yet
+        const r2 = await supabase
+          .from('rejected_transactions')
+          .select('*')
+          .order('rejected_at', { ascending: false })
+          .limit(500);
+        return r2.data || [];
+      }
+      return data || [];
+    },
   });
 
   // Bulk edit mutation
@@ -432,8 +459,8 @@ export function ApprovalView() {
           <CardContent className="p-4 flex items-center gap-3">
             <XCircle className="w-8 h-8 text-red-500" />
             <div>
-              <p className="text-2xl font-bold">{transactions?.filter(t => t.approval_status === 'rejeitado').length || 0}</p>
-              <p className="text-xs text-muted-foreground">Rejeitados</p>
+              <p className="text-2xl font-bold">{rejectedLog?.length || 0}</p>
+              <p className="text-xs text-muted-foreground">Rejeitados (arquivo)</p>
             </div>
           </CardContent>
         </Card>
@@ -605,8 +632,62 @@ export function ApprovalView() {
         </Card>
       )}
 
-      {/* Table */}
-      {isLoading ? (
+      {/* Rejected archive view */}
+      {filterStatus === 'rejeitado' ? (
+        <Card>
+          <CardContent className="p-0">
+            <div className="p-4 border-b bg-red-50/40">
+              <p className="text-sm font-semibold text-red-800 flex items-center gap-2">
+                <XCircle className="w-4 h-4" /> Histórico de Rejeições
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Lançamentos rejeitados são removidos das transações ativas e arquivados aqui para auditoria.
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left p-3 text-xs font-medium">Tipo</th>
+                    <th className="text-left p-3 text-xs font-medium">Descrição</th>
+                    <th className="text-left p-3 text-xs font-medium">Cliente</th>
+                    <th className="text-left p-3 text-xs font-medium">Categoria</th>
+                    <th className="text-left p-3 text-xs font-medium">Origem</th>
+                    <th className="text-left p-3 text-xs font-medium">Vencimento</th>
+                    <th className="text-right p-3 text-xs font-medium">Valor</th>
+                    <th className="text-left p-3 text-xs font-medium">Motivo</th>
+                    <th className="text-left p-3 text-xs font-medium">Rejeitado em</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {(!rejectedLog || rejectedLog.length === 0) ? (
+                    <tr><td colSpan={9} className="text-center py-8 text-muted-foreground text-sm">Nenhum lançamento rejeitado.</td></tr>
+                  ) : rejectedLog.map((r: any) => (
+                    <tr key={r.id} className="hover:bg-muted/30">
+                      <td className="p-3">
+                        {r.tipo_movimento === 'ENTRADA'
+                          ? <ArrowDownCircle className="w-5 h-5 text-income" />
+                          : <ArrowUpCircle className="w-5 h-5 text-expense" />}
+                      </td>
+                      <td className="p-3 text-sm">
+                        <p className="font-medium truncate max-w-[200px]">{r.descricao || '-'}</p>
+                        <p className="text-xs text-muted-foreground">{String(r.competencia_mes).padStart(2, '0')}/{r.competencia_ano}</p>
+                      </td>
+                      <td className="p-3 text-sm">{r.recurring_clients?.name || '-'}</td>
+                      <td className="p-3 text-xs">{r.transaction_categories?.name || '-'}</td>
+                      <td className="p-3"><Badge variant="outline" className="text-xs">{getOrigemLabel(r.origem)}</Badge></td>
+                      <td className="p-3 text-sm">{formatDate(r.data_vencimento)}</td>
+                      <td className="p-3 text-right font-semibold text-sm">{formatCurrency(Number(r.valor))}</td>
+                      <td className="p-3 text-xs max-w-[240px]"><span className="text-red-700">{r.rejection_reason}</span></td>
+                      <td className="p-3 text-xs text-muted-foreground">{new Date(r.rejected_at).toLocaleString('pt-BR')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      ) : isLoading ? (
         <Card><CardContent className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></CardContent></Card>
       ) : (
         <Card>

@@ -1221,6 +1221,102 @@ export type Database = {
         }
         Relationships: []
       }
+      rejected_transactions: {
+        Row: {
+          account_id: string | null
+          cliente_id: string | null
+          competencia_ano: number
+          competencia_mes: number
+          contrato_id: string | null
+          cost_center_id: string | null
+          created_at: string
+          created_by: string | null
+          data_vencimento: string
+          descricao: string | null
+          documento_numero: string | null
+          documento_tipo: Database["public"]["Enums"]["documento_tipo"] | null
+          entity_id: string | null
+          fixed_expense_id: string | null
+          full_payload: Json
+          id: string
+          installment_id: string | null
+          natureza: Database["public"]["Enums"]["transaction_natureza"]
+          notes: string | null
+          origem: Database["public"]["Enums"]["transaction_origem"]
+          original_created_at: string | null
+          original_transaction_id: string
+          rejected_at: string
+          rejected_by: string | null
+          rejection_reason: string
+          responsavel_id: string | null
+          tipo_movimento: Database["public"]["Enums"]["transaction_tipo_movimento"]
+          transaction_category_id: string | null
+          valor: number
+        }
+        Insert: {
+          account_id?: string | null
+          cliente_id?: string | null
+          competencia_ano: number
+          competencia_mes: number
+          contrato_id?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_vencimento: string
+          descricao?: string | null
+          documento_numero?: string | null
+          documento_tipo?: Database["public"]["Enums"]["documento_tipo"] | null
+          entity_id?: string | null
+          fixed_expense_id?: string | null
+          full_payload: Json
+          id?: string
+          installment_id?: string | null
+          natureza: Database["public"]["Enums"]["transaction_natureza"]
+          notes?: string | null
+          origem: Database["public"]["Enums"]["transaction_origem"]
+          original_created_at?: string | null
+          original_transaction_id: string
+          rejected_at?: string
+          rejected_by?: string | null
+          rejection_reason: string
+          responsavel_id?: string | null
+          tipo_movimento: Database["public"]["Enums"]["transaction_tipo_movimento"]
+          transaction_category_id?: string | null
+          valor: number
+        }
+        Update: {
+          account_id?: string | null
+          cliente_id?: string | null
+          competencia_ano?: number
+          competencia_mes?: number
+          contrato_id?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_vencimento?: string
+          descricao?: string | null
+          documento_numero?: string | null
+          documento_tipo?: Database["public"]["Enums"]["documento_tipo"] | null
+          entity_id?: string | null
+          fixed_expense_id?: string | null
+          full_payload?: Json
+          id?: string
+          installment_id?: string | null
+          natureza?: Database["public"]["Enums"]["transaction_natureza"]
+          notes?: string | null
+          origem?: Database["public"]["Enums"]["transaction_origem"]
+          original_created_at?: string | null
+          original_transaction_id?: string
+          rejected_at?: string
+          rejected_by?: string | null
+          rejection_reason?: string
+          responsavel_id?: string | null
+          tipo_movimento?: Database["public"]["Enums"]["transaction_tipo_movimento"]
+          transaction_category_id?: string | null
+          valor?: number
+        }
+        Relationships: []
+      }
       transaction_categories: {
         Row: {
           active: boolean
@@ -1734,6 +1830,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      archive_and_delete_rejected: {
+        Args: { p_ids: string[]; p_reason: string; p_rejected_by: string }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
