@@ -91,7 +91,7 @@ export function useFiscalIndicators(month?: number, year?: number) {
     queryFn: async () => {
       let query = supabase
         .from('transactions')
-        .select('id, tipo_movimento, natureza, valor, valor_pago, documento_recebimento, origem_receita, valor_imposto_nf, valor_liquido_nf, nf_percentual_aplicado, cliente_id, forma_pagamento_id, status')
+        .select('id, tipo_movimento, natureza, valor, valor_pago, documento_recebimento, origem_receita, valor_imposto_nf, valor_liquido_nf, nf_percentual_aplicado, cliente_id, status')
         .eq('tipo_movimento', 'ENTRADA');
 
       if (month) query = query.eq('competencia_mes', month);
