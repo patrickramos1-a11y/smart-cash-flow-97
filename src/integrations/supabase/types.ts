@@ -842,6 +842,39 @@ export type Database = {
         }
         Relationships: []
       }
+      migration_conflicts_log: {
+        Row: {
+          created_at: string
+          field_name: string
+          id: string
+          legacy_value: string | null
+          record_id: string
+          resolution: string
+          table_name: string
+          uuid_value: string | null
+        }
+        Insert: {
+          created_at?: string
+          field_name: string
+          id?: string
+          legacy_value?: string | null
+          record_id: string
+          resolution: string
+          table_name: string
+          uuid_value?: string | null
+        }
+        Update: {
+          created_at?: string
+          field_name?: string
+          id?: string
+          legacy_value?: string | null
+          record_id?: string
+          resolution?: string
+          table_name?: string
+          uuid_value?: string | null
+        }
+        Relationships: []
+      }
       minimum_wage_config: {
         Row: {
           created_at: string
@@ -1351,13 +1384,10 @@ export type Database = {
           approval_status: Database["public"]["Enums"]["approval_status"]
           approved_at: string | null
           approved_by: string | null
-          categoria_id: string | null
-          centro_custo_id: string | null
           cliente_id: string | null
           company_id: string | null
           competencia_ano: number
           competencia_mes: number
-          conta_id: string | null
           contrato_id: string | null
           cost_center_id: string | null
           created_at: string
@@ -1370,7 +1400,6 @@ export type Database = {
           documento_tipo: Database["public"]["Enums"]["documento_tipo"] | null
           entity_id: string | null
           fixed_expense_id: string | null
-          forma_pagamento_id: string | null
           id: string
           installment_id: string | null
           natureza: Database["public"]["Enums"]["transaction_natureza"]
@@ -1394,13 +1423,10 @@ export type Database = {
           approval_status?: Database["public"]["Enums"]["approval_status"]
           approved_at?: string | null
           approved_by?: string | null
-          categoria_id?: string | null
-          centro_custo_id?: string | null
           cliente_id?: string | null
           company_id?: string | null
           competencia_ano: number
           competencia_mes: number
-          conta_id?: string | null
           contrato_id?: string | null
           cost_center_id?: string | null
           created_at?: string
@@ -1413,7 +1439,6 @@ export type Database = {
           documento_tipo?: Database["public"]["Enums"]["documento_tipo"] | null
           entity_id?: string | null
           fixed_expense_id?: string | null
-          forma_pagamento_id?: string | null
           id?: string
           installment_id?: string | null
           natureza: Database["public"]["Enums"]["transaction_natureza"]
@@ -1437,13 +1462,10 @@ export type Database = {
           approval_status?: Database["public"]["Enums"]["approval_status"]
           approved_at?: string | null
           approved_by?: string | null
-          categoria_id?: string | null
-          centro_custo_id?: string | null
           cliente_id?: string | null
           company_id?: string | null
           competencia_ano?: number
           competencia_mes?: number
-          conta_id?: string | null
           contrato_id?: string | null
           cost_center_id?: string | null
           created_at?: string
@@ -1456,7 +1478,6 @@ export type Database = {
           documento_tipo?: Database["public"]["Enums"]["documento_tipo"] | null
           entity_id?: string | null
           fixed_expense_id?: string | null
-          forma_pagamento_id?: string | null
           id?: string
           installment_id?: string | null
           natureza?: Database["public"]["Enums"]["transaction_natureza"]
@@ -1477,10 +1498,66 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_transactions_account"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_transactions_category"
+            columns: ["transaction_category_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_transactions_client"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_transactions_contract"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_transactions_cost_center"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_transactions_entity"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "financial_entities"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_transactions_fixed_expense"
             columns: ["fixed_expense_id"]
             isOneToOne: false
             referencedRelation: "fixed_expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_transactions_fixed_expense_v2"
+            columns: ["fixed_expense_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_transactions_installment"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_installments"
             referencedColumns: ["id"]
           },
           {
