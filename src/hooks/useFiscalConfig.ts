@@ -128,10 +128,10 @@ export function useFiscalIndicators(month?: number, year?: number) {
         }
       });
 
-      // Payment method distribution
+      // Payment method distribution (legacy field removed; group by document type instead)
       const valorPorFormaPagamento: Record<string, number> = {};
       entries.forEach(e => {
-        const key = e.forma_pagamento_id || 'sem_forma';
+        const key = e.documento_recebimento || 'sem_forma';
         valorPorFormaPagamento[key] = (valorPorFormaPagamento[key] || 0) + Number(e.valor);
       });
 
