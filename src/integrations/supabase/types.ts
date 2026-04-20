@@ -1498,66 +1498,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "fk_transactions_account"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_transactions_category"
-            columns: ["transaction_category_id"]
-            isOneToOne: false
-            referencedRelation: "transaction_categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_transactions_client"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "recurring_clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_transactions_contract"
-            columns: ["contrato_id"]
-            isOneToOne: false
-            referencedRelation: "recurring_contracts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_transactions_cost_center"
-            columns: ["cost_center_id"]
-            isOneToOne: false
-            referencedRelation: "cost_centers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_transactions_entity"
-            columns: ["entity_id"]
-            isOneToOne: false
-            referencedRelation: "financial_entities"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "fk_transactions_fixed_expense"
             columns: ["fixed_expense_id"]
             isOneToOne: false
             referencedRelation: "fixed_expenses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_transactions_fixed_expense_v2"
-            columns: ["fixed_expense_id"]
-            isOneToOne: false
-            referencedRelation: "fixed_expenses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_transactions_installment"
-            columns: ["installment_id"]
-            isOneToOne: false
-            referencedRelation: "recurring_installments"
             referencedColumns: ["id"]
           },
           {
