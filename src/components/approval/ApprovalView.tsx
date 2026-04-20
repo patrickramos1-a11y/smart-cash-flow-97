@@ -632,8 +632,62 @@ export function ApprovalView() {
         </Card>
       )}
 
-      {/* Table */}
-      {isLoading ? (
+      {/* Rejected archive view */}
+      {filterStatus === 'rejeitado' ? (
+        <Card>
+          <CardContent className="p-0">
+            <div className="p-4 border-b bg-red-50/40">
+              <p className="text-sm font-semibold text-red-800 flex items-center gap-2">
+                <XCircle className="w-4 h-4" /> Histórico de Rejeições
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Lançamentos rejeitados são removidos das transações ativas e arquivados aqui para auditoria.
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left p-3 text-xs font-medium">Tipo</th>
+                    <th className="text-left p-3 text-xs font-medium">Descrição</th>
+                    <th className="text-left p-3 text-xs font-medium">Cliente</th>
+                    <th className="text-left p-3 text-xs font-medium">Categoria</th>
+                    <th className="text-left p-3 text-xs font-medium">Origem</th>
+                    <th className="text-left p-3 text-xs font-medium">Vencimento</th>
+                    <th className="text-right p-3 text-xs font-medium">Valor</th>
+                    <th className="text-left p-3 text-xs font-medium">Motivo</th>
+                    <th className="text-left p-3 text-xs font-medium">Rejeitado em</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {(!rejectedLog || rejectedLog.length === 0) ? (
+                    <tr><td colSpan={9} className="text-center py-8 text-muted-foreground text-sm">Nenhum lançamento rejeitado.</td></tr>
+                  ) : rejectedLog.map((r: any) => (
+                    <tr key={r.id} className="hover:bg-muted/30">
+                      <td className="p-3">
+                        {r.tipo_movimento === 'ENTRADA'
+                          ? <ArrowDownCircle className="w-5 h-5 text-income" />
+                          : <ArrowUpCircle className="w-5 h-5 text-expense" />}
+                      </td>
+                      <td className="p-3 text-sm">
+                        <p className="font-medium truncate max-w-[200px]">{r.descricao || '-'}</p>
+                        <p className="text-xs text-muted-foreground">{String(r.competencia_mes).padStart(2, '0')}/{r.competencia_ano}</p>
+                      </td>
+                      <td className="p-3 text-sm">{r.recurring_clients?.name || '-'}</td>
+                      <td className="p-3 text-xs">{r.transaction_categories?.name || '-'}</td>
+                      <td className="p-3"><Badge variant="outline" className="text-xs">{getOrigemLabel(r.origem)}</Badge></td>
+                      <td className="p-3 text-sm">{formatDate(r.data_vencimento)}</td>
+                      <td className="p-3 text-right font-semibold text-sm">{formatCurrency(Number(r.valor))}</td>
+                      <td className="p-3 text-xs max-w-[240px]"><span className="text-red-700">{r.rejection_reason}</span></td>
+                      <td className="p-3 text-xs text-muted-foreground">{new Date(r.rejected_at).toLocaleString('pt-BR')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      ) : isLoading ? (
         <Card><CardContent className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></CardContent></Card>
       ) : (
         <Card>
