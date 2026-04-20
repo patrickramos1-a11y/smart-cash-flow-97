@@ -459,8 +459,8 @@ export function ApprovalView() {
           <CardContent className="p-4 flex items-center gap-3">
             <XCircle className="w-8 h-8 text-red-500" />
             <div>
-              <p className="text-2xl font-bold">{transactions?.filter(t => t.approval_status === 'rejeitado').length || 0}</p>
-              <p className="text-xs text-muted-foreground">Rejeitados</p>
+              <p className="text-2xl font-bold">{rejectedLog?.length || 0}</p>
+              <p className="text-xs text-muted-foreground">Rejeitados (arquivo)</p>
             </div>
           </CardContent>
         </Card>
