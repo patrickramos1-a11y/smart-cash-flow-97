@@ -167,6 +167,45 @@ export type Database = {
           },
         ]
       }
+      accounts_backup_pre_refactor: {
+        Row: {
+          active: boolean | null
+          bank: string | null
+          category_id: string | null
+          company_id: string | null
+          created_at: string | null
+          current_balance: number | null
+          id: string | null
+          initial_balance: number | null
+          name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          bank?: string | null
+          category_id?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          current_balance?: number | null
+          id?: string | null
+          initial_balance?: number | null
+          name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          bank?: string | null
+          category_id?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          current_balance?: number | null
+          id?: string | null
+          initial_balance?: number | null
+          name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       backlog_attachments: {
         Row: {
           backlog_item_id: string
@@ -749,6 +788,60 @@ export type Database = {
           },
         ]
       }
+      fixed_expenses_backup_pre_refactor: {
+        Row: {
+          active: boolean | null
+          categoria_id: string | null
+          centro_custo_id: string | null
+          cliente_id: string | null
+          conta_id: string | null
+          created_at: string | null
+          data_fim: string | null
+          data_inicio: string | null
+          dia_vencimento: number | null
+          forma_pagamento_id: string | null
+          id: string | null
+          nome: string | null
+          notes: string | null
+          updated_at: string | null
+          valor: number | null
+        }
+        Insert: {
+          active?: boolean | null
+          categoria_id?: string | null
+          centro_custo_id?: string | null
+          cliente_id?: string | null
+          conta_id?: string | null
+          created_at?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          dia_vencimento?: number | null
+          forma_pagamento_id?: string | null
+          id?: string | null
+          nome?: string | null
+          notes?: string | null
+          updated_at?: string | null
+          valor?: number | null
+        }
+        Update: {
+          active?: boolean | null
+          categoria_id?: string | null
+          centro_custo_id?: string | null
+          cliente_id?: string | null
+          conta_id?: string | null
+          created_at?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          dia_vencimento?: number | null
+          forma_pagamento_id?: string | null
+          id?: string | null
+          nome?: string | null
+          notes?: string | null
+          updated_at?: string | null
+          valor?: number | null
+        }
+        Relationships: []
+      }
       minimum_wage_config: {
         Row: {
           created_at: string
@@ -940,6 +1033,51 @@ export type Database = {
           },
         ]
       }
+      recurring_contracts_backup_pre_refactor: {
+        Row: {
+          active: boolean | null
+          client_id: string | null
+          created_at: string | null
+          custom_minimum_wage_factor: number | null
+          dia_vencimento: number | null
+          end_date: string | null
+          exigir_emissao_nf: string | null
+          id: string | null
+          notes: string | null
+          plan_id: string | null
+          start_date: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          client_id?: string | null
+          created_at?: string | null
+          custom_minimum_wage_factor?: number | null
+          dia_vencimento?: number | null
+          end_date?: string | null
+          exigir_emissao_nf?: string | null
+          id?: string | null
+          notes?: string | null
+          plan_id?: string | null
+          start_date?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          client_id?: string | null
+          created_at?: string | null
+          custom_minimum_wage_factor?: number | null
+          dia_vencimento?: number | null
+          end_date?: string | null
+          exigir_emissao_nf?: string | null
+          id?: string | null
+          notes?: string | null
+          plan_id?: string | null
+          start_date?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       recurring_installments: {
         Row: {
           competence_month: number
@@ -998,6 +1136,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      recurring_installments_backup_pre_refactor: {
+        Row: {
+          competence_month: number | null
+          competence_year: number | null
+          contract_id: string | null
+          created_at: string | null
+          due_date: string | null
+          expected_value: number | null
+          id: string | null
+          minimum_wage_factor: number | null
+          minimum_wage_value: number | null
+          notes: string | null
+          paid_value: number | null
+          payment_date: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          competence_month?: number | null
+          competence_year?: number | null
+          contract_id?: string | null
+          created_at?: string | null
+          due_date?: string | null
+          expected_value?: number | null
+          id?: string | null
+          minimum_wage_factor?: number | null
+          minimum_wage_value?: number | null
+          notes?: string | null
+          paid_value?: number | null
+          payment_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          competence_month?: number | null
+          competence_year?: number | null
+          contract_id?: string | null
+          created_at?: string | null
+          due_date?: string | null
+          expected_value?: number | null
+          id?: string | null
+          minimum_wage_factor?: number | null
+          minimum_wage_value?: number | null
+          notes?: string | null
+          paid_value?: number | null
+          payment_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       transaction_categories: {
         Row: {
@@ -1358,6 +1547,148 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      transactions_backup_pre_refactor: {
+        Row: {
+          account_id: string | null
+          approval_status: Database["public"]["Enums"]["approval_status"] | null
+          approved_at: string | null
+          approved_by: string | null
+          categoria_id: string | null
+          centro_custo_id: string | null
+          cliente_id: string | null
+          company_id: string | null
+          competencia_ano: number | null
+          competencia_mes: number | null
+          conta_id: string | null
+          contrato_id: string | null
+          cost_center_id: string | null
+          created_at: string | null
+          created_by: string | null
+          data_pagamento: string | null
+          data_vencimento: string | null
+          descricao: string | null
+          documento_numero: string | null
+          documento_recebimento: string | null
+          documento_tipo: Database["public"]["Enums"]["documento_tipo"] | null
+          entity_id: string | null
+          fixed_expense_id: string | null
+          forma_pagamento_id: string | null
+          id: string | null
+          installment_id: string | null
+          natureza: Database["public"]["Enums"]["transaction_natureza"] | null
+          nf_percentual_aplicado: number | null
+          notes: string | null
+          origem: Database["public"]["Enums"]["transaction_origem"] | null
+          origem_receita: string | null
+          rejection_reason: string | null
+          responsavel_id: string | null
+          status: Database["public"]["Enums"]["transaction_status"] | null
+          tipo_movimento:
+            | Database["public"]["Enums"]["transaction_tipo_movimento"]
+            | null
+          transaction_category_id: string | null
+          updated_at: string | null
+          valor: number | null
+          valor_imposto_nf: number | null
+          valor_liquido_nf: number | null
+          valor_pago: number | null
+        }
+        Insert: {
+          account_id?: string | null
+          approval_status?:
+            | Database["public"]["Enums"]["approval_status"]
+            | null
+          approved_at?: string | null
+          approved_by?: string | null
+          categoria_id?: string | null
+          centro_custo_id?: string | null
+          cliente_id?: string | null
+          company_id?: string | null
+          competencia_ano?: number | null
+          competencia_mes?: number | null
+          conta_id?: string | null
+          contrato_id?: string | null
+          cost_center_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_pagamento?: string | null
+          data_vencimento?: string | null
+          descricao?: string | null
+          documento_numero?: string | null
+          documento_recebimento?: string | null
+          documento_tipo?: Database["public"]["Enums"]["documento_tipo"] | null
+          entity_id?: string | null
+          fixed_expense_id?: string | null
+          forma_pagamento_id?: string | null
+          id?: string | null
+          installment_id?: string | null
+          natureza?: Database["public"]["Enums"]["transaction_natureza"] | null
+          nf_percentual_aplicado?: number | null
+          notes?: string | null
+          origem?: Database["public"]["Enums"]["transaction_origem"] | null
+          origem_receita?: string | null
+          rejection_reason?: string | null
+          responsavel_id?: string | null
+          status?: Database["public"]["Enums"]["transaction_status"] | null
+          tipo_movimento?:
+            | Database["public"]["Enums"]["transaction_tipo_movimento"]
+            | null
+          transaction_category_id?: string | null
+          updated_at?: string | null
+          valor?: number | null
+          valor_imposto_nf?: number | null
+          valor_liquido_nf?: number | null
+          valor_pago?: number | null
+        }
+        Update: {
+          account_id?: string | null
+          approval_status?:
+            | Database["public"]["Enums"]["approval_status"]
+            | null
+          approved_at?: string | null
+          approved_by?: string | null
+          categoria_id?: string | null
+          centro_custo_id?: string | null
+          cliente_id?: string | null
+          company_id?: string | null
+          competencia_ano?: number | null
+          competencia_mes?: number | null
+          conta_id?: string | null
+          contrato_id?: string | null
+          cost_center_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_pagamento?: string | null
+          data_vencimento?: string | null
+          descricao?: string | null
+          documento_numero?: string | null
+          documento_recebimento?: string | null
+          documento_tipo?: Database["public"]["Enums"]["documento_tipo"] | null
+          entity_id?: string | null
+          fixed_expense_id?: string | null
+          forma_pagamento_id?: string | null
+          id?: string | null
+          installment_id?: string | null
+          natureza?: Database["public"]["Enums"]["transaction_natureza"] | null
+          nf_percentual_aplicado?: number | null
+          notes?: string | null
+          origem?: Database["public"]["Enums"]["transaction_origem"] | null
+          origem_receita?: string | null
+          rejection_reason?: string | null
+          responsavel_id?: string | null
+          status?: Database["public"]["Enums"]["transaction_status"] | null
+          tipo_movimento?:
+            | Database["public"]["Enums"]["transaction_tipo_movimento"]
+            | null
+          transaction_category_id?: string | null
+          updated_at?: string | null
+          valor?: number | null
+          valor_imposto_nf?: number | null
+          valor_liquido_nf?: number | null
+          valor_pago?: number | null
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
