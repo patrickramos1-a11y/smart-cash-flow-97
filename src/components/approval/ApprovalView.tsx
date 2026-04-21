@@ -432,6 +432,7 @@ export function ApprovalView() {
   const resetBulkFields = () => {
     setBulkCategoryId(''); setBulkAccountId(''); setBulkCostCenterId('');
     setBulkClienteId(''); setBulkEntityId(''); setBulkResponsavelId(''); setBulkOrigem('');
+    setBulkDescricao(''); setBulkValor(''); setBulkDataVencimento(''); setBulkStatus(''); setBulkNotes('');
   };
 
   // Filter and sort
