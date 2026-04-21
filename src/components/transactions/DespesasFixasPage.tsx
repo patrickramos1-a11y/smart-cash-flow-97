@@ -227,24 +227,27 @@ export function DespesasFixasPage() {
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Wallet className="w-5 h-5" />
-              Maiores Despesas Fixas
+              Maiores Despesas Fixas <span className="text-xs font-normal text-muted-foreground">(média mensal real {selectedYear})</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-72 overflow-y-auto">
               {expenseRanking.map((expense, idx) => (
-                <div key={expense.name} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
+                <div key={expense.name + idx} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
                   <div className="flex items-center gap-3">
                     <span className="w-6 h-6 rounded-full bg-expense/10 text-expense text-xs font-bold flex items-center justify-center">
                       {idx + 1}
                     </span>
                     <span className="font-medium text-sm truncate max-w-[200px]">{expense.name}</span>
                   </div>
-                  <p className="text-sm font-semibold text-expense">{formatCurrency(expense.valor)}/mês</p>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-expense">{formatCurrency(expense.valor)}/mês</p>
+                    <p className="text-[10px] text-muted-foreground">total ano: {formatCurrency(expense.total)}</p>
+                  </div>
                 </div>
               ))}
               {expenseRanking.length === 0 && (
-                <p className="text-center text-muted-foreground py-4">Nenhuma despesa fixa cadastrada</p>
+                <p className="text-center text-muted-foreground py-4">Nenhum lançamento de despesa fixa neste ano</p>
               )}
             </div>
           </CardContent>
