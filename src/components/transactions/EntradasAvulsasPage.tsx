@@ -212,6 +212,7 @@ export function EntradasAvulsasPage() {
               tipo_movimento: 'ENTRADA',
               natureza: 'AVULSA'
             }}
+            bulkContext="ENTRADAS_AVULSAS"
           />
         </CardContent>
       </Card>

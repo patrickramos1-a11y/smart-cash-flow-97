@@ -350,6 +350,7 @@ export function DespesasVariaveisPage() {
               tipo_movimento: 'SAIDA',
               natureza: 'AVULSA'
             }}
+            bulkContext="DESPESAS_VARIAVEIS"
           />
         </CardContent>
       </Card>
