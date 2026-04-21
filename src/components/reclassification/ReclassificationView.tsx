@@ -256,3 +256,205 @@ export function ReclassificationView() {
     </div>
   );
 }
+
+// ============================================================
+// Backfill Panel — preenche Responsável e Entidade em massa
+// ============================================================
+function BackfillPanel() {
+  const queryClient = useQueryClient();
+  const { data: entities } = useFinancialEntities();
+
+  const [responsavelId, setResponsavelId] = useState<string>('');
+  const [scope, setScope] = useState<'ENTRADA' | 'SAIDA' | 'AMBOS'>('ENTRADA');
+  const [overwrite, setOverwrite] = useState(false);
+
+  const [entityKeyword, setEntityKeyword] = useState('');
+  const [targetEntityId, setTargetEntityId] = useState<string>('');
+  const [entityScope, setEntityScope] = useState<'ENTRADA' | 'SAIDA' | 'AMBOS'>('SAIDA');
+
+  const patrick = useMemo(
+    () => entities?.find(e => e.name?.toUpperCase() === 'PATRICK' && e.type === 'SOCIO'),
+    [entities]
+  );
+
+  const { data: counts } = useQuery({
+    queryKey: ['backfill-counts', scope, overwrite, entityScope, entityKeyword],
+    queryFn: async () => {
+      let respQuery = supabase.from('transactions').select('id', { count: 'exact', head: true });
+      if (scope !== 'AMBOS') respQuery = respQuery.eq('tipo_movimento', scope);
+      if (!overwrite) respQuery = respQuery.is('responsavel_id', null);
+      const { count: respCount } = await respQuery;
+
+      let entCount: number | null = null;
+      if (entityKeyword.trim()) {
+        let entQuery = supabase
+          .from('transactions')
+          .select('id', { count: 'exact', head: true })
+          .ilike('descricao', `%${entityKeyword.trim()}%`);
+        if (entityScope !== 'AMBOS') entQuery = entQuery.eq('tipo_movimento', entityScope);
+        const { count } = await entQuery;
+        entCount = count ?? 0;
+      }
+      return { respCount: respCount ?? 0, entCount };
+    },
+  });
+
+  const responsibleMutation = useMutation({
+    mutationFn: async () => {
+      const finalRespId = responsavelId || patrick?.id;
+      if (!finalRespId) throw new Error('Selecione um responsável');
+      let q = supabase.from('transactions').update({ responsavel_id: finalRespId });
+      if (scope !== 'AMBOS') q = q.eq('tipo_movimento', scope);
+      if (!overwrite) q = q.is('responsavel_id', null);
+      const { error, count } = await q.select('id', { count: 'exact', head: true });
+      if (error) throw error;
+      return count ?? 0;
+    },
+    onSuccess: (n) => {
+      toast.success(`Responsável aplicado em ${n} transações`);
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['backfill-counts'] });
+    },
+    onError: (err: any) => toast.error('Erro: ' + err.message),
+  });
+
+  const entityMutation = useMutation({
+    mutationFn: async () => {
+      if (!targetEntityId) throw new Error('Selecione uma entidade');
+      if (!entityKeyword.trim()) throw new Error('Informe a palavra-chave');
+      let q = supabase
+        .from('transactions')
+        .update({ entity_id: targetEntityId })
+        .ilike('descricao', `%${entityKeyword.trim()}%`);
+      if (entityScope !== 'AMBOS') q = q.eq('tipo_movimento', entityScope);
+      const { error, count } = await q.select('id', { count: 'exact', head: true });
+      if (error) throw error;
+      return count ?? 0;
+    },
+    onSuccess: (n) => {
+      toast.success(`Entidade aplicada em ${n} transações`);
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['backfill-counts'] });
+    },
+    onError: (err: any) => toast.error('Erro: ' + err.message),
+  });
+
+  const eligibleResponsibles = entities?.filter(e => e.active && (e.type === 'SOCIO' || e.type === 'COLABORADOR')) || [];
+  const allEntities = entities?.filter(e => e.active) || [];
+
+  return (
+    <Card className="border-primary/30 bg-primary/[0.03]">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Wand2 className="w-4 h-4 text-primary" />
+          Backfill Inteligente — preencher Responsável e Vinculado a (Entidade)
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Bloco 1: Responsável padrão */}
+        <div className="space-y-3 p-3 rounded-md border bg-card">
+          <div className="flex items-center gap-2">
+            <UserCheck className="w-4 h-4 text-income" />
+            <h3 className="text-sm font-semibold">Definir Responsável (executor) padrão</h3>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Atribui um responsável às transações que ainda não possuem este vínculo. Padrão sugerido: <strong>Patrick</strong>.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+              <Label className="text-xs">Responsável</Label>
+              <Select value={responsavelId || patrick?.id || ''} onValueChange={setResponsavelId}>
+                <SelectTrigger><SelectValue placeholder="Escolher pessoa" /></SelectTrigger>
+                <SelectContent>
+                  {eligibleResponsibles.map(e => (
+                    <SelectItem key={e.id} value={e.id}>{e.name} ({e.type})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Aplicar em</Label>
+              <Select value={scope} onValueChange={(v) => setScope(v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ENTRADA">Apenas Entradas</SelectItem>
+                  <SelectItem value="SAIDA">Apenas Saídas</SelectItem>
+                  <SelectItem value="AMBOS">Ambos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2 mt-5">
+              <Checkbox id="overwrite" checked={overwrite} onCheckedChange={(v) => setOverwrite(!!v)} />
+              <Label htmlFor="overwrite" className="text-xs cursor-pointer">
+                Sobrescrever existentes
+              </Label>
+            </div>
+            <div className="flex items-end">
+              <Button
+                className="w-full gap-2"
+                disabled={!(responsavelId || patrick?.id) || responsibleMutation.isPending}
+                onClick={() => responsibleMutation.mutate()}
+              >
+                {responsibleMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                Aplicar ({counts?.respCount ?? '...'})
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Bloco 2: Entidade por palavra-chave */}
+        <div className="space-y-3 p-3 rounded-md border bg-card">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-info" />
+            <h3 className="text-sm font-semibold">Vincular Entidade por palavra-chave</h3>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Procura na descrição (ex.: "Pró-labore", "FGTS Darley", "Energia") e atribui a entidade beneficiária.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+              <Label className="text-xs">Palavra na descrição</Label>
+              <Input value={entityKeyword} onChange={e => setEntityKeyword(e.target.value)} placeholder="Ex.: Pró-labore" />
+            </div>
+            <div>
+              <Label className="text-xs">Entidade-alvo</Label>
+              <Select value={targetEntityId} onValueChange={setTargetEntityId}>
+                <SelectTrigger><SelectValue placeholder="Escolher entidade" /></SelectTrigger>
+                <SelectContent>
+                  {allEntities.map(e => (
+                    <SelectItem key={e.id} value={e.id}>{e.name} ({e.type})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Aplicar em</Label>
+              <Select value={entityScope} onValueChange={(v) => setEntityScope(v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SAIDA">Apenas Saídas</SelectItem>
+                  <SelectItem value="ENTRADA">Apenas Entradas</SelectItem>
+                  <SelectItem value="AMBOS">Ambos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button
+                className="w-full gap-2"
+                disabled={!targetEntityId || !entityKeyword.trim() || entityMutation.isPending}
+                onClick={() => entityMutation.mutate()}
+              >
+                {entityMutation.isPending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                Aplicar ({counts?.entCount ?? '—'})
+              </Button>
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" />
+            Operação sobrescreve <code>entity_id</code> de TODAS as transações que coincidirem com a busca. Revise antes de aplicar.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
