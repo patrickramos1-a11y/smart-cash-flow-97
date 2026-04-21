@@ -112,6 +112,12 @@ export function QuickTransactionModal({
   const handleSubmit = async () => {
     const valorTotal = parseFloat(formData.valor.replace(/\./g, '').replace(',', '.')) || 0;
 
+    // Guard final: bloqueia órfã
+    if (formData.categoria_id && !resolvedAccountId) {
+      toast.error('Selecione uma Conta — a categoria escolhida não tem conta padrão.');
+      return;
+    }
+
     if (!enableRepetition || repetitionCount <= 1) {
       const result = await createTransaction.mutateAsync({
         tipo_movimento: tipo,
@@ -124,8 +130,8 @@ export function QuickTransactionModal({
         data_vencimento: formData.data_vencimento,
         descricao: formData.descricao,
         categoria_id: formData.categoria_id || null,
-        centro_custo_id: selectedCategory?.cost_center_id || null,
-        conta_id: selectedCategory?.default_account_id || null,
+        centro_custo_id: resolvedCostCenterId,
+        conta_id: resolvedAccountId,
         forma_pagamento_id: formData.forma_pagamento_id || null,
         notes: formData.notes || null,
         entity_id: entityIds[0] || null,
