@@ -1141,8 +1141,17 @@ export function ApprovalView() {
                   <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
                   <SelectContent className="max-h-[360px]">
                     {groupedBulkCategories.length === 0 && (
-                      <div className="px-2 py-4 text-center text-xs text-muted-foreground">
-                        Nenhuma categoria corresponde aos filtros atuais
+                      <div className="px-2 py-4 text-center text-xs text-muted-foreground space-y-2">
+                        <p>Nenhuma categoria corresponde aos filtros atuais</p>
+                        {(bulkAccountId || bulkCostCenterId) && (
+                          <button
+                            type="button"
+                            onClick={() => { setBulkAccountId(''); setBulkCostCenterId(''); }}
+                            className="text-primary hover:underline text-xs font-medium"
+                          >
+                            Limpar Conta e Centro de Custo
+                          </button>
+                        )}
                       </div>
                     )}
                     {groupedBulkCategories.map((group) => (
