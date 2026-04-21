@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput, parseBRLToNumber } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -609,8 +610,8 @@ export function ApprovalView() {
     if (bulkOrigem) updates.origem = bulkOrigem;
     if (bulkDescricao.trim()) updates.descricao = bulkDescricao.trim();
     if (bulkValor.trim()) {
-      const v = parseFloat(bulkValor.replace(',', '.'));
-      if (isNaN(v) || v < 0) {
+      const v = parseBRLToNumber(bulkValor);
+      if (v === null || isNaN(v) || v < 0) {
         toast.error('Valor inválido');
         return;
       }
@@ -1426,12 +1427,9 @@ export function ApprovalView() {
                       <button type="button" onClick={() => setBulkValor('')} className="text-[10px] text-muted-foreground hover:text-foreground">limpar</button>
                     )}
                   </Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <CurrencyInput
                     value={bulkValor}
-                    onChange={(e) => setBulkValor(e.target.value)}
+                    onValueChange={(n) => setBulkValor(n === null ? '' : String(n))}
                     placeholder="Não alterar"
                   />
                 </div>

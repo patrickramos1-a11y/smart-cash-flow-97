@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput, parseBRLToNumber } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -117,7 +118,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
   const handleSubmit = async () => {
     if (!transaction) return;
     
-    const parsedValor = parseFloat(valor.replace(/\./g, '').replace(',', '.'));
+    const parsedValor = parseBRLToNumber(valor) ?? 0;
     if (!parsedValor || parsedValor <= 0) {
       toast.error('Informe um valor válido');
       return;
@@ -165,7 +166,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
       // Handle payment fields
       if (status === 'PAGO') {
         updates.data_pagamento = dataPagamento || new Date().toISOString().split('T')[0];
-        updates.valor_pago = parseFloat(valorPago.replace(/\./g, '').replace(',', '.')) || parsedValor;
+        updates.valor_pago = parseBRLToNumber(valorPago) ?? parsedValor;
       } else {
         updates.data_pagamento = null;
         updates.valor_pago = null;
@@ -363,7 +364,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Valor (R$) *</Label>
-              <Input value={valor} onChange={(e) => setValor(e.target.value)} />
+              <CurrencyInput value={valor} onValueChange={(n) => setValor(n === null ? '' : String(n))} autoFocus />
             </div>
             <div>
               <Label>Status</Label>
@@ -383,7 +384,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Valor Pago</Label>
-                <Input value={valorPago} onChange={(e) => setValorPago(e.target.value)} placeholder={valor} />
+                <CurrencyInput value={valorPago} onValueChange={(n) => setValorPago(n === null ? '' : String(n))} placeholder={valor || '0,00'} />
               </div>
               <div>
                 <Label>Data Pagamento</Label>

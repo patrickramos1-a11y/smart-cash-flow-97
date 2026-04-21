@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput, parseBRLToNumber } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Loader2, Pencil, AlertCircle, History } from 'lucide-react';
@@ -32,7 +33,7 @@ export function EditRecurringValueModal({ open, onClose, transaction }: EditRecu
 
   const handleSubmit = async () => {
     if (!transaction) return;
-    const valor = parseFloat(newValue.replace(/\./g, '').replace(',', '.'));
+    const valor = parseBRLToNumber(newValue) ?? 0;
     if (!valor || valor <= 0) {
       toast.error('Informe um valor válido');
       return;
@@ -160,9 +161,9 @@ export function EditRecurringValueModal({ open, onClose, transaction }: EditRecu
           {/* New value */}
           <div>
             <Label>Novo Valor (R$) *</Label>
-            <Input
+            <CurrencyInput
               value={newValue}
-              onChange={(e) => setNewValue(e.target.value)}
+              onValueChange={(n) => setNewValue(n === null ? '' : String(n))}
               placeholder="0,00"
               autoFocus
             />
