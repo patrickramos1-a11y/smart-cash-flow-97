@@ -14,7 +14,7 @@ import {
   CheckCircle, XCircle, Clock, Search, AlertTriangle,
   ArrowDownCircle, ArrowUpCircle, Loader2, Eye, Filter,
   CheckCheck, ArrowUpDown, ChevronUp, ChevronDown, Pencil,
-  Layers, Wand2,
+  Layers, Wand2, RotateCcw,
 } from 'lucide-react';
 import { formatCurrency } from '@/data/mockData';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { TransactionEditModal } from '@/components/transactions/TransactionEditModal';
 import type { TransactionWithClient } from '@/hooks/useTransactions';
+import { getEntityIcon } from '@/utils/entityIcons';
 
 interface PendingTransaction {
   id: string;
