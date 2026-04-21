@@ -57,10 +57,19 @@ const ALL_COLUMNS = [
   { key: 'conta', label: 'Conta', default: true },
   { key: 'centro_custo', label: 'C. Custo', default: false },
   { key: 'responsavel', label: 'Responsável', default: true },
+  { key: 'nf', label: 'NF / Doc.', default: true },
   { key: 'vencimento', label: 'Vencimento', default: true },
   { key: 'status', label: 'Status', default: true },
   { key: 'valor', label: 'Valor', default: true },
 ] as const;
+
+// Mapeia documento_recebimento para badge legível
+const DOC_BADGE: Record<string, { label: string; color: string }> = {
+  NOTA_FISCAL: { label: 'NF', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  RECIBO: { label: 'Recibo', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  NOTA_DE_DEBITO: { label: 'N. Débito', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  SEM_DOCUMENTO: { label: 'Sem doc.', color: 'bg-muted text-muted-foreground border-border' },
+};
 
 type ColumnKey = typeof ALL_COLUMNS[number]['key'];
 
@@ -387,6 +396,18 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
                 className="h-7 text-xs"
               >
                 Selecionar sem Entidade
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const ids = sortedTransactions.filter(t => !t.documento_recebimento).map(t => t.id);
+                  setSelectedIds(new Set(ids));
+                  if (ids.length === 0) toast.info('Nenhum lançamento sem documento (NF) nesta listagem');
+                }}
+                className="h-7 text-xs"
+              >
+                Selecionar sem NF
               </Button>
               <Button size="sm" variant="destructive" onClick={handleBulkDelete} className="h-7 text-xs">
                 <Trash2 className="w-3 h-3 mr-1" /> Excluir Selecionadas
