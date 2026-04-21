@@ -67,7 +67,8 @@ export function AccountsOverviewTab({
       for (const t of transactions ?? []) {
         if (t.account_id !== acc.id) continue;
         if (t.competencia_ano !== selectedYear) continue;
-        const v = Number(t.valor);
+        if (t.status !== 'PAGO') continue; // só efetivados impactam saldo/fluxo
+        const v = Number(t.valor_pago ?? t.valor) || 0;
         const idx = (t.competencia_mes ?? 1) - 1;
         if (t.tipo_movimento === 'ENTRADA') monthly[idx].in += v;
         else if (t.tipo_movimento === 'SAIDA') monthly[idx].out += v;
@@ -92,10 +93,13 @@ export function AccountsOverviewTab({
     return MONTHS.map((month, idx) => {
       const monthNum = idx + 1;
       const monthTx = (transactions ?? []).filter(t =>
-        t.account_id === selectedAccountId && t.competencia_ano === selectedYear && t.competencia_mes === monthNum,
+        t.account_id === selectedAccountId &&
+        t.competencia_ano === selectedYear &&
+        t.competencia_mes === monthNum &&
+        t.status === 'PAGO', // só efetivados
       );
-      const entradas = monthTx.filter(t => t.tipo_movimento === 'ENTRADA').reduce((s, t) => s + Number(t.valor), 0);
-      const saidas = monthTx.filter(t => t.tipo_movimento === 'SAIDA').reduce((s, t) => s + Number(t.valor), 0);
+      const entradas = monthTx.filter(t => t.tipo_movimento === 'ENTRADA').reduce((s, t) => s + Number(t.valor_pago ?? t.valor), 0);
+      const saidas = monthTx.filter(t => t.tipo_movimento === 'SAIDA').reduce((s, t) => s + Number(t.valor_pago ?? t.valor), 0);
       return { month, entradas, saidas };
     });
   }, [selectedAccountId, transactions, selectedYear]);
@@ -189,9 +193,9 @@ export function AccountsOverviewTab({
       {selectedAccount && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm">{selectedAccount.name} · evolução mensal {selectedYear}</CardTitle>
+            <CardTitle className="text-sm">{selectedAccount.name} · evolução mensal {selectedYear} <span className="text-[11px] font-normal text-muted-foreground">(somente efetivados)</span></CardTitle>
             <p className="text-[11px] text-muted-foreground">
-              Veja a aba <strong>Composição</strong> para o detalhamento de categorias, centros de custo e despesas vinculadas.
+              Considera apenas lançamentos com status <strong>PAGO</strong>. Veja a aba <strong>Composição</strong> para o detalhamento por categorias, centros de custo e despesas vinculadas.
             </p>
           </CardHeader>
           <CardContent>
