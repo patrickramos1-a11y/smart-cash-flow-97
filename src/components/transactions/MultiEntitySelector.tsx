@@ -32,7 +32,7 @@ const TYPE_FILTER_LABELS: Record<EntityType | 'all', string> = {
   GRUPO: 'Cliente',
 };
 
-export function MultiEntitySelector({ selectedIds, onChange, label = 'Responsáveis / Entidades', required }: MultiEntitySelectorProps) {
+export function MultiEntitySelector({ selectedIds, onChange, label = 'Vinculado a (Entidade)', required }: MultiEntitySelectorProps) {
   const { data: entities } = useFinancialEntities();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -77,6 +77,9 @@ export function MultiEntitySelector({ selectedIds, onChange, label = 'Responsáv
   return (
     <div>
       <Label>{label} {required && '*'}</Label>
+      <p className="text-[10px] text-muted-foreground -mt-0.5 mb-1">
+        Pessoa(s) ou grupo beneficiário(s) desta transação (ex.: FGTS → Darley, Luz → Grupo).
+      </p>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
