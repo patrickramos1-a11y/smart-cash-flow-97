@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, AlertTriangle, Link2 } from 'lucide-react';
+import { X, AlertTriangle } from 'lucide-react';
 import { useAccounts, useCostCenters, useTransactionCategories, type CategorySubtype } from '@/hooks/useFinancialConfig';
 import { getEntityIcon } from '@/utils/entityIcons';
 import { CategorySearchInput, normalizeForSearch } from './CategorySearchInput';
@@ -118,8 +118,6 @@ export function CategoryFilteredSelector({
   }, [filteredCategories, accountMap]);
 
   const selectedCategory = categories?.find(c => c.id === selectedCategoryId);
-  const linkedCostCenter = costCenters?.find(cc => cc.id === selectedCategory?.cost_center_id);
-  const linkedAccount = accounts?.find(a => a.id === selectedCategory?.default_account_id);
 
   // Resolução central (Conta default da categoria → override do usuário)
   const resolution = useMemo(
@@ -133,6 +131,22 @@ export function CategoryFilteredSelector({
     onResolvedCostCenterChange?.(resolution.costCenterId);
   }, [resolution.accountId, resolution.costCenterId, onResolvedAccountChange, onResolvedCostCenterChange]);
 
+  // Auto-sincroniza os dropdowns de filtro (Conta + C. Custo) com a categoria escolhida,
+  // exibindo visualmente o vínculo herdado direto nos próprios selects.
+  const lastSyncedCategoryRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedCategoryId) {
+      lastSyncedCategoryRef.current = null;
+      return;
+    }
+    if (lastSyncedCategoryRef.current === selectedCategoryId) return;
+    lastSyncedCategoryRef.current = selectedCategoryId;
+    const targetAccount = selectedCategory?.default_account_id ?? '';
+    const targetCC = selectedCategory?.cost_center_id ?? '';
+    if (targetAccount !== filterAccountId) onFilterAccountChange(targetAccount || 'all');
+    if (targetCC !== filterCostCenterId) onFilterCostCenterChange(targetCC || 'all');
+  }, [selectedCategoryId, selectedCategory, filterAccountId, filterCostCenterId, onFilterAccountChange, onFilterCostCenterChange]);
+
   const hasActiveFilters = !!filterAccountId || !!filterCostCenterId || !!search;
 
   const handleClearFilters = () => {
@@ -140,8 +154,6 @@ export function CategoryFilteredSelector({
     if (filterCostCenterId) onFilterCostCenterChange('all');
     setSearch('');
   };
-
-  const overrideAccount = accounts?.find(a => a.id === overrideAccountId);
 
   return (
     <div className="space-y-3">
@@ -233,26 +245,7 @@ export function CategoryFilteredSelector({
         </Select>
       </div>
 
-      {/* Painel de heranças — mostra Conta + C. Custo inferidos da categoria */}
-      {selectedCategory && (
-        <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1 border border-border/50">
-          <div className="flex items-center gap-1.5 mb-1 text-xs text-muted-foreground">
-            <Link2 className="w-3 h-3" />
-            <span>Vínculos automáticos</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Conta vinculada:</span>
-            <span className="font-medium">
-              {linkedAccount?.name
-                ?? (overrideAccount ? `${overrideAccount.name} (manual)` : '—')}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Centro de Custo:</span>
-            <span className="font-medium">{linkedCostCenter?.name || '—'}</span>
-          </div>
-        </div>
-      )}
+      {/* Heranças agora refletem nos próprios dropdowns acima — sem painel extra. */}
 
       {/* Override de Conta — quando a categoria não tem default_account_id */}
       {resolution.needsAccountOverride && onOverrideAccountChange && (
