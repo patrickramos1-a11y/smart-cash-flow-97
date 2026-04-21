@@ -39,6 +39,19 @@ function ensureDarkColor(hex?: string | null): string {
   return hex;
 }
 
+// Deterministic color for accounts/cost-centers (no color column in DB).
+// Uses a 12-tone palette aligned with the visual identity (emerald/teal/violet/etc).
+const VISUAL_PALETTE = [
+  '#0d9488', '#7c3aed', '#db2777', '#ea580c', '#0284c7', '#65a30d',
+  '#9333ea', '#0891b2', '#c2410c', '#15803d', '#be185d', '#4338ca',
+];
+function colorFromName(name?: string | null): string {
+  if (!name) return VISUAL_PALETTE[0];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return VISUAL_PALETTE[hash % VISUAL_PALETTE.length];
+}
+
 // Returns the value if all items share the same one; otherwise null
 function commonValue<T extends string | null | undefined>(items: T[]): T | null {
   if (items.length === 0) return null;
@@ -1031,7 +1044,14 @@ export function ApprovalView() {
                     </button>
                   )}
                 </Label>
-                <Select value={bulkAccountId} onValueChange={setBulkAccountId}>
+                <Select value={bulkAccountId} onValueChange={(v) => {
+                  setBulkAccountId(v);
+                  // If chosen account doesn't match the current category, clear category
+                  if (v && bulkCategoryId) {
+                    const cat = (categoriesList as any[] | undefined)?.find(c => c.id === bulkCategoryId);
+                    if (cat?.default_account_id && cat.default_account_id !== v) setBulkCategoryId('');
+                  }
+                }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Não alterar" />
                   </SelectTrigger>
@@ -1041,15 +1061,20 @@ export function ApprovalView() {
                         Nenhuma conta disponível
                       </div>
                     )}
-                    {bulkVisibleAccounts.map((a: any) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{a.name}</span>
-                          {a.bank && <span className="text-[10px] text-muted-foreground">({a.bank})</span>}
-                          {!a.active && <Badge variant="outline" className="text-[9px] px-1 py-0">inativa</Badge>}
-                        </div>
-                      </SelectItem>
-                    ))}
+                    {bulkVisibleAccounts.map((a: any) => {
+                      const Icon = getEntityIcon(a.name);
+                      const color = colorFromName(a.name);
+                      return (
+                        <SelectItem key={a.id} value={a.id}>
+                          <div className="flex items-center gap-2">
+                            <Icon className="w-4 h-4 shrink-0" style={{ color }} />
+                            <span style={{ color }} className="font-medium">{a.name}</span>
+                            {a.bank && <span className="text-[10px] text-muted-foreground">({a.bank})</span>}
+                            {!a.active && <Badge variant="outline" className="text-[9px] px-1 py-0">inativa</Badge>}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -1068,12 +1093,32 @@ export function ApprovalView() {
                     </button>
                   )}
                 </Label>
-                <Select value={bulkCostCenterId} onValueChange={setBulkCostCenterId}>
+                <Select value={bulkCostCenterId} onValueChange={(v) => {
+                  setBulkCostCenterId(v);
+                  if (v && bulkCategoryId) {
+                    const cat = (categoriesList as any[] | undefined)?.find(c => c.id === bulkCategoryId);
+                    if (cat?.cost_center_id && cat.cost_center_id !== v) setBulkCategoryId('');
+                  }
+                }}>
                   <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
                   <SelectContent className="max-h-[280px]">
-                    {bulkVisibleCostCenters.map((c: any) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
+                    {bulkVisibleCostCenters.length === 0 && (
+                      <div className="px-2 py-3 text-xs text-muted-foreground text-center">
+                        Nenhum centro de custo disponível
+                      </div>
+                    )}
+                    {bulkVisibleCostCenters.map((c: any) => {
+                      const Icon = getEntityIcon(c.name);
+                      const color = colorFromName(c.name);
+                      return (
+                        <SelectItem key={c.id} value={c.id}>
+                          <div className="flex items-center gap-2">
+                            <Icon className="w-4 h-4 shrink-0" style={{ color }} />
+                            <span style={{ color }} className="font-medium">{c.name}</span>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -1096,8 +1141,17 @@ export function ApprovalView() {
                   <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
                   <SelectContent className="max-h-[360px]">
                     {groupedBulkCategories.length === 0 && (
-                      <div className="px-2 py-4 text-center text-xs text-muted-foreground">
-                        Nenhuma categoria corresponde aos filtros atuais
+                      <div className="px-2 py-4 text-center text-xs text-muted-foreground space-y-2">
+                        <p>Nenhuma categoria corresponde aos filtros atuais</p>
+                        {(bulkAccountId || bulkCostCenterId) && (
+                          <button
+                            type="button"
+                            onClick={() => { setBulkAccountId(''); setBulkCostCenterId(''); }}
+                            className="text-primary hover:underline text-xs font-medium"
+                          >
+                            Limpar Conta e Centro de Custo
+                          </button>
+                        )}
                       </div>
                     )}
                     {groupedBulkCategories.map((group) => (
