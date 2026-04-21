@@ -118,8 +118,6 @@ export function CategoryFilteredSelector({
   }, [filteredCategories, accountMap]);
 
   const selectedCategory = categories?.find(c => c.id === selectedCategoryId);
-  const linkedCostCenter = costCenters?.find(cc => cc.id === selectedCategory?.cost_center_id);
-  const linkedAccount = accounts?.find(a => a.id === selectedCategory?.default_account_id);
 
   // Resolução central (Conta default da categoria → override do usuário)
   const resolution = useMemo(
@@ -133,6 +131,22 @@ export function CategoryFilteredSelector({
     onResolvedCostCenterChange?.(resolution.costCenterId);
   }, [resolution.accountId, resolution.costCenterId, onResolvedAccountChange, onResolvedCostCenterChange]);
 
+  // Auto-sincroniza os dropdowns de filtro (Conta + C. Custo) com a categoria escolhida,
+  // exibindo visualmente o vínculo herdado direto nos próprios selects.
+  const lastSyncedCategoryRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedCategoryId) {
+      lastSyncedCategoryRef.current = null;
+      return;
+    }
+    if (lastSyncedCategoryRef.current === selectedCategoryId) return;
+    lastSyncedCategoryRef.current = selectedCategoryId;
+    const targetAccount = selectedCategory?.default_account_id ?? '';
+    const targetCC = selectedCategory?.cost_center_id ?? '';
+    if (targetAccount !== filterAccountId) onFilterAccountChange(targetAccount || 'all');
+    if (targetCC !== filterCostCenterId) onFilterCostCenterChange(targetCC || 'all');
+  }, [selectedCategoryId, selectedCategory, filterAccountId, filterCostCenterId, onFilterAccountChange, onFilterCostCenterChange]);
+
   const hasActiveFilters = !!filterAccountId || !!filterCostCenterId || !!search;
 
   const handleClearFilters = () => {
@@ -140,8 +154,6 @@ export function CategoryFilteredSelector({
     if (filterCostCenterId) onFilterCostCenterChange('all');
     setSearch('');
   };
-
-  const overrideAccount = accounts?.find(a => a.id === overrideAccountId);
 
   return (
     <div className="space-y-3">
