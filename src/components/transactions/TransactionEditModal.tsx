@@ -432,9 +432,23 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
             </Select>
           </div>
 
-          {/* Account first (filters categories) */}
+          {/* Account first (filters categories) — with clear button */}
           <div>
-            <Label>Conta</Label>
+            <div className="flex items-center justify-between">
+              <Label>Conta</Label>
+              {(accountId || costCenterId) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setAccountId(''); setCostCenterId(''); }}
+                  className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  title="Limpar filtros (mantém a categoria)"
+                >
+                  <X className="w-3 h-3 mr-1" /> Limpar filtros
+                </Button>
+              )}
+            </div>
             <Select value={accountId || '__none__'} onValueChange={(v) => handleAccountChange(v === '__none__' ? '' : v)}>
               <SelectTrigger><SelectValue placeholder="Todas as contas" /></SelectTrigger>
               <SelectContent>
