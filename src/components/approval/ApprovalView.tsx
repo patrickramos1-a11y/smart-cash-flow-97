@@ -1300,7 +1300,7 @@ export function ApprovalView() {
               {/* Cliente */}
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center justify-between">
-                  <span>Cliente</span>
+                  <span>Cliente (empresa)</span>
                   {bulkClienteId && (
                     <button
                       type="button"
@@ -1324,7 +1324,7 @@ export function ApprovalView() {
               {/* Entidade */}
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center justify-between">
-                  <span>Entidade</span>
+                  <span>Vinculado a (Entidade)</span>
                   {bulkEntityId && (
                     <button
                       type="button"
@@ -1353,7 +1353,7 @@ export function ApprovalView() {
               {/* Responsável */}
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center justify-between">
-                  <span>Responsável</span>
+                  <span>Responsável (executor)</span>
                   {bulkResponsavelId && (
                     <button
                       type="button"

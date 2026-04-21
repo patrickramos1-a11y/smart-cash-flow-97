@@ -517,9 +517,10 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
             </Select>
           </div>
 
-          {/* Entidade (obrigatória) */}
+          {/* Vinculado a (Entidade) — obrigatória */}
           <div>
-            <Label>Entidade <span className="text-destructive">*</span></Label>
+            <Label>Vinculado a (Entidade) <span className="text-destructive">*</span></Label>
+            <p className="text-[10px] text-muted-foreground mb-1">Pessoa ou grupo beneficiário do lançamento (ex.: FGTS → colaborador específico).</p>
             <Select value={entityId || '__none__'} onValueChange={(v) => setEntityId(v === '__none__' ? '' : v)}>
               <SelectTrigger className={!entityId ? 'border-destructive' : ''}>
                 <SelectValue placeholder="Selecione uma entidade" />
@@ -568,7 +569,8 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
               </Select>
             </div>
             <div>
-              <Label>Responsável</Label>
+              <Label>Responsável (executor)</Label>
+              <p className="text-[10px] text-muted-foreground mb-1">Quem autorizou ou executou a transação.</p>
               <Select value={responsavelId || '__none__'} onValueChange={(v) => setResponsavelId(v === '__none__' ? '' : v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>

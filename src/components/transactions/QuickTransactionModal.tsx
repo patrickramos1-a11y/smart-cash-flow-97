@@ -369,7 +369,7 @@ export function QuickTransactionModal({
             />
             {entityIds.length === 0 && (
               <p className="text-[10px] text-destructive mt-1 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" /> Responsável/Entidade obrigatório
+                <AlertCircle className="w-3 h-3" /> Entidade é obrigatória
               </p>
             )}
           </div>
