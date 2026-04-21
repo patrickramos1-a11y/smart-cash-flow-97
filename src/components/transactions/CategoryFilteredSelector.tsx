@@ -158,7 +158,8 @@ export function CategoryFilteredSelector({
           <SelectTrigger>
             <SelectValue placeholder="Selecionar categoria" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="max-h-[360px]">
+            <CategorySearchInput value={search} onChange={setSearch} />
             {groupedCategories.map((group) => (
               <div key={group.accountName}>
                 {/* Account group header */}
