@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,7 +14,7 @@ import {
   CheckCircle, XCircle, Clock, Search, AlertTriangle,
   ArrowDownCircle, ArrowUpCircle, Loader2, Eye, Filter,
   CheckCheck, ArrowUpDown, ChevronUp, ChevronDown, Pencil,
-  Layers, Wand2,
+  Layers, Wand2, RotateCcw,
 } from 'lucide-react';
 import { formatCurrency } from '@/data/mockData';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,29 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { TransactionEditModal } from '@/components/transactions/TransactionEditModal';
 import type { TransactionWithClient } from '@/hooks/useTransactions';
+import { getEntityIcon } from '@/utils/entityIcons';
+
+// Ensures color contrast for readable text on white surfaces
+function ensureDarkColor(hex?: string | null): string {
+  if (!hex || !hex.startsWith('#')) return '#6366f1';
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  if (luminance > 0.6) {
+    const f = 0.5;
+    const dr = Math.round(r * f), dg = Math.round(g * f), db = Math.round(b * f);
+    return `#${dr.toString(16).padStart(2, '0')}${dg.toString(16).padStart(2, '0')}${db.toString(16).padStart(2, '0')}`;
+  }
+  return hex;
+}
+
+// Returns the value if all items share the same one; otherwise null
+function commonValue<T extends string | null | undefined>(items: T[]): T | null {
+  if (items.length === 0) return null;
+  const first = items[0];
+  return items.every(v => v === first) ? first : null;
+}
 
 interface PendingTransaction {
   id: string;
@@ -39,6 +62,14 @@ interface PendingTransaction {
   status: string;
   origem: string;
   fixed_expense_id: string | null;
+  // IDs (used for "common value" detection in bulk edit)
+  cliente_id: string | null;
+  entity_id: string | null;
+  responsavel_id: string | null;
+  account_id: string | null;
+  transaction_category_id: string | null;
+  cost_center_id: string | null;
+  // Display names
   category_name?: string;
   account_name?: string;
   cost_center_name?: string;
@@ -76,18 +107,23 @@ export function ApprovalView() {
   const [bulkResponsavelId, setBulkResponsavelId] = useState<string>('');
   const [bulkOrigem, setBulkOrigem] = useState<string>('');
 
-  // Lookup data for bulk edit
+  // Lookup data for bulk edit (rich data with relationships)
   const { data: categoriesList } = useQuery({
-    queryKey: ['approval_categories_list'],
+    queryKey: ['approval_categories_list_full'],
     queryFn: async () => {
-      const { data } = await supabase.from('transaction_categories').select('id, name, type').eq('active', true).order('name');
+      const { data } = await supabase
+        .from('transaction_categories')
+        .select('id, name, type, subtype, color, default_account_id, cost_center_id')
+        .eq('active', true)
+        .order('name');
       return data || [];
     },
   });
   const { data: accountsList } = useQuery({
-    queryKey: ['approval_accounts_list'],
+    queryKey: ['approval_accounts_list_full'],
     queryFn: async () => {
-      const { data } = await supabase.from('accounts').select('id, name').eq('active', true).order('name');
+      // Fetch ALL accounts (including inactive) since legacy data may reference them
+      const { data } = await supabase.from('accounts').select('id, name, bank, active').order('name');
       return data || [];
     },
   });
@@ -123,6 +159,7 @@ export function ApprovalView() {
           id, tipo_movimento, natureza, origem, descricao, valor, data_vencimento,
           competencia_mes, competencia_ano, approval_status, rejection_reason,
           created_at, created_by, status, fixed_expense_id, cliente_id,
+          entity_id, responsavel_id, account_id, transaction_category_id, cost_center_id,
           recurring_clients:cliente_id(name),
           transaction_categories:transaction_category_id(name),
           accounts:account_id(name),
@@ -265,6 +302,83 @@ export function ApprovalView() {
     },
     onError: (e: any) => toast.error('Erro ao atualizar: ' + (e?.message || '')),
   });
+
+  // Selected transactions (used for bulk-edit pre-fill and cross-filter)
+  const selectedTransactions = useMemo(() => {
+    if (!transactions) return [];
+    return transactions.filter(t => selectedIds.has(t.id));
+  }, [transactions, selectedIds]);
+
+  // Pre-fill bulk-edit fields when modal opens (only if all selected share the same value)
+  useEffect(() => {
+    if (!bulkEditOpen) return;
+    if (selectedTransactions.length === 0) return;
+    setBulkClienteId(commonValue(selectedTransactions.map(t => t.cliente_id)) || '');
+    setBulkCategoryId(commonValue(selectedTransactions.map(t => t.transaction_category_id)) || '');
+    setBulkAccountId(commonValue(selectedTransactions.map(t => t.account_id)) || '');
+    setBulkCostCenterId(commonValue(selectedTransactions.map(t => t.cost_center_id)) || '');
+    setBulkEntityId(commonValue(selectedTransactions.map(t => t.entity_id)) || '');
+    setBulkResponsavelId(commonValue(selectedTransactions.map(t => t.responsavel_id)) || '');
+    setBulkOrigem(commonValue(selectedTransactions.map(t => t.origem)) || '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bulkEditOpen]);
+
+  // Cross-filter: when category is chosen, autofill account + cost-center if empty.
+  useEffect(() => {
+    if (!bulkCategoryId || !categoriesList) return;
+    const cat = (categoriesList as any[]).find(c => c.id === bulkCategoryId);
+    if (!cat) return;
+    if (cat.default_account_id && !bulkAccountId) setBulkAccountId(cat.default_account_id);
+    if (cat.cost_center_id && !bulkCostCenterId) setBulkCostCenterId(cat.cost_center_id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bulkCategoryId, categoriesList]);
+
+  // Filtered categories for the bulk-edit dropdown (cross-filter)
+  const bulkFilteredCategories = useMemo(() => {
+    let cats = (categoriesList || []) as any[];
+    const commonTipo = commonValue(selectedTransactions.map(t => t.tipo_movimento));
+    if (commonTipo) cats = cats.filter(c => c.type === commonTipo);
+    if (bulkAccountId) cats = cats.filter(c => c.default_account_id === bulkAccountId);
+    if (bulkCostCenterId) cats = cats.filter(c => c.cost_center_id === bulkCostCenterId);
+    return cats;
+  }, [categoriesList, selectedTransactions, bulkAccountId, bulkCostCenterId]);
+
+  // Accounts/CCs that contain at least one relevant category
+  const bulkVisibleAccounts = useMemo(() => {
+    const cats = (categoriesList || []) as any[];
+    const commonTipo = commonValue(selectedTransactions.map(t => t.tipo_movimento));
+    const relevant = commonTipo ? cats.filter(c => c.type === commonTipo) : cats;
+    const accIds = new Set(relevant.map(c => c.default_account_id).filter(Boolean));
+    return ((accountsList || []) as any[]).filter(a => accIds.has(a.id));
+  }, [categoriesList, accountsList, selectedTransactions]);
+
+  const bulkVisibleCostCenters = useMemo(() => {
+    const cats = (categoriesList || []) as any[];
+    const commonTipo = commonValue(selectedTransactions.map(t => t.tipo_movimento));
+    const relevant = commonTipo ? cats.filter(c => c.type === commonTipo) : cats;
+    const ccIds = new Set(relevant.map(c => c.cost_center_id).filter(Boolean));
+    return ((costCentersList || []) as any[]).filter(c => ccIds.has(c.id));
+  }, [categoriesList, costCentersList, selectedTransactions]);
+
+  // Group categories by account name for the dropdown UI (style matches Transactions)
+  const groupedBulkCategories = useMemo(() => {
+    const accMap = new Map(((accountsList || []) as any[]).map(a => [a.id, a]));
+    const groups = new Map<string, { accountName: string; categories: any[] }>();
+    for (const cat of bulkFilteredCategories) {
+      const accId = cat.default_account_id || '__none__';
+      const accName = accId === '__none__' ? 'Sem conta vinculada' : (accMap.get(accId)?.name || 'Conta desconhecida');
+      if (!groups.has(accId)) groups.set(accId, { accountName: accName, categories: [] });
+      groups.get(accId)!.categories.push(cat);
+    }
+    return Array.from(groups.values())
+      .map(g => ({ ...g, categories: g.categories.sort((a, b) => a.name.localeCompare(b.name)) }))
+      .sort((a, b) => a.accountName.localeCompare(b.accountName));
+  }, [bulkFilteredCategories, accountsList]);
+
+  const resetBulkFields = () => {
+    setBulkCategoryId(''); setBulkAccountId(''); setBulkCostCenterId('');
+    setBulkClienteId(''); setBulkEntityId(''); setBulkResponsavelId(''); setBulkOrigem('');
+  };
 
   // Filter and sort
   const filtered = useMemo(() => {
@@ -685,6 +799,7 @@ export function ApprovalView() {
                       <span className="flex items-center">Descrição <SortIcon field="descricao" /></span>
                     </th>
                     <th className="text-left p-3 text-xs font-medium">Cliente</th>
+                    <th className="text-left p-3 text-xs font-medium">Entidade</th>
                     <th className="text-left p-3 text-xs font-medium">Categoria</th>
                     <th className="text-left p-3 text-xs font-medium">Origem</th>
                     <th className="text-left p-3 text-xs font-medium cursor-pointer select-none" onClick={() => handleSort('data_vencimento')}>
@@ -877,85 +992,228 @@ export function ApprovalView() {
         </DialogContent>
       </Dialog>
 
-      {/* Bulk edit modal */}
-      <Dialog open={bulkEditOpen} onOpenChange={setBulkEditOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      {/* Bulk edit modal — smart cross-filtered panel */}
+      <Dialog
+        open={bulkEditOpen}
+        onOpenChange={(open) => { setBulkEditOpen(open); if (!open) resetBulkFields(); }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Editar {selectedIds.size} lançamento(s) em massa</DialogTitle>
+            <DialogTitle className="flex items-center justify-between gap-2">
+              <span>Editar {selectedIds.size} lançamento(s) em massa</span>
+              <Button size="sm" variant="ghost" onClick={resetBulkFields} className="h-7 text-xs">
+                <RotateCcw className="w-3 h-3 mr-1" /> Limpar campos
+              </Button>
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <p className="text-xs text-muted-foreground">
-              Preencha apenas os campos que deseja alterar. Os demais permanecerão inalterados.
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Cliente</Label>
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs">
+              <p className="font-medium text-primary mb-1">Painel inteligente</p>
+              <p className="text-muted-foreground">
+                Os campos abaixo se filtram entre si. Ao escolher uma <strong>Categoria</strong>, a Conta e o Centro de Custo
+                são preenchidos automaticamente. Ao escolher uma <strong>Conta</strong> ou <strong>Centro de Custo</strong>,
+                a lista de Categorias é filtrada. Campos vazios não serão alterados.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Conta */}
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center justify-between">
+                  <span>Conta</span>
+                  {bulkAccountId && (
+                    <button
+                      type="button"
+                      onClick={() => setBulkAccountId('')}
+                      className="text-[10px] text-muted-foreground hover:text-foreground"
+                    >
+                      limpar
+                    </button>
+                  )}
+                </Label>
+                <Select value={bulkAccountId} onValueChange={setBulkAccountId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Não alterar" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[280px]">
+                    {bulkVisibleAccounts.length === 0 && (
+                      <div className="px-2 py-3 text-xs text-muted-foreground text-center">
+                        Nenhuma conta disponível
+                      </div>
+                    )}
+                    {bulkVisibleAccounts.map((a: any) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        <div className="flex items-center gap-2">
+                          <span>{a.name}</span>
+                          {a.bank && <span className="text-[10px] text-muted-foreground">({a.bank})</span>}
+                          {!a.active && <Badge variant="outline" className="text-[9px] px-1 py-0">inativa</Badge>}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Centro de Custo */}
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center justify-between">
+                  <span>Centro de Custo</span>
+                  {bulkCostCenterId && (
+                    <button
+                      type="button"
+                      onClick={() => setBulkCostCenterId('')}
+                      className="text-[10px] text-muted-foreground hover:text-foreground"
+                    >
+                      limpar
+                    </button>
+                  )}
+                </Label>
+                <Select value={bulkCostCenterId} onValueChange={setBulkCostCenterId}>
+                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                  <SelectContent className="max-h-[280px]">
+                    {bulkVisibleCostCenters.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Categoria — full width, grouped by account with icons + colors */}
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label className="text-xs flex items-center justify-between">
+                  <span>Categoria</span>
+                  {bulkCategoryId && (
+                    <button
+                      type="button"
+                      onClick={() => setBulkCategoryId('')}
+                      className="text-[10px] text-muted-foreground hover:text-foreground"
+                    >
+                      limpar
+                    </button>
+                  )}
+                </Label>
+                <Select value={bulkCategoryId} onValueChange={setBulkCategoryId}>
+                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                  <SelectContent className="max-h-[360px]">
+                    {groupedBulkCategories.length === 0 && (
+                      <div className="px-2 py-4 text-center text-xs text-muted-foreground">
+                        Nenhuma categoria corresponde aos filtros atuais
+                      </div>
+                    )}
+                    {groupedBulkCategories.map((group) => (
+                      <div key={group.accountName}>
+                        <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/40 sticky top-0">
+                          {group.accountName}
+                        </div>
+                        {group.categories.map((c: any) => {
+                          const Icon = getEntityIcon(c.name);
+                          const color = ensureDarkColor(c.color);
+                          return (
+                            <SelectItem key={c.id} value={c.id}>
+                              <div className="flex items-center gap-2">
+                                <Icon className="w-4 h-4 shrink-0" style={{ color }} />
+                                <span style={{ color }}>{c.name}</span>
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Cliente */}
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center justify-between">
+                  <span>Cliente</span>
+                  {bulkClienteId && (
+                    <button
+                      type="button"
+                      onClick={() => setBulkClienteId('')}
+                      className="text-[10px] text-muted-foreground hover:text-foreground"
+                    >
+                      limpar
+                    </button>
+                  )}
+                </Label>
                 <Select value={bulkClienteId} onValueChange={setBulkClienteId}>
                   <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[280px]">
                     {(clientsList || []).map((c: any) => (
                       <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Categoria</Label>
-                <Select value={bulkCategoryId} onValueChange={setBulkCategoryId}>
-                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
-                  <SelectContent>
-                    {(categoriesList || []).map((c: any) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Conta</Label>
-                <Select value={bulkAccountId} onValueChange={setBulkAccountId}>
-                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
-                  <SelectContent>
-                    {(accountsList || []).map((a: any) => (
-                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Centro de Custo</Label>
-                <Select value={bulkCostCenterId} onValueChange={setBulkCostCenterId}>
-                  <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
-                  <SelectContent>
-                    {(costCentersList || []).map((c: any) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Entidade</Label>
+
+              {/* Entidade */}
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center justify-between">
+                  <span>Entidade</span>
+                  {bulkEntityId && (
+                    <button
+                      type="button"
+                      onClick={() => setBulkEntityId('')}
+                      className="text-[10px] text-muted-foreground hover:text-foreground"
+                    >
+                      limpar
+                    </button>
+                  )}
+                </Label>
                 <Select value={bulkEntityId} onValueChange={setBulkEntityId}>
                   <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[280px]">
                     {(entitiesList || []).map((e: any) => (
-                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                      <SelectItem key={e.id} value={e.id}>
+                        <div className="flex items-center gap-2">
+                          <span>{e.name}</span>
+                          <span className="text-[10px] text-muted-foreground">{e.type}</span>
+                        </div>
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Responsável</Label>
+
+              {/* Responsável */}
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center justify-between">
+                  <span>Responsável</span>
+                  {bulkResponsavelId && (
+                    <button
+                      type="button"
+                      onClick={() => setBulkResponsavelId('')}
+                      className="text-[10px] text-muted-foreground hover:text-foreground"
+                    >
+                      limpar
+                    </button>
+                  )}
+                </Label>
                 <Select value={bulkResponsavelId} onValueChange={setBulkResponsavelId}>
                   <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[280px]">
                     {(entitiesList || []).map((e: any) => (
                       <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2 col-span-2">
-                <Label>Origem</Label>
+
+              {/* Origem */}
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center justify-between">
+                  <span>Origem</span>
+                  {bulkOrigem && (
+                    <button
+                      type="button"
+                      onClick={() => setBulkOrigem('')}
+                      className="text-[10px] text-muted-foreground hover:text-foreground"
+                    >
+                      limpar
+                    </button>
+                  )}
+                </Label>
                 <Select value={bulkOrigem} onValueChange={setBulkOrigem}>
                   <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
                   <SelectContent>
