@@ -564,6 +564,18 @@ export function ApprovalView() {
     if (bulkEntityId) updates.entity_id = bulkEntityId;
     if (bulkResponsavelId) updates.responsavel_id = bulkResponsavelId;
     if (bulkOrigem) updates.origem = bulkOrigem;
+    if (bulkDescricao.trim()) updates.descricao = bulkDescricao.trim();
+    if (bulkValor.trim()) {
+      const v = parseFloat(bulkValor.replace(',', '.'));
+      if (isNaN(v) || v < 0) {
+        toast.error('Valor inválido');
+        return;
+      }
+      updates.valor = v;
+    }
+    if (bulkDataVencimento) updates.data_vencimento = bulkDataVencimento;
+    if (bulkStatus) updates.status = bulkStatus;
+    if (bulkNotes.trim()) updates.notes = bulkNotes.trim();
     if (Object.keys(updates).length === 0) {
       toast.error('Selecione pelo menos um campo para alterar');
       return;
