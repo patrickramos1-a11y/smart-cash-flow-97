@@ -1258,6 +1258,7 @@ export function ApprovalView() {
                 <Select value={bulkCategoryId} onValueChange={setBulkCategoryId}>
                   <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
                   <SelectContent className="max-h-[360px]">
+                    <CategorySearchInput value={bulkCategorySearch} onChange={setBulkCategorySearch} />
                     {groupedBulkCategories.length === 0 && (
                       <div className="px-2 py-4 text-center text-xs text-muted-foreground space-y-2">
                         <p>Nenhuma categoria corresponde aos filtros atuais</p>
