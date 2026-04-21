@@ -303,6 +303,83 @@ export function ApprovalView() {
     onError: (e: any) => toast.error('Erro ao atualizar: ' + (e?.message || '')),
   });
 
+  // Selected transactions (used for bulk-edit pre-fill and cross-filter)
+  const selectedTransactions = useMemo(() => {
+    if (!transactions) return [];
+    return transactions.filter(t => selectedIds.has(t.id));
+  }, [transactions, selectedIds]);
+
+  // Pre-fill bulk-edit fields when modal opens (only if all selected share the same value)
+  useEffect(() => {
+    if (!bulkEditOpen) return;
+    if (selectedTransactions.length === 0) return;
+    setBulkClienteId(commonValue(selectedTransactions.map(t => t.cliente_id)) || '');
+    setBulkCategoryId(commonValue(selectedTransactions.map(t => t.transaction_category_id)) || '');
+    setBulkAccountId(commonValue(selectedTransactions.map(t => t.account_id)) || '');
+    setBulkCostCenterId(commonValue(selectedTransactions.map(t => t.cost_center_id)) || '');
+    setBulkEntityId(commonValue(selectedTransactions.map(t => t.entity_id)) || '');
+    setBulkResponsavelId(commonValue(selectedTransactions.map(t => t.responsavel_id)) || '');
+    setBulkOrigem(commonValue(selectedTransactions.map(t => t.origem)) || '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bulkEditOpen]);
+
+  // Cross-filter: when category is chosen, autofill account + cost-center if empty.
+  useEffect(() => {
+    if (!bulkCategoryId || !categoriesList) return;
+    const cat = (categoriesList as any[]).find(c => c.id === bulkCategoryId);
+    if (!cat) return;
+    if (cat.default_account_id && !bulkAccountId) setBulkAccountId(cat.default_account_id);
+    if (cat.cost_center_id && !bulkCostCenterId) setBulkCostCenterId(cat.cost_center_id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bulkCategoryId, categoriesList]);
+
+  // Filtered categories for the bulk-edit dropdown (cross-filter)
+  const bulkFilteredCategories = useMemo(() => {
+    let cats = (categoriesList || []) as any[];
+    const commonTipo = commonValue(selectedTransactions.map(t => t.tipo_movimento));
+    if (commonTipo) cats = cats.filter(c => c.type === commonTipo);
+    if (bulkAccountId) cats = cats.filter(c => c.default_account_id === bulkAccountId);
+    if (bulkCostCenterId) cats = cats.filter(c => c.cost_center_id === bulkCostCenterId);
+    return cats;
+  }, [categoriesList, selectedTransactions, bulkAccountId, bulkCostCenterId]);
+
+  // Accounts/CCs that contain at least one relevant category
+  const bulkVisibleAccounts = useMemo(() => {
+    const cats = (categoriesList || []) as any[];
+    const commonTipo = commonValue(selectedTransactions.map(t => t.tipo_movimento));
+    const relevant = commonTipo ? cats.filter(c => c.type === commonTipo) : cats;
+    const accIds = new Set(relevant.map(c => c.default_account_id).filter(Boolean));
+    return ((accountsList || []) as any[]).filter(a => accIds.has(a.id));
+  }, [categoriesList, accountsList, selectedTransactions]);
+
+  const bulkVisibleCostCenters = useMemo(() => {
+    const cats = (categoriesList || []) as any[];
+    const commonTipo = commonValue(selectedTransactions.map(t => t.tipo_movimento));
+    const relevant = commonTipo ? cats.filter(c => c.type === commonTipo) : cats;
+    const ccIds = new Set(relevant.map(c => c.cost_center_id).filter(Boolean));
+    return ((costCentersList || []) as any[]).filter(c => ccIds.has(c.id));
+  }, [categoriesList, costCentersList, selectedTransactions]);
+
+  // Group categories by account name for the dropdown UI (style matches Transactions)
+  const groupedBulkCategories = useMemo(() => {
+    const accMap = new Map(((accountsList || []) as any[]).map(a => [a.id, a]));
+    const groups = new Map<string, { accountName: string; categories: any[] }>();
+    for (const cat of bulkFilteredCategories) {
+      const accId = cat.default_account_id || '__none__';
+      const accName = accId === '__none__' ? 'Sem conta vinculada' : (accMap.get(accId)?.name || 'Conta desconhecida');
+      if (!groups.has(accId)) groups.set(accId, { accountName: accName, categories: [] });
+      groups.get(accId)!.categories.push(cat);
+    }
+    return Array.from(groups.values())
+      .map(g => ({ ...g, categories: g.categories.sort((a, b) => a.name.localeCompare(b.name)) }))
+      .sort((a, b) => a.accountName.localeCompare(b.accountName));
+  }, [bulkFilteredCategories, accountsList]);
+
+  const resetBulkFields = () => {
+    setBulkCategoryId(''); setBulkAccountId(''); setBulkCostCenterId('');
+    setBulkClienteId(''); setBulkEntityId(''); setBulkResponsavelId(''); setBulkOrigem('');
+  };
+
   // Filter and sort
   const filtered = useMemo(() => {
     if (!transactions) return [];
