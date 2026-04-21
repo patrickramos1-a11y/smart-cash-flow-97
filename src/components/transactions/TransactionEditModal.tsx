@@ -473,7 +473,8 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
             </Label>
             <Select value={categoryId || '__none__'} onValueChange={(v) => handleCategoryChange(v === '__none__' ? '' : v)}>
               <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent className="max-h-[320px]">
+              <SelectContent className="max-h-[360px]">
+                <CategorySearchInput value={categorySearch} onChange={setCategorySearch} />
                 <SelectItem value="__none__">Nenhuma</SelectItem>
                 {groupedCategories.map(group => (
                   <div key={group.accountName}>
