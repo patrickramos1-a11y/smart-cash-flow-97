@@ -1169,6 +1169,7 @@ export function ApprovalView() {
                           <div className="flex items-center gap-2">
                             <Icon className="w-4 h-4 shrink-0" style={{ color }} />
                             <span style={{ color }} className="font-medium">{c.name}</span>
+                            {c.active === false && <Badge variant="outline" className="text-[9px] px-1 py-0">inativo</Badge>}
                           </div>
                         </SelectItem>
                       );
