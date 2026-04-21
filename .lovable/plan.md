@@ -1,97 +1,63 @@
 
 
-## Edição em Massa nas Páginas de Transações
+## Conta em branco em Transações — Diagnóstico & Refatoração
 
-### Objetivo
+### O problema (confirmado no banco)
 
-Levar a mesma capacidade de **bulk edit** que existe hoje na tela de Aprovações para todas as listagens de transações:
-- Visão Geral, Entradas Recorrentes, Entradas Avulsas, Despesas Fixas e Despesas Variáveis.
+- **125 transações** em 2026 estão com `account_id = NULL` (todas de origem `DESPESA_FIXA`).
+- Dessas, **28 já estão marcadas como PAGO** — ou seja, deveriam estar afetando o saldo de uma conta, mas não estão. Isso explica saldos inconsistentes.
+- A causa raiz é que **41 das 68 despesas fixas ativas** estão com `account_id = NULL` no cadastro mestre — mesmo quando a categoria associada (FOLHA DE PAGAMENTO, FGTS, INSS, INTERNERT, AGUA, etc.) já tem `default_account_id` preenchido.
+- Quando o gerador de parcelas (`useFixedExpenses.ts:176`) cria as transações do mês, ele copia `e.account_id` direto da despesa fixa — se vier null, a parcela nasce órfã.
+- Resultado visual: a coluna **Conta** aparece em branco, e ao filtrar por conta esses lançamentos somem.
 
-E adicionar **proteções de segurança específicas** para evitar efeitos colaterais (ex.: alterar Responsável de 1.140 lançamentos recorrentes sem quebrar nomenclatura, datas ou parcelas).
+### Causa secundária
+
+O `NewFixedExpenseModal` resolve `default_account_id` corretamente *no momento da criação*, mas:
+1. Não força fallback se o usuário trocar de categoria depois.
+2. Despesas antigas criadas antes da migração para o modelo categoria-cêntrica nunca tiveram a conta preenchida.
+3. Não há trigger no banco que garanta a invariante "transação manual/recorrente sempre tem conta".
 
 ---
 
-### O que vai mudar
+### Plano de correção (3 frentes)
 
-#### 1. Componente único: `BulkEditPanel`
+#### 1. Backfill imediato (uma vez)
 
-Hoje a barra de seleção em `TransactionsList.tsx` só tem **"Excluir Selecionadas"**. Vou adicionar um botão **"Editar Selecionadas"** que abre o mesmo modal de Bulk Edit já usado em Aprovações — mas extraído para um componente reutilizável `src/components/transactions/BulkEditPanel.tsx`.
+Migration SQL que:
 
-Campos disponíveis (todos opcionais — vazio = não altera):
-- **Cliente (empresa)**
-- **Vinculado a (Entidade)**
-- **Responsável (executor)** ← caso de uso pedido
-- **Categoria** (com busca por substring, mesma da rodada anterior)
-- **Conta**
-- **Centro de Custo**
-- **Status** (Em Aberto / Pago / Atrasado)
-- **Data de Vencimento** (deslocamento em dias: +N / -N, ou data fixa)
-- **Valor** (substituir / acrescentar / aplicar % — só habilitado em seleções pequenas)
+- Para cada `fixed_expenses` com `account_id IS NULL`, copia o `default_account_id` da `transaction_category` vinculada. *(41 registros corrigidos)*
+- Para cada `transactions` com `origem='DESPESA_FIXA'` e `account_id IS NULL`, herda o `account_id` agora preenchido na despesa fixa-mãe. *(125 transações corrigidas)*
+- Idem para qualquer transação de origem `CONTRATO_RECORRENTE`, `LANCAMENTO_MANUAL` ou `IMPORTACAO` com `account_id IS NULL` mas categoria com `default_account_id` definido. *(varredura de segurança)*
+- Recalcula o saldo das contas afetadas (`SELECT recalculate_account_balance(id)` para cada conta única tocada) — isto corrige os 28 PAGOs que sumiram dos saldos.
+- Loga em `migration_conflicts_log` qualquer despesa fixa que **continue** sem conta (categoria também sem default) para revisão manual no UI.
 
-Campos **bloqueados** no bulk: Descrição, Competência mês/ano, Documento e Observações — porque alterá-los em massa quebra rastreabilidade e nomenclatura ("janeiro" vira tudo igual). O usuário ainda pode editar individualmente.
+#### 2. Garantia no código (não acontecer de novo)
 
-#### 2. Proteções por contexto
+- **`useFixedExpenses.ts` (generateFixedExpenseTransactions)**: ao montar a parcela, se `e.account_id` for null, fazer fallback para `transaction_categories.default_account_id` antes do insert. Se ambos forem null, **abortar com toast de erro** listando o nome da despesa, em vez de inserir órfã.
+- **`NewFixedExpenseModal`**: se a categoria escolhida não tem `default_account_id`, exigir que o usuário selecione uma conta no próprio modal (campo passa de inferido → obrigatório).
+- **`useTransactions.useCreateTransaction`**: mesma regra de fallback (categoria → default_account_id) e bloqueio se nada resolver.
 
-A tela onde o painel é aberto **restringe automaticamente** os campos:
+#### 3. Visibilidade no UI
 
-| Tela | Campos liberados | Bloqueados (motivo) |
-|---|---|---|
-| Visão Geral | todos os listados acima | — |
-| Entradas Recorrentes | Responsável, Categoria, Conta, C.Custo, Status | Cliente (vem do contrato), Valor (vem do plano/SM), Vencimento (vem do `dia_vencimento`) |
-| Entradas Avulsas | todos | — |
-| Despesas Fixas | Responsável, Entidade, Categoria, Conta, C.Custo, Status | Cliente padrão, Valor (vem da despesa fixa), Vencimento (vem do `dia_vencimento`) |
-| Despesas Variáveis | todos | — |
-
-Isso evita o cenário "alterei o vencimento e quebrei toda a série recorrente do Patrick".
-
-#### 3. Pré-visualização antes de aplicar (passo crítico)
-
-Antes do `UPDATE`, o painel mostra um **resumo de impacto**:
-
-```text
-Você está prestes a alterar 1.140 lançamentos:
-  • Responsável: (vazio) → Patrick
-  • 0 transações já tinham Responsável (serão sobrescritas: NÃO)
-  • Origens afetadas: CONTRATO_RECORRENTE (1.140)
-  • Anos: 2024 (520), 2025 (620)
-  • Nenhuma alteração em descrição, valor ou vencimento.
-
-[ Cancelar ]   [ Confirmar alteração de 1.140 lançamentos ]
-```
-
-Toggle **"Sobrescrever valores existentes"** (default OFF) — só preenche onde o campo está nulo, exatamente como o backfill do Reclassificação.
-
-#### 4. Performance e segurança da execução
-
-- **Update em chunks** de 500 IDs por vez (evita timeout do PostgREST e do trigger `recalculate_account_balance`).
-- **Barra de progresso** "750 / 1.140 atualizados…".
-- Apenas os campos efetivamente preenchidos vão para o `UPDATE` (mesmo padrão já corrigido em Aprovações), evitando reexecução desnecessária dos triggers `sync_transaction_to_installment` e do recálculo de saldo.
-- Após sucesso: invalida `transactions`, `approval-transactions`, `open-payments`, `transactions_chart_v2` e refetch ativo.
-
-#### 5. Seleção inteligente
-
-Na barra de bulk vão aparecer atalhos contextuais:
-- **"Selecionar todos os filtrados"** (não só os da página visível).
-- **"Selecionar só sem Responsável"** / **"Selecionar só sem Entidade"** — atalhos para o caso pedido.
+- Em `TransactionsList`, transações com `account_id` nulo passam a exibir um badge laranja **"Sem conta"** clicável que abre o modal de edição já com o campo Conta destacado — em vez de simplesmente aparecer em branco.
+- Adicionar atalho de seleção em massa: **"Selecionar sem Conta"** (igual aos atalhos "sem Responsável" / "sem NF" já criados), permitindo o usuário corrigir os 125 órfãos em uma operação só caso o backfill automático não consiga resolver alguns.
+- Em `DespesasFixasPage`, indicador no topo: "X despesas fixas sem conta vinculada" linkando para a lista filtrada.
 
 ---
 
 ### Arquivos afetados
 
-- **Novo:** `src/components/transactions/BulkEditPanel.tsx` — modal reutilizável extraído de `ApprovalView.tsx`.
-- **Editar:** `src/components/transactions/TransactionsList.tsx` — adicionar botão "Editar Selecionadas", atalhos de seleção, prop `bulkContext` para definir campos liberados.
-- **Editar:** `src/components/approval/ApprovalView.tsx` — substituir o bulk edit interno pelo componente compartilhado (sem perder funcionalidade atual).
-- **Sem migrations.** Sem mudanças de schema.
+- **Nova migration**: `supabase/migrations/<timestamp>_backfill_account_id_orfaos.sql` — backfill de fixed_expenses → transactions + recalcula saldos.
+- **Editar**: `src/hooks/useFixedExpenses.ts` — fallback para `default_account_id` da categoria + erro explícito se faltar.
+- **Editar**: `src/hooks/useTransactions.ts` — mesmo fallback no `useCreateTransaction`.
+- **Editar**: `src/components/transactions/NewFixedExpenseModal.tsx` — Conta vira obrigatória quando categoria não tem default.
+- **Editar**: `src/components/transactions/TransactionsList.tsx` — badge "Sem conta" + atalho "Selecionar sem Conta".
+- **Editar**: `src/components/transactions/DespesasFixasPage.tsx` — alerta de despesas fixas órfãs.
 
-### Detalhes técnicos relevantes
+### Resultado esperado
 
-- O update é feito direto em `transactions` via supabase, com `.in('id', chunk).select('id')` para garantir feedback síncrono de erros (mesmo padrão de Aprovações).
-- O toggle "Sobrescrever" se traduz em `.is('<campo>', null)` adicionado ao `WHERE` quando OFF.
-- Recorrências (`origem='CONTRATO_RECORRENTE'`): só campos seguros (Responsável, Status, Categoria, Conta, C.Custo, Entidade) são mostrados — assim o trigger de sincronização com `recurring_installments` não dispara reescrita de valor/data.
-
-### Pergunta antes de executar
-
-1. **Atalhos de seleção** — confirma os dois atalhos ("sem Responsável" e "sem Entidade"), ou quer adicionar também "sem Categoria" e "sem Conta"?
-2. **Sobrescrever** — default OFF (só preenche onde está nulo) está bom, ou prefere que sempre pergunte explicitamente?
-3. **Bulk de Valor/Vencimento em recorrências** — manter bloqueado (mais seguro) ou liberar com aviso vermelho "isto vai recriar parcelas"?
+- 0 transações com `account_id IS NULL` após backfill.
+- Saldos das contas reconciliados (28 lançamentos PAGOs voltam a impactar o saldo).
+- Impossível criar nova transação ou despesa fixa órfã pelo UI.
+- Se aparecer alguma órfã residual (ex.: importação futura), o badge laranja e o atalho de bulk edit deixam o conserto a 2 cliques.
 
