@@ -24,6 +24,28 @@ import { TransactionEditModal } from '@/components/transactions/TransactionEditM
 import type { TransactionWithClient } from '@/hooks/useTransactions';
 import { getEntityIcon } from '@/utils/entityIcons';
 
+// Ensures color contrast for readable text on white surfaces
+function ensureDarkColor(hex?: string | null): string {
+  if (!hex || !hex.startsWith('#')) return '#6366f1';
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  if (luminance > 0.6) {
+    const f = 0.5;
+    const dr = Math.round(r * f), dg = Math.round(g * f), db = Math.round(b * f);
+    return `#${dr.toString(16).padStart(2, '0')}${dg.toString(16).padStart(2, '0')}${db.toString(16).padStart(2, '0')}`;
+  }
+  return hex;
+}
+
+// Returns the value if all items share the same one; otherwise null
+function commonValue<T extends string | null | undefined>(items: T[]): T | null {
+  if (items.length === 0) return null;
+  const first = items[0];
+  return items.every(v => v === first) ? first : null;
+}
+
 interface PendingTransaction {
   id: string;
   tipo_movimento: string;
