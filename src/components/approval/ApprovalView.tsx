@@ -39,6 +39,19 @@ function ensureDarkColor(hex?: string | null): string {
   return hex;
 }
 
+// Deterministic color for accounts/cost-centers (no color column in DB).
+// Uses a 12-tone palette aligned with the visual identity (emerald/teal/violet/etc).
+const VISUAL_PALETTE = [
+  '#0d9488', '#7c3aed', '#db2777', '#ea580c', '#0284c7', '#65a30d',
+  '#9333ea', '#0891b2', '#c2410c', '#15803d', '#be185d', '#4338ca',
+];
+function colorFromName(name?: string | null): string {
+  if (!name) return VISUAL_PALETTE[0];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return VISUAL_PALETTE[hash % VISUAL_PALETTE.length];
+}
+
 // Returns the value if all items share the same one; otherwise null
 function commonValue<T extends string | null | undefined>(items: T[]): T | null {
   if (items.length === 0) return null;
