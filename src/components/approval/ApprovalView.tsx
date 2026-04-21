@@ -1427,12 +1427,9 @@ export function ApprovalView() {
                       <button type="button" onClick={() => setBulkValor('')} className="text-[10px] text-muted-foreground hover:text-foreground">limpar</button>
                     )}
                   </Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <CurrencyInput
                     value={bulkValor}
-                    onChange={(e) => setBulkValor(e.target.value)}
+                    onValueChange={(n) => setBulkValor(n === null ? '' : String(n))}
                     placeholder="Não alterar"
                   />
                 </div>
