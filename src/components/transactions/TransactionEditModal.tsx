@@ -274,8 +274,12 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
   });
 
   const groupedCategories = (() => {
+    const q = normalizeForSearch(categorySearch.trim());
+    const source = q
+      ? categoriesForFilters.filter(c => normalizeForSearch(c.name).includes(q))
+      : categoriesForFilters;
     const groups: Record<string, { accountName: string; items: typeof filteredCategories }> = {};
-    categoriesForFilters.forEach(c => {
+    source.forEach(c => {
       const accId = c.default_account_id || '__nodef__';
       const accName = accounts?.find(a => a.id === accId)?.name || 'Sem conta padrão';
       if (!groups[accId]) groups[accId] = { accountName: accName, items: [] };
