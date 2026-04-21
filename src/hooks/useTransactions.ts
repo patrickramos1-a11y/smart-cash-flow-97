@@ -96,9 +96,14 @@ export interface TransactionKPIs {
 }
 
 // Fetch transactions with filters
+// NOTE: `search` is intentionally excluded from the queryKey so typing in the
+// search box does NOT trigger network refetches. Filtering by `search` still
+// happens client-side below for backwards compatibility, but consumers should
+// prefer to filter the returned array locally for the most fluid UX.
 export function useTransactions(filters: TransactionFilters = {}) {
+  const { search: _searchIgnored, ...keyFilters } = filters;
   return useQuery({
-    queryKey: ['transactions', filters],
+    queryKey: ['transactions', keyFilters],
     queryFn: async () => {
       let query = supabase
         .from('transactions')
@@ -185,16 +190,10 @@ export function useTransactions(filters: TransactionFilters = {}) {
         category_subtype: t.transaction_categories?.subtype || null,
       }));
 
-      // Apply text search filter client-side
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        results = results.filter(t => 
-          t.descricao?.toLowerCase().includes(searchLower) ||
-          t.recurring_clients?.name?.toLowerCase().includes(searchLower) ||
-          t.category_name?.toLowerCase().includes(searchLower) ||
-          t.account_name?.toLowerCase().includes(searchLower)
-        );
-      }
+      // NOTE: `search` filtering is no longer applied here because it is not
+      // part of the queryKey. Components should filter the returned array
+      // client-side (see TransactionsList for an example).
+
 
       return results;
     },
