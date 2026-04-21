@@ -65,6 +65,7 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
       forma_pagamento_id: '', cliente_id: '',
       data_inicio: `${currentYear}-01-01`, data_fim: '', notes: '',
       documento_tipo: '',
+      account_id_override: '',
     });
     setEntityIds([]);
     setFilterAccountId('');
@@ -73,14 +74,23 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
 
   const handleClose = () => { resetForm(); onClose(); };
 
+  // Conta efetiva: default da categoria → override do usuário
+  const effectiveAccountId = selectedCategory?.default_account_id || formData.account_id_override || null;
+  const accountIsRequired = !!selectedCategory && !selectedCategory.default_account_id;
+
   const handleSubmit = async () => {
+    if (!effectiveAccountId) {
+      toast.error('Selecione uma Conta — a categoria escolhida não tem conta padrão.');
+      return;
+    }
+
     const result = await createFixedExpense.mutateAsync({
       nome: formData.nome,
       valor,
       dia_vencimento: formData.dia_vencimento,
       transaction_category_id: formData.categoria_id || null,
       cost_center_id: selectedCategory?.cost_center_id || null,
-      account_id: selectedCategory?.default_account_id || null,
+      account_id: effectiveAccountId,
       payment_method_id: formData.forma_pagamento_id || null,
       cliente_id: formData.cliente_id || null,
       data_inicio: formData.data_inicio,
@@ -105,7 +115,7 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
   };
 
   const isSubmitting = createFixedExpense.isPending || generateTransactions.isPending;
-  const canSubmit = formData.nome.trim().length > 0 && valor > 0 && formData.dia_vencimento >= 1 && formData.dia_vencimento <= 31 && formData.categoria_id.length > 0 && formData.forma_pagamento_id.length > 0 && formData.cliente_id.length > 0 && entityIds.length > 0 && formData.documento_tipo.length > 0;
+  const canSubmit = formData.nome.trim().length > 0 && valor > 0 && formData.dia_vencimento >= 1 && formData.dia_vencimento <= 31 && formData.categoria_id.length > 0 && formData.forma_pagamento_id.length > 0 && formData.cliente_id.length > 0 && entityIds.length > 0 && formData.documento_tipo.length > 0 && !!effectiveAccountId;
 
   const startDate = new Date(formData.data_inicio);
   const startMonth = startDate.getMonth() + 1;
