@@ -40,6 +40,14 @@ interface PendingTransaction {
   status: string;
   origem: string;
   fixed_expense_id: string | null;
+  // IDs (used for "common value" detection in bulk edit)
+  cliente_id: string | null;
+  entity_id: string | null;
+  responsavel_id: string | null;
+  account_id: string | null;
+  transaction_category_id: string | null;
+  cost_center_id: string | null;
+  // Display names
   category_name?: string;
   account_name?: string;
   cost_center_name?: string;
