@@ -77,18 +77,23 @@ export function ApprovalView() {
   const [bulkResponsavelId, setBulkResponsavelId] = useState<string>('');
   const [bulkOrigem, setBulkOrigem] = useState<string>('');
 
-  // Lookup data for bulk edit
+  // Lookup data for bulk edit (rich data with relationships)
   const { data: categoriesList } = useQuery({
-    queryKey: ['approval_categories_list'],
+    queryKey: ['approval_categories_list_full'],
     queryFn: async () => {
-      const { data } = await supabase.from('transaction_categories').select('id, name, type').eq('active', true).order('name');
+      const { data } = await supabase
+        .from('transaction_categories')
+        .select('id, name, type, subtype, color, default_account_id, cost_center_id')
+        .eq('active', true)
+        .order('name');
       return data || [];
     },
   });
   const { data: accountsList } = useQuery({
-    queryKey: ['approval_accounts_list'],
+    queryKey: ['approval_accounts_list_full'],
     queryFn: async () => {
-      const { data } = await supabase.from('accounts').select('id, name').eq('active', true).order('name');
+      // Fetch ALL accounts (including inactive) since legacy data may reference them
+      const { data } = await supabase.from('accounts').select('id, name, bank, active').order('name');
       return data || [];
     },
   });
