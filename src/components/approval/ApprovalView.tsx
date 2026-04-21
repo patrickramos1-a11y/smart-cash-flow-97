@@ -799,6 +799,7 @@ export function ApprovalView() {
                       <span className="flex items-center">Descrição <SortIcon field="descricao" /></span>
                     </th>
                     <th className="text-left p-3 text-xs font-medium">Cliente</th>
+                    <th className="text-left p-3 text-xs font-medium">Entidade</th>
                     <th className="text-left p-3 text-xs font-medium">Categoria</th>
                     <th className="text-left p-3 text-xs font-medium">Origem</th>
                     <th className="text-left p-3 text-xs font-medium cursor-pointer select-none" onClick={() => handleSort('data_vencimento')}>
