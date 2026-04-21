@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, AlertTriangle, Link2 } from 'lucide-react';
+import { X, AlertTriangle } from 'lucide-react';
 import { useAccounts, useCostCenters, useTransactionCategories, type CategorySubtype } from '@/hooks/useFinancialConfig';
 import { getEntityIcon } from '@/utils/entityIcons';
 import { CategorySearchInput, normalizeForSearch } from './CategorySearchInput';
