@@ -497,13 +497,28 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Centro de Custo</Label>
-              <Select value={costCenterId || '__none__'} onValueChange={(v) => setCostCenterId(v === '__none__' ? '' : v)}>
+              <Select value={costCenterId || '__none__'} onValueChange={(v) => handleCostCenterChange(v === '__none__' ? '' : v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Nenhum</SelectItem>
-                  {costCenters?.map(cc => (
-                    <SelectItem key={cc.id} value={cc.id}>{cc.name}</SelectItem>
-                  ))}
+                  {visibleCostCenters.map(cc => {
+                    const Icon = getEntityIcon(cc.name);
+                    const color = colorFromName(cc.name);
+                    return (
+                      <SelectItem key={cc.id} value={cc.id}>
+                        <span className="inline-flex items-center gap-2">
+                          <span
+                            className="inline-flex items-center justify-center w-5 h-5 rounded"
+                            style={{ backgroundColor: `${color}20`, color }}
+                          >
+                            <Icon className="w-3 h-3" />
+                          </span>
+                          <span style={{ color }} className="font-medium">{cc.name}</span>
+                          {!cc.active && <Badge variant="outline" className="text-[9px] px-1 py-0">inativo</Badge>}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
