@@ -491,7 +491,7 @@ export function ApprovalView() {
   }, [bulkFilteredCategories, accountsList, bulkCategorySearch]);
 
   const resetBulkFields = () => {
-    setBulkCategoryId(''); setBulkAccountId(''); setBulkCostCenterId('');
+    setBulkCategoryId(''); setBulkAccountId(''); setBulkCostCenterId(''); setBulkCategorySearch('');
     setBulkClienteId(''); setBulkEntityId(''); setBulkResponsavelId(''); setBulkOrigem('');
     setBulkDescricao(''); setBulkValor(''); setBulkDataVencimento(''); setBulkStatus(''); setBulkNotes('');
   };
