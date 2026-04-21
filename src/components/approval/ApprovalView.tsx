@@ -60,6 +60,7 @@ export function ApprovalView() {
   const [filterOrigem, setFilterOrigem] = useState<string>('todos');
   const [rejectingIds, setRejectingIds] = useState<string[]>([]);
   const [rejectReason, setRejectReason] = useState('');
+  const [rejectReasonsSelected, setRejectReasonsSelected] = useState<string[]>([]);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('created_at');
