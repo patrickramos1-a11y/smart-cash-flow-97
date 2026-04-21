@@ -380,20 +380,29 @@ export function useLinkCategoriesToAccount() {
 
   return useMutation({
     mutationFn: async ({ accountId, categoryIds }: { accountId: string; categoryIds: string[] }) => {
-      // Remover vínculo das categorias que NÃO devem mais apontar para esta conta
-      const { error: clearError } = await supabase
+      // 1) Buscar vínculos atuais
+      const { data: current, error: fetchError } = await supabase
         .from('transaction_categories')
-        .update({ default_account_id: null })
-        .eq('default_account_id', accountId)
-        .not('id', 'in', `(${categoryIds.length ? categoryIds.map(id => `"${id}"`).join(',') : '""'})`);
-      if (clearError && categoryIds.length) throw clearError;
+        .select('id')
+        .eq('default_account_id', accountId);
+      if (fetchError) throw fetchError;
 
-      // Vincular as selecionadas
-      if (categoryIds.length) {
+      const currentIds = (current ?? []).map((c: any) => c.id as string);
+      const toUnlink = currentIds.filter(id => !categoryIds.includes(id));
+      const toLink = categoryIds.filter(id => !currentIds.includes(id));
+
+      if (toUnlink.length) {
+        const { error: unlinkError } = await supabase
+          .from('transaction_categories')
+          .update({ default_account_id: null })
+          .in('id', toUnlink);
+        if (unlinkError) throw unlinkError;
+      }
+      if (toLink.length) {
         const { error: linkError } = await supabase
           .from('transaction_categories')
           .update({ default_account_id: accountId })
-          .in('id', categoryIds);
+          .in('id', toLink);
         if (linkError) throw linkError;
       }
     },
