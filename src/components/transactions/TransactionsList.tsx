@@ -511,6 +511,26 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
         )}
       </div>
 
+      {/* Active column filters indicator */}
+      {hasActiveColumnFilters && !isMobile && (
+        <div className="flex items-center gap-2 flex-wrap mb-3 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 text-xs">
+          <Filter className="w-3 h-3 text-primary" />
+          <span className="font-medium">{sortedTransactions.length}</span>
+          <span className="text-muted-foreground">de {transactions?.length ?? 0} linhas após filtros de coluna</span>
+          {Object.entries(columnFilters).filter(([, s]) => s.size > 0).map(([col, set]) => (
+            <Badge key={col} variant="outline" className="text-[10px] gap-1">
+              {col}: {set.size} valor(es)
+              <button onClick={() => setColumnFilters(prev => { const n = { ...prev }; delete n[col]; return n; })}>
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </Badge>
+          ))}
+          <button onClick={() => setColumnFilters({})} className="ml-auto text-primary hover:underline">
+            Limpar todos
+          </button>
+        </div>
+      )}
+
       {/* Mobile Card List */}
       {isMobile ? (
         <div className="space-y-2">
