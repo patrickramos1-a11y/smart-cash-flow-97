@@ -119,15 +119,20 @@ export function ApprovalView() {
   const [bulkEntityId, setBulkEntityId] = useState<string>('');
   const [bulkResponsavelId, setBulkResponsavelId] = useState<string>('');
   const [bulkOrigem, setBulkOrigem] = useState<string>('');
+  // New editable fields
+  const [bulkDescricao, setBulkDescricao] = useState<string>('');
+  const [bulkValor, setBulkValor] = useState<string>('');
+  const [bulkDataVencimento, setBulkDataVencimento] = useState<string>('');
+  const [bulkStatus, setBulkStatus] = useState<string>('');
+  const [bulkNotes, setBulkNotes] = useState<string>('');
 
-  // Lookup data for bulk edit (rich data with relationships)
+  // Lookup data for bulk edit — fetch ALL records (active + inactive) so legacy refs are preserved
   const { data: categoriesList } = useQuery({
     queryKey: ['approval_categories_list_full'],
     queryFn: async () => {
       const { data } = await supabase
         .from('transaction_categories')
-        .select('id, name, type, subtype, color, default_account_id, cost_center_id')
-        .eq('active', true)
+        .select('id, name, type, subtype, color, default_account_id, cost_center_id, active')
         .order('name');
       return data || [];
     },
@@ -135,7 +140,6 @@ export function ApprovalView() {
   const { data: accountsList } = useQuery({
     queryKey: ['approval_accounts_list_full'],
     queryFn: async () => {
-      // Fetch ALL accounts (including inactive) since legacy data may reference them
       const { data } = await supabase.from('accounts').select('id, name, bank, active').order('name');
       return data || [];
     },
@@ -143,7 +147,8 @@ export function ApprovalView() {
   const { data: costCentersList } = useQuery({
     queryKey: ['approval_cost_centers_list'],
     queryFn: async () => {
-      const { data } = await supabase.from('cost_centers').select('id, name').eq('active', true).order('name');
+      // Include inactive — categorias podem estar vinculadas a CCs marcados como inativos (ex: "Impostos e taxas")
+      const { data } = await supabase.from('cost_centers').select('id, name, active').order('name');
       return data || [];
     },
   });
