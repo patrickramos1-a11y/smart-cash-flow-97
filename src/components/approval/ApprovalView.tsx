@@ -316,6 +316,11 @@ export function ApprovalView() {
       setBulkEntityId('');
       setBulkResponsavelId('');
       setBulkOrigem('');
+      setBulkDescricao('');
+      setBulkValor('');
+      setBulkDataVencimento('');
+      setBulkStatus('');
+      setBulkNotes('');
       setSelectedIds(new Set());
     },
     onError: (e: any) => toast.error('Erro ao atualizar: ' + (e?.message || '')),
