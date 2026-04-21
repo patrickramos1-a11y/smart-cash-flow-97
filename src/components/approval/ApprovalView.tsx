@@ -205,6 +205,7 @@ export function ApprovalView() {
       toast.success(`${ids.length} lançamento(s) rejeitado(s) e arquivado(s)`);
       setRejectingIds([]);
       setRejectReason('');
+      setRejectReasonsSelected([]);
     },
     onError: (e: any) => toast.error('Erro ao rejeitar: ' + (e?.message || '')),
   });
