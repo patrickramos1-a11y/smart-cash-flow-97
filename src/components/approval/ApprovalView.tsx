@@ -299,15 +299,25 @@ export function ApprovalView() {
   // Bulk edit mutation
   const bulkEditMutation = useMutation({
     mutationFn: async ({ ids, updates }: { ids: string[]; updates: Record<string, any> }) => {
-      const { error } = await supabase
+      // .select('id') força a resposta a vir com os IDs atualizados — assim erros de RLS
+      // ou de trigger aparecem imediatamente em vez de ficar carregando indefinidamente.
+      const { data, error } = await supabase
         .from('transactions')
         .update(updates)
-        .in('id', ids);
+        .in('id', ids)
+        .select('id');
       if (error) throw error;
+      return data;
     },
-    onSuccess: (_, { ids }) => {
-      queryClient.invalidateQueries({ queryKey: ['approval-transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    onSuccess: async (_, { ids }) => {
+      // Invalida + refaz queries ativas para garantir que a UI atualize sem F5
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['approval-transactions'] }),
+        queryClient.invalidateQueries({ queryKey: ['transactions'] }),
+        queryClient.invalidateQueries({ queryKey: ['open-payments'] }),
+        queryClient.invalidateQueries({ queryKey: ['transactions_chart_v2'] }),
+      ]);
+      await queryClient.refetchQueries({ queryKey: ['approval-transactions'], type: 'active' });
       toast.success(`${ids.length} lançamento(s) atualizado(s)!`);
       setBulkEditOpen(false);
       setBulkCategoryId('');
@@ -344,10 +354,11 @@ export function ApprovalView() {
     setBulkEntityId(commonValue(selectedTransactions.map(t => t.entity_id)) || '');
     setBulkResponsavelId(commonValue(selectedTransactions.map(t => t.responsavel_id)) || '');
     setBulkOrigem(commonValue(selectedTransactions.map(t => t.origem)) || '');
-    setBulkDescricao(commonValue(selectedTransactions.map(t => t.descricao)) || '');
-    const commonV = commonValue(selectedTransactions.map(t => String(t.valor)));
-    setBulkValor(commonV || '');
-    setBulkDataVencimento(commonValue(selectedTransactions.map(t => t.data_vencimento)) || '');
+    // Descrição/Valor/Vencimento NÃO são pré-preenchidos: campos vazios = "não alterar".
+    // Isso evita reescrever desnecessariamente esses campos (e disparar triggers caros) em massa.
+    setBulkDescricao('');
+    setBulkValor('');
+    setBulkDataVencimento('');
     setBulkStatus(commonValue(selectedTransactions.map(t => t.status)) || '');
     setBulkNotes('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
