@@ -268,9 +268,28 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
     return Object.values(groups).sort((a, b) => a.accountName.localeCompare(b.accountName));
   })();
 
-  // Sticky IDs: keep currently-selected items visible even if normally filtered out
-  const visibleAccounts = (accounts || []).filter(a => a.active || a.id === accountId);
-  const visibleCostCenters = (costCenters || []).filter(cc => cc.active || cc.id === costCenterId);
+  // Cascading visible lists: account list depends on CC (and vice-versa).
+  // Always keep currently-selected (sticky) values visible so UI stays consistent.
+  const tipo = transaction.tipo_movimento;
+  const catsOfTipo = (categories || []).filter(c => c.type === tipo);
+
+  const visibleAccounts = (() => {
+    const relevant = costCenterId
+      ? catsOfTipo.filter(c => c.cost_center_id === costCenterId)
+      : catsOfTipo;
+    const accIds = new Set(relevant.map(c => c.default_account_id).filter(Boolean));
+    if (accountId) accIds.add(accountId);
+    return (accounts || []).filter(a => (a.active && accIds.has(a.id)) || a.id === accountId);
+  })();
+
+  const visibleCostCenters = (() => {
+    const relevant = accountId
+      ? catsOfTipo.filter(c => c.default_account_id === accountId)
+      : catsOfTipo;
+    const ccIds = new Set(relevant.map(c => c.cost_center_id).filter(Boolean));
+    if (costCenterId) ccIds.add(costCenterId);
+    return (costCenters || []).filter(cc => (cc.active && ccIds.has(cc.id)) || cc.id === costCenterId);
+  })();
 
   // When category is selected, auto-fill account + cost-center from its defaults
   const handleCategoryChange = (newCategoryId: string) => {
@@ -282,25 +301,31 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
     }
   };
 
-  // When account changes, clear category if it doesn't match
+  // When account changes: clear category + CC if they become incompatible
   const handleAccountChange = (newAccountId: string) => {
     setAccountId(newAccountId);
-    if (newAccountId && categoryId) {
+    if (!newAccountId) return;
+    if (categoryId) {
       const cat = filteredCategories.find(c => c.id === categoryId);
-      if (cat?.default_account_id && cat.default_account_id !== newAccountId) {
-        setCategoryId('');
-      }
+      if (cat?.default_account_id && cat.default_account_id !== newAccountId) setCategoryId('');
+    }
+    if (costCenterId) {
+      const hasMatch = catsOfTipo.some(c => c.default_account_id === newAccountId && c.cost_center_id === costCenterId);
+      if (!hasMatch) setCostCenterId('');
     }
   };
 
-  // When cost-center changes, clear category if it doesn't match
+  // When cost-center changes: clear category + account if they become incompatible
   const handleCostCenterChange = (newCcId: string) => {
     setCostCenterId(newCcId);
-    if (newCcId && categoryId) {
+    if (!newCcId) return;
+    if (categoryId) {
       const cat = filteredCategories.find(c => c.id === categoryId);
-      if (cat?.cost_center_id && cat.cost_center_id !== newCcId) {
-        setCategoryId('');
-      }
+      if (cat?.cost_center_id && cat.cost_center_id !== newCcId) setCategoryId('');
+    }
+    if (accountId) {
+      const hasMatch = catsOfTipo.some(c => c.cost_center_id === newCcId && c.default_account_id === accountId);
+      if (!hasMatch) setAccountId('');
     }
   };
 
