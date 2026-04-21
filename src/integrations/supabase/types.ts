@@ -728,62 +728,90 @@ export type Database = {
       }
       fixed_expenses: {
         Row: {
+          account_id: string | null
           active: boolean
-          categoria_id: string | null
-          centro_custo_id: string | null
           cliente_id: string | null
-          conta_id: string | null
+          cost_center_id: string | null
           created_at: string
           data_fim: string | null
           data_inicio: string
           dia_vencimento: number
-          forma_pagamento_id: string | null
           id: string
           nome: string
           notes: string | null
+          payment_method_id: string | null
+          transaction_category_id: string | null
           updated_at: string
           valor: number
         }
         Insert: {
+          account_id?: string | null
           active?: boolean
-          categoria_id?: string | null
-          centro_custo_id?: string | null
           cliente_id?: string | null
-          conta_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           data_fim?: string | null
           data_inicio?: string
           dia_vencimento: number
-          forma_pagamento_id?: string | null
           id?: string
           nome: string
           notes?: string | null
+          payment_method_id?: string | null
+          transaction_category_id?: string | null
           updated_at?: string
           valor?: number
         }
         Update: {
+          account_id?: string | null
           active?: boolean
-          categoria_id?: string | null
-          centro_custo_id?: string | null
           cliente_id?: string | null
-          conta_id?: string | null
+          cost_center_id?: string | null
           created_at?: string
           data_fim?: string | null
           data_inicio?: string
           dia_vencimento?: number
-          forma_pagamento_id?: string | null
           id?: string
           nome?: string
           notes?: string | null
+          payment_method_id?: string | null
+          transaction_category_id?: string | null
           updated_at?: string
           valor?: number
         }
         Relationships: [
           {
+            foreignKeyName: "fixed_expenses_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fixed_expenses_cliente_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "recurring_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_expenses_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_expenses_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "payment_methods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_expenses_transaction_category_id_fkey"
+            columns: ["transaction_category_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_categories"
             referencedColumns: ["id"]
           },
         ]
