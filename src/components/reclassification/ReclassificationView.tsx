@@ -306,8 +306,9 @@ function BackfillPanel() {
       let q = supabase.from('transactions').update({ responsavel_id: finalRespId });
       if (scope !== 'AMBOS') q = q.eq('tipo_movimento', scope);
       if (!overwrite) q = q.is('responsavel_id', null);
-      const { error, count } = await q.select('id', { count: 'exact', head: true });
+      const { data, error } = await q.select('id');
       if (error) throw error;
+      const count = data?.length ?? 0;
       return count ?? 0;
     },
     onSuccess: (n) => {
@@ -327,8 +328,9 @@ function BackfillPanel() {
         .update({ entity_id: targetEntityId })
         .ilike('descricao', `%${entityKeyword.trim()}%`);
       if (entityScope !== 'AMBOS') q = q.eq('tipo_movimento', entityScope);
-      const { error, count } = await q.select('id', { count: 'exact', head: true });
+      const { data, error } = await q.select('id');
       if (error) throw error;
+      const count = data?.length ?? 0;
       return count ?? 0;
     },
     onSuccess: (n) => {
