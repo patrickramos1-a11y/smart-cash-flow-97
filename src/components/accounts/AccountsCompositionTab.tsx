@@ -24,10 +24,17 @@ export function AccountsCompositionTab({ selectedAccountId, selectedYear }: Prop
 
   const account = accounts?.find(a => a.id === selectedAccountId);
 
+  // Considera apenas transações EFETIVADAS (PAGO) para refletir o que realmente afeta o saldo da conta
   const yearTx = useMemo(
-    () => (transactions ?? []).filter(t => t.account_id === selectedAccountId && t.competencia_ano === selectedYear),
+    () => (transactions ?? []).filter(t =>
+      t.account_id === selectedAccountId &&
+      t.competencia_ano === selectedYear &&
+      t.status === 'PAGO',
+    ),
     [transactions, selectedAccountId, selectedYear],
   );
+
+  const valueOf = (t: typeof yearTx[number]) => Number(t.valor_pago ?? t.valor) || 0;
 
   const linkedCategories = useMemo(
     () => (categories ?? []).filter(c => c.default_account_id === selectedAccountId),
@@ -40,7 +47,7 @@ export function AccountsCompositionTab({ selectedAccountId, selectedYear }: Prop
       const key = t.transaction_category_id || 'sem';
       const cur = map.get(key) || { count: 0, total: 0 };
       cur.count += 1;
-      cur.total += Number(t.valor);
+      cur.total += valueOf(t);
       map.set(key, cur);
     }
     return map;
@@ -50,7 +57,7 @@ export function AccountsCompositionTab({ selectedAccountId, selectedYear }: Prop
     const map = new Map<string, number>();
     for (const t of yearTx) {
       if (!t.cost_center_id) continue;
-      map.set(t.cost_center_id, (map.get(t.cost_center_id) ?? 0) + Number(t.valor));
+      map.set(t.cost_center_id, (map.get(t.cost_center_id) ?? 0) + valueOf(t));
     }
     return Array.from(map.entries())
       .map(([id, total]) => ({ id, total, name: costCenters?.find(c => c.id === id)?.name ?? 'Sem nome' }))
@@ -62,7 +69,7 @@ export function AccountsCompositionTab({ selectedAccountId, selectedYear }: Prop
     const map = new Map<string, number>();
     for (const t of yearTx) {
       if (!t.entity_id) continue;
-      map.set(t.entity_id, (map.get(t.entity_id) ?? 0) + Number(t.valor));
+      map.set(t.entity_id, (map.get(t.entity_id) ?? 0) + valueOf(t));
     }
     return Array.from(map.entries())
       .map(([id, total]) => ({ id, total, name: entities?.find(e => e.id === id)?.name ?? 'Sem nome' }))
@@ -195,25 +202,25 @@ export function AccountsCompositionTab({ selectedAccountId, selectedYear }: Prop
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
-            <Repeat className="w-4 h-4" /> Resumo do ano em {selectedYear}
+            <Repeat className="w-4 h-4" /> Resumo do ano em {selectedYear} <span className="text-[11px] font-normal text-muted-foreground">(somente efetivados)</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
             <div>
-              <p className="text-xs text-muted-foreground">Lançamentos</p>
+              <p className="text-xs text-muted-foreground">Lançamentos pagos</p>
               <p className="font-semibold">{yearTx.length}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Total Entradas</p>
+              <p className="text-xs text-muted-foreground">Entradas efetivadas</p>
               <p className="font-semibold text-income">
-                {formatCurrency(yearTx.filter(t => t.tipo_movimento === 'ENTRADA').reduce((s, t) => s + Number(t.valor), 0))}
+                {formatCurrency(yearTx.filter(t => t.tipo_movimento === 'ENTRADA').reduce((s, t) => s + valueOf(t), 0))}
               </p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Total Saídas</p>
+              <p className="text-xs text-muted-foreground">Saídas efetivadas</p>
               <p className="font-semibold text-expense">
-                {formatCurrency(yearTx.filter(t => t.tipo_movimento === 'SAIDA').reduce((s, t) => s + Number(t.valor), 0))}
+                {formatCurrency(yearTx.filter(t => t.tipo_movimento === 'SAIDA').reduce((s, t) => s + valueOf(t), 0))}
               </p>
             </div>
             <div>
