@@ -299,15 +299,25 @@ export function ApprovalView() {
   // Bulk edit mutation
   const bulkEditMutation = useMutation({
     mutationFn: async ({ ids, updates }: { ids: string[]; updates: Record<string, any> }) => {
-      const { error } = await supabase
+      // .select('id') força a resposta a vir com os IDs atualizados — assim erros de RLS
+      // ou de trigger aparecem imediatamente em vez de ficar carregando indefinidamente.
+      const { data, error } = await supabase
         .from('transactions')
         .update(updates)
-        .in('id', ids);
+        .in('id', ids)
+        .select('id');
       if (error) throw error;
+      return data;
     },
-    onSuccess: (_, { ids }) => {
-      queryClient.invalidateQueries({ queryKey: ['approval-transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    onSuccess: async (_, { ids }) => {
+      // Invalida + refaz queries ativas para garantir que a UI atualize sem F5
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['approval-transactions'] }),
+        queryClient.invalidateQueries({ queryKey: ['transactions'] }),
+        queryClient.invalidateQueries({ queryKey: ['open-payments'] }),
+        queryClient.invalidateQueries({ queryKey: ['transactions_chart_v2'] }),
+      ]);
+      await queryClient.refetchQueries({ queryKey: ['approval-transactions'], type: 'active' });
       toast.success(`${ids.length} lançamento(s) atualizado(s)!`);
       setBulkEditOpen(false);
       setBulkCategoryId('');
