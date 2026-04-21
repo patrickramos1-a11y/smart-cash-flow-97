@@ -442,6 +442,7 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
                     {visibleColumns.has('conta') && <th className="text-left p-4 text-sm font-medium">Conta</th>}
                     {visibleColumns.has('centro_custo') && <th className="text-left p-4 text-sm font-medium">C. Custo</th>}
                     {visibleColumns.has('responsavel') && <th className="text-left p-4 text-sm font-medium">Responsável</th>}
+                    {visibleColumns.has('nf') && <th className="text-left p-4 text-sm font-medium">NF / Doc.</th>}
                     {visibleColumns.has('vencimento') && (
                       <th className="text-left p-4 text-sm font-medium">
                         <button onClick={() => toggleSort('data_vencimento')} className="flex items-center hover:text-foreground">
