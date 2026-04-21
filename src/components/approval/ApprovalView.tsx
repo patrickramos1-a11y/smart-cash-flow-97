@@ -796,21 +796,79 @@ export function ApprovalView() {
       )}
 
       {/* Reject modal */}
-      <Dialog open={rejectingIds.length > 0} onOpenChange={() => { setRejectingIds([]); setRejectReason(''); }}>
-        <DialogContent>
+      <Dialog
+        open={rejectingIds.length > 0}
+        onOpenChange={() => { setRejectingIds([]); setRejectReason(''); setRejectReasonsSelected([]); }}
+      >
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Rejeitar {rejectingIds.length > 1 ? `${rejectingIds.length} Lançamentos` : 'Lançamento'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Informe o motivo da rejeição:</p>
-            <Textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Motivo da rejeição..." rows={3} />
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm font-medium mb-2">Selecione o(s) motivo(s):</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[
+                  'Valor incorreto',
+                  'Categoria incorreta',
+                  'Centro de custo incorreto',
+                  'Conta incorreta',
+                  'Cliente/Entidade incorreto',
+                  'Data de vencimento incorreta',
+                  'Descrição insuficiente',
+                  'Documento (NF/Recibo) ausente',
+                  'Lançamento duplicado',
+                  'Fora do escopo / não autorizado',
+                ].map((opt) => {
+                  const checked = rejectReasonsSelected.includes(opt);
+                  return (
+                    <label
+                      key={opt}
+                      className={cn(
+                        'flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer text-sm transition-colors',
+                        checked ? 'border-destructive bg-destructive/5' : 'border-border hover:bg-muted'
+                      )}
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(v) => {
+                          setRejectReasonsSelected((prev) =>
+                            v ? [...prev, opt] : prev.filter((r) => r !== opt)
+                          );
+                        }}
+                      />
+                      <span>{opt}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Detalhes adicionais (opcional)</Label>
+              <Textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Adicione um comentário se necessário..."
+                rows={3}
+                className="mt-1"
+              />
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectingIds([])}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setRejectingIds([]); setRejectReason(''); setRejectReasonsSelected([]); }}>
+              Cancelar
+            </Button>
             <Button
               variant="destructive"
-              onClick={() => rejectingIds.length > 0 && rejectMutation.mutate({ ids: rejectingIds, reason: rejectReason })}
-              disabled={!rejectReason.trim() || rejectMutation.isPending}
+              onClick={() => {
+                if (rejectingIds.length === 0) return;
+                const parts: string[] = [];
+                if (rejectReasonsSelected.length > 0) parts.push(rejectReasonsSelected.join('; '));
+                if (rejectReason.trim()) parts.push(rejectReason.trim());
+                const finalReason = parts.join(' — ');
+                rejectMutation.mutate({ ids: rejectingIds, reason: finalReason });
+              }}
+              disabled={(rejectReasonsSelected.length === 0 && !rejectReason.trim()) || rejectMutation.isPending}
             >
               Rejeitar {rejectingIds.length > 1 ? `(${rejectingIds.length})` : ''}
             </Button>
