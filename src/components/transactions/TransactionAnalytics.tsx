@@ -51,7 +51,7 @@ export function TransactionAnalytics({ month, year, type }: TransactionAnalytics
     if (!transactions || !categories) return [];
 
     const grouped = transactions.reduce((acc, t) => {
-      const categoryId = t.categoria_id || 'sem-categoria';
+      const categoryId = t.transaction_category_id || 'sem-categoria';
       const category = categories.find(c => c.id === categoryId);
       const name = category?.name || 'Sem Categoria';
       
@@ -76,7 +76,7 @@ export function TransactionAnalytics({ month, year, type }: TransactionAnalytics
     if (!transactions || !accounts) return [];
 
     const grouped = transactions.reduce((acc, t) => {
-      const accountId = t.conta_id || 'sem-conta';
+      const accountId = t.account_id || 'sem-conta';
       const account = accounts.find(a => a.id === accountId);
       const name = account?.name || 'Sem Conta';
       
@@ -101,7 +101,7 @@ export function TransactionAnalytics({ month, year, type }: TransactionAnalytics
     if (!transactions || !categories || !costCenters) return [];
 
     const grouped = transactions.reduce((acc, t) => {
-      const categoryId = t.categoria_id;
+      const categoryId = t.transaction_category_id;
       const category = categories.find(c => c.id === categoryId);
       const costCenterId = category?.cost_center_id || 'sem-centro';
       const costCenter = costCenters.find(cc => cc.id === costCenterId);
@@ -128,7 +128,7 @@ export function TransactionAnalytics({ month, year, type }: TransactionAnalytics
     if (!transactions || !paymentMethods) return [];
 
     const grouped = transactions.reduce((acc, t) => {
-      const methodId = t.forma_pagamento_id || 'sem-forma';
+      const methodId = 'sem-forma';
       const method = paymentMethods.find(m => m.id === methodId);
       const name = method?.name || 'Não Especificado';
       
