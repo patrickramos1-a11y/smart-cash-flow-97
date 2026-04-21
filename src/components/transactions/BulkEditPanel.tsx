@@ -78,6 +78,7 @@ export interface BulkSelectableTransaction {
   status?: string | null;
   origem?: string | null;
   competencia_ano?: number | null;
+  documento_recebimento?: string | null;
 }
 
 interface BulkEditPanelProps {
@@ -103,6 +104,7 @@ interface ContextFields {
   vencimento: boolean;
   descricao: boolean;
   notes: boolean;
+  documentoRecebimento: boolean;
 }
 
 function getContextFields(ctx: BulkContext): { fields: ContextFields; warnings: string[] } {
@@ -115,6 +117,7 @@ function getContextFields(ctx: BulkContext): { fields: ContextFields; warnings: 
           cliente: false, entity: true, responsavel: true,
           categoria: true, conta: true, centroCusto: true, status: true,
           valor: false, vencimento: false, descricao: false, notes: true,
+          documentoRecebimento: true,
         },
         warnings,
       };
@@ -125,6 +128,7 @@ function getContextFields(ctx: BulkContext): { fields: ContextFields; warnings: 
           cliente: false, entity: true, responsavel: true,
           categoria: true, conta: true, centroCusto: true, status: true,
           valor: false, vencimento: false, descricao: false, notes: true,
+          documentoRecebimento: true,
         },
         warnings,
       };
@@ -137,11 +141,20 @@ function getContextFields(ctx: BulkContext): { fields: ContextFields; warnings: 
           cliente: true, entity: true, responsavel: true,
           categoria: true, conta: true, centroCusto: true, status: true,
           valor: true, vencimento: true, descricao: false, notes: true,
+          documentoRecebimento: true,
         },
         warnings,
       };
   }
 }
+
+// Opções padronizadas de Documento de Recebimento (NF)
+const DOC_RECEB_OPTIONS = [
+  { value: 'NOTA_FISCAL', label: 'Nota Fiscal (NF)' },
+  { value: 'RECIBO', label: 'Recibo' },
+  { value: 'NOTA_DE_DEBITO', label: 'Nota de Débito' },
+  { value: 'SEM_DOCUMENTO', label: 'Sem documento' },
+];
 
 // Mapeia campo da UI → coluna do banco (para o filtro `is(<col>, null)` quando "sobrescrever" está OFF)
 const FIELD_TO_COLUMN: Record<string, string> = {
@@ -155,6 +168,7 @@ const FIELD_TO_COLUMN: Record<string, string> = {
   valor: 'valor',
   data_vencimento: 'data_vencimento',
   notes: 'notes',
+  documento_recebimento: 'documento_recebimento',
 };
 
 const CHUNK_SIZE = 500;
