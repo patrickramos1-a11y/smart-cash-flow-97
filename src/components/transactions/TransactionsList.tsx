@@ -309,6 +309,119 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
     return sortDir === 'asc' ? <ArrowUp className="w-3 h-3 ml-1" /> : <ArrowDown className="w-3 h-3 ml-1" />;
   };
 
+  // Filtro estilo Excel por coluna: popover com checkboxes dos valores únicos.
+  const ColumnFilter = ({ col, label }: { col: string; label: string }) => {
+    const active = columnFilters[col]?.size ?? 0;
+    const [popoverSearch, setPopoverSearch] = useState('');
+    const uniqueValues = getUniqueValuesForColumn(col);
+    const filteredValues = popoverSearch
+      ? uniqueValues.filter(v => {
+          const display = v === '__EMPTY__' ? 'em branco' : v;
+          return display.toLowerCase().includes(popoverSearch.toLowerCase());
+        })
+      : uniqueValues;
+    const current = columnFilters[col] ?? new Set<string>();
+    const allSelected = current.size === 0;
+
+    const toggleValue = (v: string) => {
+      setColumnFilters(prev => {
+        const next = { ...prev };
+        const set = new Set(next[col] ?? []);
+        // Se vazio (= todos), inicia com todos os valores e remove o clicado.
+        if (set.size === 0) {
+          uniqueValues.forEach(uv => set.add(uv));
+        }
+        if (set.has(v)) set.delete(v);
+        else set.add(v);
+        // Se voltou a ter todos, limpa o filtro.
+        if (set.size === uniqueValues.length || set.size === 0) {
+          delete next[col];
+        } else {
+          next[col] = set;
+        }
+        return next;
+      });
+    };
+
+    const clearFilter = () => {
+      setColumnFilters(prev => {
+        const next = { ...prev };
+        delete next[col];
+        return next;
+      });
+    };
+
+    const selectOnly = (v: string) => {
+      setColumnFilters(prev => ({ ...prev, [col]: new Set([v]) }));
+    };
+
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            className={cn(
+              "ml-1 inline-flex items-center justify-center rounded p-0.5 hover:bg-muted transition-colors",
+              active > 0 && "bg-primary/15 text-primary"
+            )}
+            title={`Filtrar ${label}`}
+          >
+            <Filter className="w-3 h-3" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-0" align="start">
+          <div className="p-2 border-b flex items-center justify-between gap-2">
+            <span className="text-xs font-medium">Filtrar: {label}</span>
+            {active > 0 && (
+              <button onClick={clearFilter} className="text-[10px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+                <X className="w-3 h-3" /> Limpar
+              </button>
+            )}
+          </div>
+          <div className="p-2 border-b">
+            <Input
+              autoFocus
+              value={popoverSearch}
+              onChange={e => setPopoverSearch(e.target.value)}
+              placeholder="Pesquisar..."
+              className="h-7 text-xs"
+            />
+          </div>
+          <div className="max-h-64 overflow-y-auto p-1">
+            {filteredValues.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-3">Nenhum valor</p>
+            )}
+            {filteredValues.map(v => {
+              const display = v === '__EMPTY__' ? '(em branco)' : v;
+              const isChecked = allSelected || current.has(v);
+              return (
+                <div
+                  key={v}
+                  className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted text-xs group"
+                >
+                  <Checkbox
+                    checked={isChecked}
+                    onCheckedChange={() => toggleValue(v)}
+                  />
+                  <span className="flex-1 truncate cursor-pointer" onClick={() => toggleValue(v)}>
+                    {display}
+                  </span>
+                  <button
+                    onClick={() => selectOnly(v)}
+                    className="opacity-0 group-hover:opacity-100 text-[9px] text-primary hover:underline"
+                  >
+                    só este
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
+  const hasActiveColumnFilters = Object.values(columnFilters).some(s => s.size > 0);
+
   if (isLoading) {
     return (
       <Card>
