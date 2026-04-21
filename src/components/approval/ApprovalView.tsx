@@ -24,6 +24,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { TransactionEditModal } from '@/components/transactions/TransactionEditModal';
 import type { TransactionWithClient } from '@/hooks/useTransactions';
 import { getEntityIcon } from '@/utils/entityIcons';
+import { CategorySearchInput, normalizeForSearch } from '@/components/transactions/CategorySearchInput';
 
 // Ensures color contrast for readable text on white surfaces
 function ensureDarkColor(hex?: string | null): string {
