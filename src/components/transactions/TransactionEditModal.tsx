@@ -482,15 +482,35 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
                 {groupedCategories.length === 0 && (
                   <div className="px-2 py-3 text-xs text-muted-foreground text-center space-y-2">
                     <p>Nenhuma categoria para este filtro</p>
-                    {(accountId || costCenterId) && (
-                      <button
-                        type="button"
-                        className="text-primary underline"
-                        onClick={() => { setAccountId(''); setCostCenterId(''); }}
-                      >
-                        Limpar filtros
-                      </button>
-                    )}
+                    <div className="flex flex-wrap justify-center gap-x-3 gap-y-1">
+                      {accountId && (
+                        <button
+                          type="button"
+                          className="text-primary underline"
+                          onClick={() => setAccountId('')}
+                        >
+                          Limpar Conta
+                        </button>
+                      )}
+                      {costCenterId && (
+                        <button
+                          type="button"
+                          className="text-primary underline"
+                          onClick={() => setCostCenterId('')}
+                        >
+                          Limpar Centro de Custo
+                        </button>
+                      )}
+                      {accountId && costCenterId && (
+                        <button
+                          type="button"
+                          className="text-primary underline"
+                          onClick={() => { setAccountId(''); setCostCenterId(''); }}
+                        >
+                          Limpar ambos
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </SelectContent>
