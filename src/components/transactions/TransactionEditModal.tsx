@@ -166,7 +166,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
       // Handle payment fields
       if (status === 'PAGO') {
         updates.data_pagamento = dataPagamento || new Date().toISOString().split('T')[0];
-        updates.valor_pago = parseFloat(valorPago.replace(/\./g, '').replace(',', '.')) || parsedValor;
+        updates.valor_pago = parseBRLToNumber(valorPago) ?? parsedValor;
       } else {
         updates.data_pagamento = null;
         updates.valor_pago = null;
