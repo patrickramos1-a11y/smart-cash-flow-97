@@ -57,10 +57,19 @@ const ALL_COLUMNS = [
   { key: 'conta', label: 'Conta', default: true },
   { key: 'centro_custo', label: 'C. Custo', default: false },
   { key: 'responsavel', label: 'Responsável', default: true },
+  { key: 'nf', label: 'NF / Doc.', default: true },
   { key: 'vencimento', label: 'Vencimento', default: true },
   { key: 'status', label: 'Status', default: true },
   { key: 'valor', label: 'Valor', default: true },
 ] as const;
+
+// Mapeia documento_recebimento para badge legível
+const DOC_BADGE: Record<string, { label: string; color: string }> = {
+  NOTA_FISCAL: { label: 'NF', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  RECIBO: { label: 'Recibo', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  NOTA_DE_DEBITO: { label: 'N. Débito', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  SEM_DOCUMENTO: { label: 'Sem doc.', color: 'bg-muted text-muted-foreground border-border' },
+};
 
 type ColumnKey = typeof ALL_COLUMNS[number]['key'];
 
@@ -388,6 +397,18 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
               >
                 Selecionar sem Entidade
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const ids = sortedTransactions.filter(t => !t.documento_recebimento).map(t => t.id);
+                  setSelectedIds(new Set(ids));
+                  if (ids.length === 0) toast.info('Nenhum lançamento sem documento (NF) nesta listagem');
+                }}
+                className="h-7 text-xs"
+              >
+                Selecionar sem NF
+              </Button>
               <Button size="sm" variant="destructive" onClick={handleBulkDelete} className="h-7 text-xs">
                 <Trash2 className="w-3 h-3 mr-1" /> Excluir Selecionadas
               </Button>
@@ -421,6 +442,7 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
                     {visibleColumns.has('conta') && <th className="text-left p-4 text-sm font-medium">Conta</th>}
                     {visibleColumns.has('centro_custo') && <th className="text-left p-4 text-sm font-medium">C. Custo</th>}
                     {visibleColumns.has('responsavel') && <th className="text-left p-4 text-sm font-medium">Responsável</th>}
+                    {visibleColumns.has('nf') && <th className="text-left p-4 text-sm font-medium">NF / Doc.</th>}
                     {visibleColumns.has('vencimento') && (
                       <th className="text-left p-4 text-sm font-medium">
                         <button onClick={() => toggleSort('data_vencimento')} className="flex items-center hover:text-foreground">
@@ -511,6 +533,20 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
                               <span className="text-xs text-muted-foreground">{t.responsible_name || t.entity_name || '-'}</span>
                             </td>
                           )}
+                          {visibleColumns.has('nf') && (
+                            <td className="p-4">
+                              {t.documento_recebimento ? (
+                                <Badge
+                                  variant="outline"
+                                  className={cn("text-[10px]", DOC_BADGE[t.documento_recebimento]?.color || 'bg-muted text-muted-foreground')}
+                                >
+                                  {DOC_BADGE[t.documento_recebimento]?.label || t.documento_recebimento}
+                                </Badge>
+                              ) : (
+                                <span className="text-[10px] italic text-muted-foreground">não informado</span>
+                              )}
+                            </td>
+                          )}
                           {visibleColumns.has('vencimento') && (
                             <td className="p-4">
                               <span className="text-sm">{formatDate(t.data_vencimento)}</span>
@@ -591,7 +627,7 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
                     })
                   ) : (
                     <tr>
-                      <td colSpan={12} className="p-8 text-center text-muted-foreground">
+                      <td colSpan={13} className="p-8 text-center text-muted-foreground">
                         Nenhuma transação encontrada para os filtros selecionados.
                       </td>
                     </tr>

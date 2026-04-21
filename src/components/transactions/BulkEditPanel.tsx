@@ -78,6 +78,7 @@ export interface BulkSelectableTransaction {
   status?: string | null;
   origem?: string | null;
   competencia_ano?: number | null;
+  documento_recebimento?: string | null;
 }
 
 interface BulkEditPanelProps {
@@ -103,6 +104,7 @@ interface ContextFields {
   vencimento: boolean;
   descricao: boolean;
   notes: boolean;
+  documentoRecebimento: boolean;
 }
 
 function getContextFields(ctx: BulkContext): { fields: ContextFields; warnings: string[] } {
@@ -115,6 +117,7 @@ function getContextFields(ctx: BulkContext): { fields: ContextFields; warnings: 
           cliente: false, entity: true, responsavel: true,
           categoria: true, conta: true, centroCusto: true, status: true,
           valor: false, vencimento: false, descricao: false, notes: true,
+          documentoRecebimento: true,
         },
         warnings,
       };
@@ -125,6 +128,7 @@ function getContextFields(ctx: BulkContext): { fields: ContextFields; warnings: 
           cliente: false, entity: true, responsavel: true,
           categoria: true, conta: true, centroCusto: true, status: true,
           valor: false, vencimento: false, descricao: false, notes: true,
+          documentoRecebimento: true,
         },
         warnings,
       };
@@ -137,11 +141,20 @@ function getContextFields(ctx: BulkContext): { fields: ContextFields; warnings: 
           cliente: true, entity: true, responsavel: true,
           categoria: true, conta: true, centroCusto: true, status: true,
           valor: true, vencimento: true, descricao: false, notes: true,
+          documentoRecebimento: true,
         },
         warnings,
       };
   }
 }
+
+// Opções padronizadas de Documento de Recebimento (NF)
+const DOC_RECEB_OPTIONS = [
+  { value: 'NOTA_FISCAL', label: 'Nota Fiscal (NF)' },
+  { value: 'RECIBO', label: 'Recibo' },
+  { value: 'NOTA_DE_DEBITO', label: 'Nota de Débito' },
+  { value: 'SEM_DOCUMENTO', label: 'Sem documento' },
+];
 
 // Mapeia campo da UI → coluna do banco (para o filtro `is(<col>, null)` quando "sobrescrever" está OFF)
 const FIELD_TO_COLUMN: Record<string, string> = {
@@ -155,6 +168,7 @@ const FIELD_TO_COLUMN: Record<string, string> = {
   valor: 'valor',
   data_vencimento: 'data_vencimento',
   notes: 'notes',
+  documento_recebimento: 'documento_recebimento',
 };
 
 const CHUNK_SIZE = 500;
@@ -177,6 +191,7 @@ export function BulkEditPanel({
   const [bulkDataVencimento, setBulkDataVencimento] = useState('');
   const [bulkNotes, setBulkNotes] = useState('');
   const [bulkCategorySearch, setBulkCategorySearch] = useState('');
+  const [bulkDocumentoRecebimento, setBulkDocumentoRecebimento] = useState('');
 
   // Toggle de segurança: default OFF = só preenche onde está nulo
   const [overwriteExisting, setOverwriteExisting] = useState(false);
@@ -241,6 +256,7 @@ export function BulkEditPanel({
     setBulkAccountId(commonValue(selectedTransactions.map(t => t.account_id ?? null)) || '');
     setBulkCostCenterId(commonValue(selectedTransactions.map(t => t.cost_center_id ?? null)) || '');
     setBulkStatus(commonValue(selectedTransactions.map(t => t.status ?? null)) || '');
+    setBulkDocumentoRecebimento(commonValue(selectedTransactions.map(t => t.documento_recebimento ?? null)) || '');
     setBulkValor('');
     setBulkDataVencimento('');
     setBulkNotes('');
@@ -255,7 +271,7 @@ export function BulkEditPanel({
     setBulkClienteId(''); setBulkEntityId(''); setBulkResponsavelId('');
     setBulkCategoryId(''); setBulkAccountId(''); setBulkCostCenterId('');
     setBulkStatus(''); setBulkValor(''); setBulkDataVencimento('');
-    setBulkNotes(''); setBulkCategorySearch('');
+    setBulkNotes(''); setBulkCategorySearch(''); setBulkDocumentoRecebimento('');
   };
 
   // ----- Categorias agrupadas por conta + busca por substring -----
@@ -291,6 +307,7 @@ export function BulkEditPanel({
     if (allowedFields.status && bulkStatus) updates.status = bulkStatus;
     if (allowedFields.vencimento && bulkDataVencimento) updates.data_vencimento = bulkDataVencimento;
     if (allowedFields.notes && bulkNotes.trim()) updates.notes = bulkNotes.trim();
+    if (allowedFields.documentoRecebimento && bulkDocumentoRecebimento) updates.documento_recebimento = bulkDocumentoRecebimento;
     if (allowedFields.valor && bulkValor.trim()) {
       const v = parseBRLToNumber(bulkValor);
       if (v === null || isNaN(v) || v < 0) return { updates, error: 'Valor inválido' };
@@ -333,7 +350,7 @@ export function BulkEditPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bulkClienteId, bulkEntityId, bulkResponsavelId, bulkCategoryId, bulkAccountId,
       bulkCostCenterId, bulkStatus, bulkValor, bulkDataVencimento, bulkNotes,
-      selectedTransactions, allowedFields]);
+      bulkDocumentoRecebimento, selectedTransactions, allowedFields]);
 
   // ----- Mutação chunked -----
   const bulkMutation = useMutation({
@@ -569,6 +586,19 @@ export function BulkEditPanel({
                 <SelectItem value="EM_ABERTO">Em Aberto</SelectItem>
                 <SelectItem value="PAGO">Pago</SelectItem>
                 <SelectItem value="ATRASADO">Atrasado</SelectItem>
+              </BulkSelectField>
+            )}
+
+            {allowedFields.documentoRecebimento && (
+              <BulkSelectField
+                label="Documento (NF / Recibo / N. Débito)"
+                value={bulkDocumentoRecebimento}
+                onChange={setBulkDocumentoRecebimento}
+                disabled={isPending}
+              >
+                {DOC_RECEB_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
               </BulkSelectField>
             )}
           </div>
