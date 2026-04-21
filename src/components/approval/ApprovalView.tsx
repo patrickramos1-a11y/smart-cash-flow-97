@@ -1183,13 +1183,7 @@ export function ApprovalView() {
                     </button>
                   )}
                 </Label>
-                <Select value={bulkCostCenterId} onValueChange={(v) => {
-                  setBulkCostCenterId(v);
-                  if (v && bulkCategoryId) {
-                    const cat = (categoriesList as any[] | undefined)?.find(c => c.id === bulkCategoryId);
-                    if (cat?.cost_center_id && cat.cost_center_id !== v) setBulkCategoryId('');
-                  }
-                }}>
+                <Select value={bulkCostCenterId} onValueChange={handleBulkCostCenterChange}>
                   <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
                   <SelectContent className="max-h-[280px]">
                     {bulkVisibleCostCenters.length === 0 && (
