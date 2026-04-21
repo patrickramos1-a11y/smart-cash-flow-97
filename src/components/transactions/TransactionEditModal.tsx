@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,6 +14,8 @@ import { toast } from 'sonner';
 import { formatCurrency } from '@/data/mockData';
 import { useAuth } from '@/hooks/useAuth';
 import type { TransactionWithClient } from '@/hooks/useTransactions';
+import { getEntityIcon } from '@/utils/entityIcons';
+import { ensureDarkColor, colorFromName } from '@/utils/entityVisual';
 
 interface TransactionEditModalProps {
   open: boolean;
