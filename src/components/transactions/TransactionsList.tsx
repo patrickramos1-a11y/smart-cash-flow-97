@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import { ConfirmModal } from '@/components/modals/ConfirmModal';
 import { TransactionEditModal } from './TransactionEditModal';
 import { MobileTransactionCard } from './MobileTransactionCard';
+import { BulkEditPanel, type BulkContext } from './BulkEditPanel';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 
