@@ -71,6 +71,8 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
     setEntityIds([]);
     setFilterAccountId('');
     setFilterCostCenterId('');
+    setResolvedAccountId(null);
+    setResolvedCostCenterId(null);
   };
 
   const handleClose = () => { resetForm(); onClose(); };
