@@ -56,10 +56,23 @@ export function DespesasFixasPage() {
     return { month: label, previsto: expected, pago: paid };
   });
 
-  const expenseRanking = fixedExpenses
-    ?.map(e => ({ name: e.nome, valor: Number(e.valor) }))
-    .sort((a, b) => b.valor - a.valor)
-    .slice(0, 10) || [];
+  // Ranking baseado nas transações REAIS do ano (média mensal),
+  // não no valor cadastrado em fixed_expenses (que pode estar desatualizado).
+  const rankingMap = new Map<string, { name: string; total: number; count: number }>();
+  yearlyTransactions?.forEach(t => {
+    if (!t.fixed_expense_id) return;
+    const fe = fixedExpenses?.find(e => e.id === t.fixed_expense_id);
+    const name = fe?.nome || t.descricao?.split(' - ')[0] || 'Sem nome';
+    const key = t.fixed_expense_id;
+    const cur = rankingMap.get(key) || { name, total: 0, count: 0 };
+    cur.total += Number(t.valor);
+    cur.count++;
+    rankingMap.set(key, cur);
+  });
+  const expenseRanking = Array.from(rankingMap.values())
+    .map(r => ({ name: r.name, valor: r.count > 0 ? r.total / r.count : 0, total: r.total }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 10);
 
   const byAccount = yearlyTransactions?.reduce((acc, t) => {
     const accountId = t.account_id || 'sem-conta';
@@ -214,24 +227,27 @@ export function DespesasFixasPage() {
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Wallet className="w-5 h-5" />
-              Maiores Despesas Fixas
+              Maiores Despesas Fixas <span className="text-xs font-normal text-muted-foreground">(média mensal real {selectedYear})</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-72 overflow-y-auto">
               {expenseRanking.map((expense, idx) => (
-                <div key={expense.name} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
+                <div key={expense.name + idx} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
                   <div className="flex items-center gap-3">
                     <span className="w-6 h-6 rounded-full bg-expense/10 text-expense text-xs font-bold flex items-center justify-center">
                       {idx + 1}
                     </span>
                     <span className="font-medium text-sm truncate max-w-[200px]">{expense.name}</span>
                   </div>
-                  <p className="text-sm font-semibold text-expense">{formatCurrency(expense.valor)}/mês</p>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-expense">{formatCurrency(expense.valor)}/mês</p>
+                    <p className="text-[10px] text-muted-foreground">total ano: {formatCurrency(expense.total)}</p>
+                  </div>
                 </div>
               ))}
               {expenseRanking.length === 0 && (
-                <p className="text-center text-muted-foreground py-4">Nenhuma despesa fixa cadastrada</p>
+                <p className="text-center text-muted-foreground py-4">Nenhum lançamento de despesa fixa neste ano</p>
               )}
             </div>
           </CardContent>
