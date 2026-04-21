@@ -963,6 +963,20 @@ export function ApprovalView() {
                           )}
                         </td>
                         <td className="p-3 text-xs">
+                          {t.entity_name ? (
+                            <span className="font-medium">{t.entity_name}</span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-xs">
+                          {t.responsible_name ? (
+                            <span className="font-medium">{t.responsible_name}</span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-xs">
                           {t.category_name || (
                             missingCategory
                               ? <span className="text-amber-600 italic">⚠ não preenchido</span>
