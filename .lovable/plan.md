@@ -1,100 +1,97 @@
 
 
-## Reflexão e Unificação Semântica: Cliente × Entidade × Responsável
+## Edição em Massa nas Páginas de Transações
 
-### Diagnóstico (o que está causando a confusão)
+### Objetivo
 
-Hoje o sistema tem **3 campos distintos** com papéis sobrepostos, o que gera colunas ambíguas na tela de Aprovações e nas listagens:
+Levar a mesma capacidade de **bulk edit** que existe hoje na tela de Aprovações para todas as listagens de transações:
+- Visão Geral, Entradas Recorrentes, Entradas Avulsas, Despesas Fixas e Despesas Variáveis.
 
-| Campo no banco | O que representa hoje | Onde aparece preenchido |
+E adicionar **proteções de segurança específicas** para evitar efeitos colaterais (ex.: alterar Responsável de 1.140 lançamentos recorrentes sem quebrar nomenclatura, datas ou parcelas).
+
+---
+
+### O que vai mudar
+
+#### 1. Componente único: `BulkEditPanel`
+
+Hoje a barra de seleção em `TransactionsList.tsx` só tem **"Excluir Selecionadas"**. Vou adicionar um botão **"Editar Selecionadas"** que abre o mesmo modal de Bulk Edit já usado em Aprovações — mas extraído para um componente reutilizável `src/components/transactions/BulkEditPanel.tsx`.
+
+Campos disponíveis (todos opcionais — vazio = não altera):
+- **Cliente (empresa)**
+- **Vinculado a (Entidade)**
+- **Responsável (executor)** ← caso de uso pedido
+- **Categoria** (com busca por substring, mesma da rodada anterior)
+- **Conta**
+- **Centro de Custo**
+- **Status** (Em Aberto / Pago / Atrasado)
+- **Data de Vencimento** (deslocamento em dias: +N / -N, ou data fixa)
+- **Valor** (substituir / acrescentar / aplicar % — só habilitado em seleções pequenas)
+
+Campos **bloqueados** no bulk: Descrição, Competência mês/ano, Documento e Observações — porque alterá-los em massa quebra rastreabilidade e nomenclatura ("janeiro" vira tudo igual). O usuário ainda pode editar individualmente.
+
+#### 2. Proteções por contexto
+
+A tela onde o painel é aberto **restringe automaticamente** os campos:
+
+| Tela | Campos liberados | Bloqueados (motivo) |
 |---|---|---|
-| `cliente_id` → tabela `clients` | **Empresa/cliente final** (quem paga ou para quem o custo é atribuído) | 100% Entradas, ~96% Saídas (default: "RAMOS ENGENHARIA") |
-| `entity_id` → `financial_entities` | **Pessoa física ou grupo** vinculado (Colaborador / Sócio / Fornecedor / Grupo) | 1% Entradas, 27% Saídas |
-| `responsavel_id` → `financial_entities` | **Pessoa responsável** pela transação (quem executou/aprovou) | 0% Entradas, 20% Saídas — apenas em recorrentes (Patrick default) |
+| Visão Geral | todos os listados acima | — |
+| Entradas Recorrentes | Responsável, Categoria, Conta, C.Custo, Status | Cliente (vem do contrato), Valor (vem do plano/SM), Vencimento (vem do `dia_vencimento`) |
+| Entradas Avulsas | todos | — |
+| Despesas Fixas | Responsável, Entidade, Categoria, Conta, C.Custo, Status | Cliente padrão, Valor (vem da despesa fixa), Vencimento (vem do `dia_vencimento`) |
+| Despesas Variáveis | todos | — |
 
-**Problemas concretos observados:**
+Isso evita o cenário "alterei o vencimento e quebrei toda a série recorrente do Patrick".
 
-1. Na tela de Aprovações a coluna **"Entidade"** mostra `ENTIDADES DE CLASSE` — isso **não é uma entidade**, é uma **categoria** herdada (bug de renderização ou dado errado na linha).
-2. `entity_id` e `responsavel_id` apontam para a **mesma tabela** (`financial_entities`), mas têm propósito semântico diferente — isso não está claro para o usuário.
-3. Em **Entradas** não faz sentido `entity_id` (pagador é o `cliente_id`); o campo útil seria **Responsável** (quem captou/cadastrou).
-4. Em **Saídas** faz sentido `entity_id` (ex: FGTS do Darley → entity=Darley), mas hoje o **Responsável** não aparece em nenhuma coluna.
-5. A coluna "Cliente" mostra só o primeiro nome ("RAMOS") — sem distinção visual do que é cliente-pagador vs. cliente-atribuído (centro de custo de cliente para despesas).
+#### 3. Pré-visualização antes de aplicar (passo crítico)
 
-### Modelo conceitual proposto (sem alterar o banco)
-
-Padronizar a linguagem em 3 papéis claros, reutilizando os campos existentes:
+Antes do `UPDATE`, o painel mostra um **resumo de impacto**:
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│ CLIENTE  = "a quem se refere"  (empresa/CNPJ)               │
-│           Entrada: quem paga    Saída: a quem atribuir custo │
-├─────────────────────────────────────────────────────────────┤
-│ ENTIDADE = "sobre quem/o quê" (pessoa ou grupo beneficiário)│
-│           Ex.: FGTS→Darley, Pró-labore→Patrick, Luz→Grupo   │
-│           Saídas: obrigatório     Entradas: oculto/opcional │
-├─────────────────────────────────────────────────────────────┤
-│ RESPONSÁVEL = "quem conduz" (pessoa que executa/aprova)     │
-│           Entradas: útil (quem captou a receita)            │
-│           Saídas: útil (quem autorizou a despesa)           │
-└─────────────────────────────────────────────────────────────┘
+Você está prestes a alterar 1.140 lançamentos:
+  • Responsável: (vazio) → Patrick
+  • 0 transações já tinham Responsável (serão sobrescritas: NÃO)
+  • Origens afetadas: CONTRATO_RECORRENTE (1.140)
+  • Anos: 2024 (520), 2025 (620)
+  • Nenhuma alteração em descrição, valor ou vencimento.
+
+[ Cancelar ]   [ Confirmar alteração de 1.140 lançamentos ]
 ```
 
-**Regra visual:** Entidade e Responsável são sempre **pessoas/grupos** (`financial_entities`). Cliente é sempre **empresa** (`clients`).
+Toggle **"Sobrescrever valores existentes"** (default OFF) — só preenche onde o campo está nulo, exatamente como o backfill do Reclassificação.
 
-### Fase 1 — Colunas inequívocas no grid de Aprovações
+#### 4. Performance e segurança da execução
 
-Reordenar e renomear cabeçalhos para eliminar colisão:
+- **Update em chunks** de 500 IDs por vez (evita timeout do PostgREST e do trigger `recalculate_account_balance`).
+- **Barra de progresso** "750 / 1.140 atualizados…".
+- Apenas os campos efetivamente preenchidos vão para o `UPDATE` (mesmo padrão já corrigido em Aprovações), evitando reexecução desnecessária dos triggers `sync_transaction_to_installment` e do recálculo de saldo.
+- Após sucesso: invalida `transactions`, `approval-transactions`, `open-payments`, `transactions_chart_v2` e refetch ativo.
 
-| Antes | Depois | Conteúdo |
-|---|---|---|
-| Tipo | Tipo | ↑/↓ Entrada/Saída |
-| Descrição | Descrição | descricao + mês/ano |
-| Cliente | **Cliente (empresa)** | `clients.name` com tooltip CNPJ |
-| Entidade | **Vinculado a** | `financial_entities.name` + badge do tipo (Colaborador/Sócio/Fornecedor/Grupo) + ícone |
-| — novo — | **Responsável** | `responsavel` como avatar+nome (condensada) |
-| Categoria | Categoria | badge com ícone+cor |
-| Origem | Origem | Manual / Recorrente / Fixo / Variável |
-| Vencimento, Valor, Status, Ações | (sem alteração) | |
+#### 5. Seleção inteligente
 
-A célula **"Vinculado a"** atual que exibe `ENTIDADES DE CLASSE` está lendo do campo errado — corrigir para ler `entity_id` (join `financial_entities`), nunca a categoria.
+Na barra de bulk vão aparecer atalhos contextuais:
+- **"Selecionar todos os filtrados"** (não só os da página visível).
+- **"Selecionar só sem Responsável"** / **"Selecionar só sem Entidade"** — atalhos para o caso pedido.
 
-### Fase 2 — Bulk Edit: separar Entidade e Responsável
-
-Na seção **"Vínculos"** do modal "Editar selecionados":
-- Campo **Vinculado a (Entidade)** → lista `financial_entities` agrupada por tipo (Colaborador ▸, Sócio ▸, Fornecedor ▸, Grupo ▸), com ícones e cores.
-- Campo **Responsável** → mesma lista, mas filtrada por `type IN (COLABORADOR, SOCIO)` (quem pode ser responsável).
-- Campo **Cliente (empresa)** → lista `clients`.
-- Cada campo com seu botão "limpar" e pré-preenchimento via `commonValue()`.
-
-### Fase 3 — Harmonizar todos os modais de criação/edição
-
-Aplicar o mesmo vocabulário em:
-- `TransactionEditModal` — trocar rótulo "Entidade" por **"Vinculado a (Entidade)"** e "Responsável" por **"Responsável (executor)"**, com microtexto explicativo.
-- `QuickTransactionModal` — texto de erro "Responsável/Entidade obrigatório" → usar apenas **"Entidade é obrigatória"** (um campo, um nome).
-- `NewFixedExpenseModal`, `NewTransactionWizard`, `EntradasRecorrentesPage`, `EntradasAvulsasPage` — exibir campo **Responsável** (hoje só aparece em contratos recorrentes) para entradas.
-- Em **Entradas**: ocultar por padrão o seletor de Entidade (pouco usado) e destacar **Responsável**; em **Saídas**: manter ambos, Entidade obrigatória, Responsável recomendado.
-
-### Fase 4 — Backfill de dados (opcional, com confirmação)
-
-Atualmente:
-- 1.140 Entradas **sem responsável** → botão "Definir responsável padrão = Patrick" em Config.
-- 1.033 Saídas **sem entidade nem responsável** → ferramenta de Reclassificação em Lote já existente pode preencher por regras (ex: descrição contém "Pró-labore" → entity=Patrick).
-
-Nenhuma migração destrutiva; apenas UPDATE em massa via UI de Reclassificação.
+---
 
 ### Arquivos afetados
 
-- `src/components/approval/ApprovalView.tsx` — renomear cabeçalhos, adicionar coluna Responsável, corrigir renderização da célula "Vinculado a", ajustar bulk edit.
-- `src/components/transactions/TransactionEditModal.tsx` — renomear labels + microtexto.
-- `src/components/transactions/QuickTransactionModal.tsx` — simplificar mensagem de erro.
-- `src/components/transactions/NewFixedExpenseModal.tsx`, `NewTransactionWizard.tsx`, `EntradasRecorrentesPage.tsx`, `EntradasAvulsasPage.tsx` — adicionar/padronizar campo Responsável.
-- `src/hooks/useTransactions.ts` — já retorna `responsible`; apenas expor no tipo usado por Aprovação.
+- **Novo:** `src/components/transactions/BulkEditPanel.tsx` — modal reutilizável extraído de `ApprovalView.tsx`.
+- **Editar:** `src/components/transactions/TransactionsList.tsx` — adicionar botão "Editar Selecionadas", atalhos de seleção, prop `bulkContext` para definir campos liberados.
+- **Editar:** `src/components/approval/ApprovalView.tsx` — substituir o bulk edit interno pelo componente compartilhado (sem perder funcionalidade atual).
+- **Sem migrations.** Sem mudanças de schema.
 
-Sem migrations. Sem novas tabelas. Apenas clareza semântica + UX.
+### Detalhes técnicos relevantes
+
+- O update é feito direto em `transactions` via supabase, com `.in('id', chunk).select('id')` para garantir feedback síncrono de erros (mesmo padrão de Aprovações).
+- O toggle "Sobrescrever" se traduz em `.is('<campo>', null)` adicionado ao `WHERE` quando OFF.
+- Recorrências (`origem='CONTRATO_RECORRENTE'`): só campos seguros (Responsável, Status, Categoria, Conta, C.Custo, Entidade) são mostrados — assim o trigger de sincronização com `recurring_installments` não dispara reescrita de valor/data.
 
 ### Pergunta antes de executar
 
-1. **Rótulos finais** — confirma **"Vinculado a (Entidade)"** + **"Responsável"** + **"Cliente (empresa)"**? Ou prefere outros nomes?
-2. **Entrada**: esconder `entity_id` (pouco usado) e mostrar só `responsavel_id`, ou manter ambos visíveis?
-3. **Backfill**: quer que eu inclua nesta rodada um botão "Preencher Responsável padrão = Patrick nas Entradas em branco"?
+1. **Atalhos de seleção** — confirma os dois atalhos ("sem Responsável" e "sem Entidade"), ou quer adicionar também "sem Categoria" e "sem Conta"?
+2. **Sobrescrever** — default OFF (só preenche onde está nulo) está bom, ou prefere que sempre pergunte explicitamente?
+3. **Bulk de Valor/Vencimento em recorrências** — manter bloqueado (mais seguro) ou liberar com aviso vermelho "isto vai recriar parcelas"?
 
