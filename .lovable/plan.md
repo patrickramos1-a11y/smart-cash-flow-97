@@ -1,76 +1,100 @@
 
 
-## Correção do Painel Inteligente de Edição (Bulk + Pontual)
+## Reflexão e Unificação Semântica: Cliente × Entidade × Responsável
 
-### Diagnóstico
-Nos dois modais (Aprovações → "Editar em massa" e `TransactionEditModal` → edição pontual) os 3 campos **Conta / Centro de Custo / Categoria** hoje se comportam como filtros **independentes**: ao trocar um, os outros ficam "travados" no valor anterior, gerando estados inválidos (ex.: Conta=BANCARIA + CC=Dedução → nenhuma categoria aparece).
+### Diagnóstico (o que está causando a confusão)
 
-O comportamento desejado é um **painel encadeado** tipo cascata viva:
+Hoje o sistema tem **3 campos distintos** com papéis sobrepostos, o que gera colunas ambíguas na tela de Aprovações e nas listagens:
+
+| Campo no banco | O que representa hoje | Onde aparece preenchido |
+|---|---|---|
+| `cliente_id` → tabela `clients` | **Empresa/cliente final** (quem paga ou para quem o custo é atribuído) | 100% Entradas, ~96% Saídas (default: "RAMOS ENGENHARIA") |
+| `entity_id` → `financial_entities` | **Pessoa física ou grupo** vinculado (Colaborador / Sócio / Fornecedor / Grupo) | 1% Entradas, 27% Saídas |
+| `responsavel_id` → `financial_entities` | **Pessoa responsável** pela transação (quem executou/aprovou) | 0% Entradas, 20% Saídas — apenas em recorrentes (Patrick default) |
+
+**Problemas concretos observados:**
+
+1. Na tela de Aprovações a coluna **"Entidade"** mostra `ENTIDADES DE CLASSE` — isso **não é uma entidade**, é uma **categoria** herdada (bug de renderização ou dado errado na linha).
+2. `entity_id` e `responsavel_id` apontam para a **mesma tabela** (`financial_entities`), mas têm propósito semântico diferente — isso não está claro para o usuário.
+3. Em **Entradas** não faz sentido `entity_id` (pagador é o `cliente_id`); o campo útil seria **Responsável** (quem captou/cadastrou).
+4. Em **Saídas** faz sentido `entity_id` (ex: FGTS do Darley → entity=Darley), mas hoje o **Responsável** não aparece em nenhuma coluna.
+5. A coluna "Cliente" mostra só o primeiro nome ("RAMOS") — sem distinção visual do que é cliente-pagador vs. cliente-atribuído (centro de custo de cliente para despesas).
+
+### Modelo conceitual proposto (sem alterar o banco)
+
+Padronizar a linguagem em 3 papéis claros, reutilizando os campos existentes:
 
 ```text
-[Conta] ──┐
-          ├──► filtra ──► [Categoria]
-[CC]    ──┘
-   ▲                         │
-   └─── autopreenche ────────┘  (ao escolher Categoria)
+┌─────────────────────────────────────────────────────────────┐
+│ CLIENTE  = "a quem se refere"  (empresa/CNPJ)               │
+│           Entrada: quem paga    Saída: a quem atribuir custo │
+├─────────────────────────────────────────────────────────────┤
+│ ENTIDADE = "sobre quem/o quê" (pessoa ou grupo beneficiário)│
+│           Ex.: FGTS→Darley, Pró-labore→Patrick, Luz→Grupo   │
+│           Saídas: obrigatório     Entradas: oculto/opcional │
+├─────────────────────────────────────────────────────────────┤
+│ RESPONSÁVEL = "quem conduz" (pessoa que executa/aprova)     │
+│           Entradas: útil (quem captou a receita)            │
+│           Saídas: útil (quem autorizou a despesa)           │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-- Trocar **Conta** → limpa CC se incompatível e recalcula categorias a partir da nova Conta + CCs que essa Conta possui.
-- Trocar **CC** → limpa Conta se incompatível e recalcula categorias.
-- Trocar **Categoria** → autopreenche Conta e CC (como já faz).
-- Campo "Conta" sempre lista **todas as contas que possuem ≥1 categoria** do tipo correto (Entrada/Saída), com ícone + cor.
-- Campo "CC" sempre lista **todos os CCs que possuem ≥1 categoria compatível com a Conta selecionada** (se houver Conta escolhida) — caso contrário, todos os CCs que têm categorias.
-- Categoria sempre lista o cruzamento Conta ∩ CC ∩ Tipo, com o grupo por conta mantido.
+**Regra visual:** Entidade e Responsável são sempre **pessoas/grupos** (`financial_entities`). Cliente é sempre **empresa** (`clients`).
 
-### Fase 1 — `ApprovalView.tsx` (bulk edit)
+### Fase 1 — Colunas inequívocas no grid de Aprovações
 
-**1.1 Reescrever `bulkVisibleAccounts`** para depender do CC atual:
-- Se `bulkCostCenterId` estiver definido → só contas que tenham ≥1 categoria dentro daquele CC (+ tipo em comum).
-- Sempre incluir `stickyAccountIds` (seleção atual + autopreenchida).
+Reordenar e renomear cabeçalhos para eliminar colisão:
 
-**1.2 Reescrever `bulkVisibleCostCenters`** para depender da Conta atual:
-- Se `bulkAccountId` estiver definido → só CCs que tenham ≥1 categoria dentro daquela Conta.
-- Sempre incluir `stickyCostCenterIds`.
+| Antes | Depois | Conteúdo |
+|---|---|---|
+| Tipo | Tipo | ↑/↓ Entrada/Saída |
+| Descrição | Descrição | descricao + mês/ano |
+| Cliente | **Cliente (empresa)** | `clients.name` com tooltip CNPJ |
+| Entidade | **Vinculado a** | `financial_entities.name` + badge do tipo (Colaborador/Sócio/Fornecedor/Grupo) + ícone |
+| — novo — | **Responsável** | `responsavel` como avatar+nome (condensada) |
+| Categoria | Categoria | badge com ícone+cor |
+| Origem | Origem | Manual / Recorrente / Fixo / Variável |
+| Vencimento, Valor, Status, Ações | (sem alteração) | |
 
-**1.3 Auto-limpeza no setter da Conta** (novo handler `handleBulkAccountChange`):
-- Se a categoria atual não pertence à nova conta → limpa `bulkCategoryId`.
-- Se o CC atual não tem nenhuma categoria em comum com a nova conta → limpa `bulkCostCenterId`.
+A célula **"Vinculado a"** atual que exibe `ENTIDADES DE CLASSE` está lendo do campo errado — corrigir para ler `entity_id` (join `financial_entities`), nunca a categoria.
 
-**1.4 Auto-limpeza no setter do CC** (novo handler `handleBulkCostCenterChange`): mesma lógica invertida.
+### Fase 2 — Bulk Edit: separar Entidade e Responsável
 
-**1.5 Trocar `<Select onValueChange={setBulkAccountId}>` → `onValueChange={handleBulkAccountChange}`** (idem para CC).
+Na seção **"Vínculos"** do modal "Editar selecionados":
+- Campo **Vinculado a (Entidade)** → lista `financial_entities` agrupada por tipo (Colaborador ▸, Sócio ▸, Fornecedor ▸, Grupo ▸), com ícones e cores.
+- Campo **Responsável** → mesma lista, mas filtrada por `type IN (COLABORADOR, SOCIO)` (quem pode ser responsável).
+- Campo **Cliente (empresa)** → lista `clients`.
+- Cada campo com seu botão "limpar" e pré-preenchimento via `commonValue()`.
 
-**1.6 Estado vazio do dropdown de Categoria**:
-- Quando `bulkFilteredCategories.length === 0`, o link já existente "Limpar Conta e CC" é mantido; adicionar também opção "Limpar apenas Conta" e "Limpar apenas CC" para granularidade.
+### Fase 3 — Harmonizar todos os modais de criação/edição
 
-### Fase 2 — `TransactionEditModal.tsx` (edição pontual)
+Aplicar o mesmo vocabulário em:
+- `TransactionEditModal` — trocar rótulo "Entidade" por **"Vinculado a (Entidade)"** e "Responsável" por **"Responsável (executor)"**, com microtexto explicativo.
+- `QuickTransactionModal` — texto de erro "Responsável/Entidade obrigatório" → usar apenas **"Entidade é obrigatória"** (um campo, um nome).
+- `NewFixedExpenseModal`, `NewTransactionWizard`, `EntradasRecorrentesPage`, `EntradasAvulsasPage` — exibir campo **Responsável** (hoje só aparece em contratos recorrentes) para entradas.
+- Em **Entradas**: ocultar por padrão o seletor de Entidade (pouco usado) e destacar **Responsável**; em **Saídas**: manter ambos, Entidade obrigatória, Responsável recomendado.
 
-Mesma refatoração em menor escala — o modal já tem `handleAccountChange` / `handleCostCenterChange`, mas só limpa a **categoria**; não limpa o CC quando a conta muda, nem a conta quando o CC muda.
+### Fase 4 — Backfill de dados (opcional, com confirmação)
 
-**2.1** Em `handleAccountChange(newAccountId)`:
-- Além de limpar categoria incompatível, checar: se `costCenterId` atual não aparece em nenhuma categoria da nova conta → limpar `costCenterId`.
+Atualmente:
+- 1.140 Entradas **sem responsável** → botão "Definir responsável padrão = Patrick" em Config.
+- 1.033 Saídas **sem entidade nem responsável** → ferramenta de Reclassificação em Lote já existente pode preencher por regras (ex: descrição contém "Pró-labore" → entity=Patrick).
 
-**2.2** Em `handleCostCenterChange(newCcId)`:
-- Além de limpar categoria incompatível, checar: se `accountId` atual não aparece em nenhuma categoria do novo CC → limpar `accountId`.
-
-**2.3** `visibleAccounts` e `visibleCostCenters` hoje filtram apenas por `.active`. Vamos encadear:
-- `visibleAccounts` = contas com ≥1 categoria do tipo da transação + (se CC selecionado) com categoria dentro desse CC + sticky (valor atual).
-- `visibleCostCenters` = CCs com ≥1 categoria do tipo + (se Conta selecionada) com categoria dentro dessa Conta + sticky.
-
-**2.4** `SelectContent` de Categoria: quando `categoriesForFilters.length === 0`, exibir bloco "Nenhuma categoria para este filtro" com botões "Limpar Conta" e "Limpar Centro de Custo".
-
-### Fase 3 — Validação manual
-
-Casos de teste (usuário valida):
-
-1. Selecionar 1 transação com CC="Dedução" + Conta="BANCARIA" → abrir bulk edit → trocar Conta para "IMPOSTOS E TAXAS" → CC deve ser auto-limpo (ou auto-ajustado) e Categorias devem listar impostos.
-2. Selecionar Conta="BANCARIA" sem CC → dropdown CC deve mostrar **todos** os CCs usados pelas categorias de BANCARIA (não apenas Movimentações Patrimoniais).
-3. Mudar Categoria → Conta e CC preenchem automaticamente.
-4. Repetir no modal pontual (`TransactionEditModal`).
+Nenhuma migração destrutiva; apenas UPDATE em massa via UI de Reclassificação.
 
 ### Arquivos afetados
-- `src/components/approval/ApprovalView.tsx` (fases 1)
-- `src/components/transactions/TransactionEditModal.tsx` (fase 2)
 
-Sem migrations. Sem novas tabelas. Apenas lógica de UI.
+- `src/components/approval/ApprovalView.tsx` — renomear cabeçalhos, adicionar coluna Responsável, corrigir renderização da célula "Vinculado a", ajustar bulk edit.
+- `src/components/transactions/TransactionEditModal.tsx` — renomear labels + microtexto.
+- `src/components/transactions/QuickTransactionModal.tsx` — simplificar mensagem de erro.
+- `src/components/transactions/NewFixedExpenseModal.tsx`, `NewTransactionWizard.tsx`, `EntradasRecorrentesPage.tsx`, `EntradasAvulsasPage.tsx` — adicionar/padronizar campo Responsável.
+- `src/hooks/useTransactions.ts` — já retorna `responsible`; apenas expor no tipo usado por Aprovação.
+
+Sem migrations. Sem novas tabelas. Apenas clareza semântica + UX.
+
+### Pergunta antes de executar
+
+1. **Rótulos finais** — confirma **"Vinculado a (Entidade)"** + **"Responsável"** + **"Cliente (empresa)"**? Ou prefere outros nomes?
+2. **Entrada**: esconder `entity_id` (pouco usado) e mostrar só `responsavel_id`, ou manter ambos visíveis?
+3. **Backfill**: quer que eu inclua nesta rodada um botão "Preencher Responsável padrão = Patrick nas Entradas em branco"?
 
