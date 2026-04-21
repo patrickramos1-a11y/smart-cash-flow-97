@@ -43,6 +43,8 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
   const [entityIds, setEntityIds] = useState<string[]>([]);
   const [filterAccountId, setFilterAccountId] = useState('');
   const [filterCostCenterId, setFilterCostCenterId] = useState('');
+  const [resolvedAccountId, setResolvedAccountId] = useState<string | null>(null);
+  const [resolvedCostCenterId, setResolvedCostCenterId] = useState<string | null>(null);
 
   const { data: accounts } = useAccounts();
   const { data: categories } = useTransactionCategories();
@@ -55,8 +57,6 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
   const saveEntities = useSaveTransactionEntities();
 
   const selectedCategory = categories?.find(c => c.id === formData.categoria_id);
-  const linkedCostCenter = costCenters?.find(cc => cc.id === selectedCategory?.cost_center_id);
-  const linkedAccount = accounts?.find(a => a.id === selectedCategory?.default_account_id);
 
   const valor = parseFloat(formData.valor.replace(/\./g, '').replace(',', '.')) || 0;
 
@@ -71,13 +71,14 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
     setEntityIds([]);
     setFilterAccountId('');
     setFilterCostCenterId('');
+    setResolvedAccountId(null);
+    setResolvedCostCenterId(null);
   };
 
   const handleClose = () => { resetForm(); onClose(); };
 
-  // Conta efetiva: default da categoria → override do usuário
-  const effectiveAccountId = selectedCategory?.default_account_id || formData.account_id_override || null;
-  const accountIsRequired = !!selectedCategory && !selectedCategory.default_account_id;
+  // Conta efetiva: vem do CategoryFilteredSelector (default da categoria → override)
+  const effectiveAccountId = resolvedAccountId;
 
   const handleSubmit = async () => {
     if (!effectiveAccountId) {
@@ -90,7 +91,7 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
       valor,
       dia_vencimento: formData.dia_vencimento,
       transaction_category_id: formData.categoria_id || null,
-      cost_center_id: selectedCategory?.cost_center_id || null,
+      cost_center_id: resolvedCostCenterId,
       account_id: effectiveAccountId,
       payment_method_id: formData.forma_pagamento_id || null,
       cliente_id: formData.cliente_id || null,
@@ -162,54 +163,23 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
             </div>
           </div>
 
-          {/* Category with account/cost center pre-filters */}
+          {/* Category with pre-filters + inheritance panel + override (all built-in) */}
           <CategoryFilteredSelector
             tipo="SAIDA"
             subtype="FIXA"
             selectedCategoryId={formData.categoria_id}
-            onCategoryChange={(v) => setFormData({ ...formData, categoria_id: v })}
+            onCategoryChange={(v) => {
+              setFormData({ ...formData, categoria_id: v, account_id_override: '' });
+            }}
             filterAccountId={filterAccountId}
             onFilterAccountChange={(v) => setFilterAccountId(v === 'all' ? '' : v)}
             filterCostCenterId={filterCostCenterId}
             onFilterCostCenterChange={(v) => setFilterCostCenterId(v === 'all' ? '' : v)}
+            overrideAccountId={formData.account_id_override}
+            onOverrideAccountChange={(v) => setFormData({ ...formData, account_id_override: v })}
+            onResolvedAccountChange={setResolvedAccountId}
+            onResolvedCostCenterChange={setResolvedCostCenterId}
           />
-
-          {/* Inherited info */}
-          {selectedCategory && (
-            <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Conta vinculada:</span>
-                <span className="font-medium">{linkedAccount?.name || '—'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Centro de Custo:</span>
-                <span className="font-medium">{linkedCostCenter?.name || '—'}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Conta obrigatória quando categoria não tem default */}
-          {accountIsRequired && (
-            <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 space-y-2">
-              <Label className="text-warning">Conta * (categoria sem conta padrão)</Label>
-              <Select
-                value={formData.account_id_override}
-                onValueChange={(v) => setFormData({ ...formData, account_id_override: v })}
-              >
-                <SelectTrigger className={!formData.account_id_override ? 'border-destructive' : ''}>
-                  <SelectValue placeholder="Selecionar conta para esta despesa" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accounts?.filter(a => a.active).map(a => (
-                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-[10px] text-muted-foreground">
-                Esta conta será aplicada a todas as parcelas geradas. Para mudar o padrão da categoria, edite-a em Configurações.
-              </p>
-            </div>
-          )}
 
           <div>
             <Label>Forma de Pagamento *</Label>

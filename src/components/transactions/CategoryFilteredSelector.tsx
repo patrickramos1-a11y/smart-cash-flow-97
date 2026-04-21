@@ -1,9 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { X, AlertTriangle, Link2 } from 'lucide-react';
 import { useAccounts, useCostCenters, useTransactionCategories, type CategorySubtype } from '@/hooks/useFinancialConfig';
 import { getEntityIcon } from '@/utils/entityIcons';
 import { CategorySearchInput, normalizeForSearch } from './CategorySearchInput';
+import { resolveAccountAndCostCenter } from '@/lib/financial/categoryResolution';
 
 interface CategoryFilteredSelectorProps {
   tipo: 'ENTRADA' | 'SAIDA';
@@ -14,18 +17,23 @@ interface CategoryFilteredSelectorProps {
   onFilterAccountChange: (accountId: string) => void;
   filterCostCenterId: string;
   onFilterCostCenterChange: (costCenterId: string) => void;
+  /** Conta override quando categoria não tem default_account_id */
+  overrideAccountId?: string;
+  onOverrideAccountChange?: (accountId: string) => void;
+  /** Notifica o pai sobre a conta efetiva resolvida (default → override → null) */
+  onResolvedAccountChange?: (accountId: string | null) => void;
+  /** Notifica o pai sobre o centro de custo herdado da categoria */
+  onResolvedCostCenterChange?: (costCenterId: string | null) => void;
 }
 
-// Ensure color is dark enough for good contrast (min luminance)
+// Garante contraste mínimo escurecendo cores muito claras
 function ensureDarkColor(hex: string): string {
   if (!hex || !hex.startsWith('#')) return hex;
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
-  // Relative luminance
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   if (luminance > 0.6) {
-    // Darken the color by 40%
     const factor = 0.5;
     const dr = Math.round(r * factor);
     const dg = Math.round(g * factor);
@@ -44,25 +52,24 @@ export function CategoryFilteredSelector({
   onFilterAccountChange,
   filterCostCenterId,
   onFilterCostCenterChange,
+  overrideAccountId = '',
+  onOverrideAccountChange,
+  onResolvedAccountChange,
+  onResolvedCostCenterChange,
 }: CategoryFilteredSelectorProps) {
   const { data: accounts } = useAccounts();
   const { data: costCenters } = useCostCenters();
   const { data: categories } = useTransactionCategories();
   const [search, setSearch] = useState('');
 
-  // Base categories for this tipo+subtype
   const baseCategories = categories?.filter(c => c.type === tipo && c.subtype === subtype && c.active) || [];
 
-  // Extract unique account IDs and cost center IDs from these categories
   const categoryAccountIds = new Set(baseCategories.map(c => c.default_account_id).filter(Boolean));
   const categoryCostCenterIds = new Set(baseCategories.map(c => c.cost_center_id).filter(Boolean));
 
-  // Show accounts linked to categories (even inactive accounts, since legacy data references them)
-  // Also fetch all accounts to build a name map
   const allAccounts = accounts || [];
   const accountMap = new Map(allAccounts.map(a => [a.id, a]));
-  
-  // Build list of accounts that have categories in this modality
+
   const availableAccounts = Array.from(categoryAccountIds)
     .map(id => accountMap.get(id as string))
     .filter(Boolean)
@@ -70,7 +77,6 @@ export function CategoryFilteredSelector({
 
   const availableCostCenters = costCenters?.filter(c => categoryCostCenterIds.has(c.id)) || [];
 
-  // Apply filters to categories
   let filteredCategories = [...baseCategories];
   if (filterAccountId) {
     filteredCategories = filteredCategories.filter(c => c.default_account_id === filterAccountId);
@@ -83,18 +89,16 @@ export function CategoryFilteredSelector({
     filteredCategories = filteredCategories.filter(c => normalizeForSearch(c.name).includes(q));
   }
 
-  // Group categories by account name, then sort alphabetically within each group
   const groupedCategories = useMemo(() => {
     const groups: { accountName: string; accountId: string | null; categories: typeof filteredCategories }[] = [];
     const byAccount = new Map<string, typeof filteredCategories>();
-    
+
     for (const cat of filteredCategories) {
       const accId = cat.default_account_id || '__none__';
       if (!byAccount.has(accId)) byAccount.set(accId, []);
       byAccount.get(accId)!.push(cat);
     }
 
-    // Sort groups by account name
     const sortedKeys = Array.from(byAccount.keys()).sort((a, b) => {
       const nameA = a === '__none__' ? 'zzz' : (accountMap.get(a)?.name || 'zzz');
       const nameB = b === '__none__' ? 'zzz' : (accountMap.get(b)?.name || 'zzz');
@@ -114,55 +118,92 @@ export function CategoryFilteredSelector({
   }, [filteredCategories, accountMap]);
 
   const selectedCategory = categories?.find(c => c.id === selectedCategoryId);
+  const linkedCostCenter = costCenters?.find(cc => cc.id === selectedCategory?.cost_center_id);
+  const linkedAccount = accounts?.find(a => a.id === selectedCategory?.default_account_id);
+
+  // Resolução central (Conta default da categoria → override do usuário)
+  const resolution = useMemo(
+    () => resolveAccountAndCostCenter(selectedCategory as any, overrideAccountId),
+    [selectedCategory, overrideAccountId],
+  );
+
+  // Notifica o pai sempre que a resolução muda
+  useEffect(() => {
+    onResolvedAccountChange?.(resolution.accountId);
+    onResolvedCostCenterChange?.(resolution.costCenterId);
+  }, [resolution.accountId, resolution.costCenterId, onResolvedAccountChange, onResolvedCostCenterChange]);
+
+  const hasActiveFilters = !!filterAccountId || !!filterCostCenterId || !!search;
+
+  const handleClearFilters = () => {
+    if (filterAccountId) onFilterAccountChange('all');
+    if (filterCostCenterId) onFilterCostCenterChange('all');
+    setSearch('');
+  };
+
+  const overrideAccount = accounts?.find(a => a.id === overrideAccountId);
 
   return (
     <div className="space-y-3">
-      {/* Pre-filters */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label className="text-xs text-muted-foreground">Filtrar por Conta</Label>
-          <Select value={filterAccountId} onValueChange={onFilterAccountChange}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Todas as contas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as contas</SelectItem>
-              {availableAccounts.map(a => (
-                <SelectItem key={a!.id} value={a!.id}>
-                  {a!.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {/* Pre-filters with clear button */}
+      <div className="flex items-end gap-2">
+        <div className="flex-1 grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs text-muted-foreground">Filtrar por Conta</Label>
+            <Select value={filterAccountId || 'all'} onValueChange={onFilterAccountChange}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Todas as contas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as contas</SelectItem>
+                {availableAccounts.map(a => (
+                  <SelectItem key={a!.id} value={a!.id}>
+                    {a!.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Filtrar por C. Custo</Label>
+            <Select value={filterCostCenterId || 'all'} onValueChange={onFilterCostCenterChange}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Todos os centros" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os centros</SelectItem>
+                {availableCostCenters.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <div>
-          <Label className="text-xs text-muted-foreground">Filtrar por C. Custo</Label>
-          <Select value={filterCostCenterId} onValueChange={onFilterCostCenterChange}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Todos os centros" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os centros</SelectItem>
-              {availableCostCenters.map(c => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {hasActiveFilters && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleClearFilters}
+            className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+            title="Limpar filtros (mantém a categoria selecionada)"
+          >
+            <X className="w-3 h-3 mr-1" /> Limpar
+          </Button>
+        )}
       </div>
 
       {/* Category selector grouped by account */}
       <div>
         <Label>Categoria *</Label>
         <Select value={selectedCategoryId} onValueChange={onCategoryChange}>
-          <SelectTrigger>
+          <SelectTrigger className={!selectedCategoryId ? 'border-destructive' : ''}>
             <SelectValue placeholder="Selecionar categoria" />
           </SelectTrigger>
           <SelectContent className="max-h-[360px]">
             <CategorySearchInput value={search} onChange={setSearch} />
             {groupedCategories.map((group) => (
               <div key={group.accountName}>
-                {/* Account group header */}
                 <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/40 sticky top-0">
                   {group.accountName}
                 </div>
@@ -190,13 +231,55 @@ export function CategoryFilteredSelector({
             )}
           </SelectContent>
         </Select>
-        {selectedCategory && (
-          <div className="text-xs text-muted-foreground mt-1 flex gap-3">
-            <span>Conta: <strong>{(selectedCategory as any).default_account?.name || '—'}</strong></span>
-            <span>C. Custo: <strong>{selectedCategory.cost_center?.name || '—'}</strong></span>
-          </div>
-        )}
       </div>
+
+      {/* Painel de heranças — mostra Conta + C. Custo inferidos da categoria */}
+      {selectedCategory && (
+        <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1 border border-border/50">
+          <div className="flex items-center gap-1.5 mb-1 text-xs text-muted-foreground">
+            <Link2 className="w-3 h-3" />
+            <span>Vínculos automáticos</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Conta vinculada:</span>
+            <span className="font-medium">
+              {linkedAccount?.name
+                ?? (overrideAccount ? `${overrideAccount.name} (manual)` : '—')}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Centro de Custo:</span>
+            <span className="font-medium">{linkedCostCenter?.name || '—'}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Override de Conta — quando a categoria não tem default_account_id */}
+      {resolution.needsAccountOverride && onOverrideAccountChange && (
+        <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 space-y-2">
+          <Label className="text-warning flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            Conta * (categoria sem conta padrão)
+          </Label>
+          <Select
+            value={overrideAccountId}
+            onValueChange={onOverrideAccountChange}
+          >
+            <SelectTrigger className={!overrideAccountId ? 'border-destructive' : ''}>
+              <SelectValue placeholder="Selecionar conta para esta transação" />
+            </SelectTrigger>
+            <SelectContent>
+              {accounts?.filter(a => a.active).map(a => (
+                <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[10px] text-muted-foreground">
+            Esta conta será usada apenas neste lançamento. Para mudar o padrão da categoria,
+            edite-a em Configurações.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

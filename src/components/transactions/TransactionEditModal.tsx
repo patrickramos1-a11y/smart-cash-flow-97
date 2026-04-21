@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Pencil, AlertCircle, History, Save } from 'lucide-react';
+import { Loader2, Pencil, AlertCircle, History, Save, X, Link2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -432,9 +432,23 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
             </Select>
           </div>
 
-          {/* Account first (filters categories) */}
+          {/* Account first (filters categories) — with clear button */}
           <div>
-            <Label>Conta</Label>
+            <div className="flex items-center justify-between">
+              <Label>Conta</Label>
+              {(accountId || costCenterId) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setAccountId(''); setCostCenterId(''); }}
+                  className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  title="Limpar filtros (mantém a categoria)"
+                >
+                  <X className="w-3 h-3 mr-1" /> Limpar filtros
+                </Button>
+              )}
+            </div>
             <Select value={accountId || '__none__'} onValueChange={(v) => handleAccountChange(v === '__none__' ? '' : v)}>
               <SelectTrigger><SelectValue placeholder="Todas as contas" /></SelectTrigger>
               <SelectContent>
@@ -538,7 +552,29 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
             </Select>
           </div>
 
-          {/* Vinculado a (Entidade) — obrigatória */}
+          {/* Inheritance panel — Conta + C. Custo herdados da categoria */}
+          {categoryId && (() => {
+            const linkedAccount = accounts?.find(a => a.id === accountId);
+            const linkedCC = costCenters?.find(cc => cc.id === costCenterId);
+            return (
+              <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1 border border-border/50">
+                <div className="flex items-center gap-1.5 mb-1 text-xs text-muted-foreground">
+                  <Link2 className="w-3 h-3" />
+                  <span>Vínculos automáticos</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Conta vinculada:</span>
+                  <span className={`font-medium ${!linkedAccount ? 'text-warning' : ''}`}>
+                    {linkedAccount?.name || '⚠ Sem conta'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Centro de Custo:</span>
+                  <span className="font-medium">{linkedCC?.name || '—'}</span>
+                </div>
+              </div>
+            );
+          })()}
           <div>
             <Label>Vinculado a (Entidade) <span className="text-destructive">*</span></Label>
             <p className="text-[10px] text-muted-foreground mb-1">Pessoa ou grupo beneficiário do lançamento (ex.: FGTS → colaborador específico).</p>

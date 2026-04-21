@@ -53,6 +53,9 @@ export function QuickTransactionModal({
   const [entityIds, setEntityIds] = useState<string[]>([]);
   const [filterAccountId, setFilterAccountId] = useState('');
   const [filterCostCenterId, setFilterCostCenterId] = useState('');
+  const [accountIdOverride, setAccountIdOverride] = useState('');
+  const [resolvedAccountId, setResolvedAccountId] = useState<string | null>(null);
+  const [resolvedCostCenterId, setResolvedCostCenterId] = useState<string | null>(null);
 
   // Repetition state
   const [enableRepetition, setEnableRepetition] = useState(false);
@@ -96,6 +99,9 @@ export function QuickTransactionModal({
     setEntityIds([]);
     setFilterAccountId('');
     setFilterCostCenterId('');
+    setAccountIdOverride('');
+    setResolvedAccountId(null);
+    setResolvedCostCenterId(null);
     setEnableRepetition(false);
     setRepetitionCount(2);
     setRepetitionMode('parcelamento');
@@ -105,6 +111,12 @@ export function QuickTransactionModal({
 
   const handleSubmit = async () => {
     const valorTotal = parseFloat(formData.valor.replace(/\./g, '').replace(',', '.')) || 0;
+
+    // Guard final: bloqueia órfã
+    if (formData.categoria_id && !resolvedAccountId) {
+      toast.error('Selecione uma Conta — a categoria escolhida não tem conta padrão.');
+      return;
+    }
 
     if (!enableRepetition || repetitionCount <= 1) {
       const result = await createTransaction.mutateAsync({
@@ -118,8 +130,8 @@ export function QuickTransactionModal({
         data_vencimento: formData.data_vencimento,
         descricao: formData.descricao,
         categoria_id: formData.categoria_id || null,
-        centro_custo_id: selectedCategory?.cost_center_id || null,
-        conta_id: selectedCategory?.default_account_id || null,
+        centro_custo_id: resolvedCostCenterId,
+        conta_id: resolvedAccountId,
         forma_pagamento_id: formData.forma_pagamento_id || null,
         notes: formData.notes || null,
         entity_id: entityIds[0] || null,
@@ -170,8 +182,8 @@ export function QuickTransactionModal({
           data_vencimento: dueDate.toISOString().split('T')[0],
           descricao: formData.descricao + suffix,
           categoria_id: formData.categoria_id || null,
-          centro_custo_id: selectedCategory?.cost_center_id || null,
-          conta_id: selectedCategory?.default_account_id || null,
+          centro_custo_id: resolvedCostCenterId,
+          conta_id: resolvedAccountId,
           forma_pagamento_id: formData.forma_pagamento_id || null,
           notes: formData.notes || null,
           entity_id: entityIds[0] || null,
@@ -209,7 +221,9 @@ export function QuickTransactionModal({
   );
   // Despesas fixas também precisam de documento fiscal
   const despesaDocValid = isEntrada || formData.documento_recebimento?.length > 0;
-  const canSubmit = baseFieldsValid && entradaFieldsValid && despesaDocValid;
+  // Conta deve estar resolvida (default da categoria ou override do usuário)
+  const accountResolved = !formData.categoria_id || !!resolvedAccountId;
+  const canSubmit = baseFieldsValid && entradaFieldsValid && despesaDocValid && accountResolved;
   const valorTotal = parseFloat(formData.valor.replace(/\./g, '').replace(',', '.')) || 0;
   const valorParcela = enableRepetition && repetitionMode === 'parcelamento' && repetitionCount > 1
     ? Math.round((valorTotal / repetitionCount) * 100) / 100
@@ -237,16 +251,23 @@ export function QuickTransactionModal({
         </div>
 
         <div className="space-y-4">
-          {/* CATEGORY with pre-filters */}
+          {/* CATEGORY with pre-filters + inheritance panel + override */}
           <CategoryFilteredSelector
             tipo={tipo}
             subtype={effectiveSubtype as any}
             selectedCategoryId={formData.categoria_id}
-            onCategoryChange={(v) => setFormData({ ...formData, categoria_id: v })}
+            onCategoryChange={(v) => {
+              setFormData({ ...formData, categoria_id: v });
+              setAccountIdOverride('');
+            }}
             filterAccountId={filterAccountId}
             onFilterAccountChange={(v) => setFilterAccountId(v === 'all' ? '' : v)}
             filterCostCenterId={filterCostCenterId}
             onFilterCostCenterChange={(v) => setFilterCostCenterId(v === 'all' ? '' : v)}
+            overrideAccountId={accountIdOverride}
+            onOverrideAccountChange={setAccountIdOverride}
+            onResolvedAccountChange={setResolvedAccountId}
+            onResolvedCostCenterChange={setResolvedCostCenterId}
           />
 
           <div>
