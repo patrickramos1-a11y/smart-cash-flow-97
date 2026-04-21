@@ -96,9 +96,14 @@ export interface TransactionKPIs {
 }
 
 // Fetch transactions with filters
+// NOTE: `search` is intentionally excluded from the queryKey so typing in the
+// search box does NOT trigger network refetches. Filtering by `search` still
+// happens client-side below for backwards compatibility, but consumers should
+// prefer to filter the returned array locally for the most fluid UX.
 export function useTransactions(filters: TransactionFilters = {}) {
+  const { search: _searchIgnored, ...keyFilters } = filters;
   return useQuery({
-    queryKey: ['transactions', filters],
+    queryKey: ['transactions', keyFilters],
     queryFn: async () => {
       let query = supabase
         .from('transactions')
