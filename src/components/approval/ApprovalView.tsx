@@ -344,10 +344,11 @@ export function ApprovalView() {
     setBulkEntityId(commonValue(selectedTransactions.map(t => t.entity_id)) || '');
     setBulkResponsavelId(commonValue(selectedTransactions.map(t => t.responsavel_id)) || '');
     setBulkOrigem(commonValue(selectedTransactions.map(t => t.origem)) || '');
-    setBulkDescricao(commonValue(selectedTransactions.map(t => t.descricao)) || '');
-    const commonV = commonValue(selectedTransactions.map(t => String(t.valor)));
-    setBulkValor(commonV || '');
-    setBulkDataVencimento(commonValue(selectedTransactions.map(t => t.data_vencimento)) || '');
+    // Descrição/Valor/Vencimento NÃO são pré-preenchidos: campos vazios = "não alterar".
+    // Isso evita reescrever desnecessariamente esses campos (e disparar triggers caros) em massa.
+    setBulkDescricao('');
+    setBulkValor('');
+    setBulkDataVencimento('');
     setBulkStatus(commonValue(selectedTransactions.map(t => t.status)) || '');
     setBulkNotes('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
