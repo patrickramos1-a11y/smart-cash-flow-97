@@ -119,15 +119,20 @@ export function ApprovalView() {
   const [bulkEntityId, setBulkEntityId] = useState<string>('');
   const [bulkResponsavelId, setBulkResponsavelId] = useState<string>('');
   const [bulkOrigem, setBulkOrigem] = useState<string>('');
+  // New editable fields
+  const [bulkDescricao, setBulkDescricao] = useState<string>('');
+  const [bulkValor, setBulkValor] = useState<string>('');
+  const [bulkDataVencimento, setBulkDataVencimento] = useState<string>('');
+  const [bulkStatus, setBulkStatus] = useState<string>('');
+  const [bulkNotes, setBulkNotes] = useState<string>('');
 
-  // Lookup data for bulk edit (rich data with relationships)
+  // Lookup data for bulk edit — fetch ALL records (active + inactive) so legacy refs are preserved
   const { data: categoriesList } = useQuery({
     queryKey: ['approval_categories_list_full'],
     queryFn: async () => {
       const { data } = await supabase
         .from('transaction_categories')
-        .select('id, name, type, subtype, color, default_account_id, cost_center_id')
-        .eq('active', true)
+        .select('id, name, type, subtype, color, default_account_id, cost_center_id, active')
         .order('name');
       return data || [];
     },
@@ -135,7 +140,6 @@ export function ApprovalView() {
   const { data: accountsList } = useQuery({
     queryKey: ['approval_accounts_list_full'],
     queryFn: async () => {
-      // Fetch ALL accounts (including inactive) since legacy data may reference them
       const { data } = await supabase.from('accounts').select('id, name, bank, active').order('name');
       return data || [];
     },
@@ -143,7 +147,8 @@ export function ApprovalView() {
   const { data: costCentersList } = useQuery({
     queryKey: ['approval_cost_centers_list'],
     queryFn: async () => {
-      const { data } = await supabase.from('cost_centers').select('id, name').eq('active', true).order('name');
+      // Include inactive — categorias podem estar vinculadas a CCs marcados como inativos (ex: "Impostos e taxas")
+      const { data } = await supabase.from('cost_centers').select('id, name, active').order('name');
       return data || [];
     },
   });
@@ -311,6 +316,11 @@ export function ApprovalView() {
       setBulkEntityId('');
       setBulkResponsavelId('');
       setBulkOrigem('');
+      setBulkDescricao('');
+      setBulkValor('');
+      setBulkDataVencimento('');
+      setBulkStatus('');
+      setBulkNotes('');
       setSelectedIds(new Set());
     },
     onError: (e: any) => toast.error('Erro ao atualizar: ' + (e?.message || '')),
@@ -333,6 +343,12 @@ export function ApprovalView() {
     setBulkEntityId(commonValue(selectedTransactions.map(t => t.entity_id)) || '');
     setBulkResponsavelId(commonValue(selectedTransactions.map(t => t.responsavel_id)) || '');
     setBulkOrigem(commonValue(selectedTransactions.map(t => t.origem)) || '');
+    setBulkDescricao(commonValue(selectedTransactions.map(t => t.descricao)) || '');
+    const commonV = commonValue(selectedTransactions.map(t => String(t.valor)));
+    setBulkValor(commonV || '');
+    setBulkDataVencimento(commonValue(selectedTransactions.map(t => t.data_vencimento)) || '');
+    setBulkStatus(commonValue(selectedTransactions.map(t => t.status)) || '');
+    setBulkNotes('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bulkEditOpen]);
 
@@ -346,32 +362,57 @@ export function ApprovalView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bulkCategoryId, categoriesList]);
 
-  // Filtered categories for the bulk-edit dropdown (cross-filter)
+  // IDs that must always remain available even if filters/inactive would hide them
+  const stickyAccountIds = useMemo(() => {
+    const s = new Set<string>();
+    selectedTransactions.forEach(t => { if (t.account_id) s.add(t.account_id); });
+    if (bulkAccountId) s.add(bulkAccountId);
+    if (bulkCategoryId && categoriesList) {
+      const cat = (categoriesList as any[]).find(c => c.id === bulkCategoryId);
+      if (cat?.default_account_id) s.add(cat.default_account_id);
+    }
+    return s;
+  }, [selectedTransactions, bulkAccountId, bulkCategoryId, categoriesList]);
+
+  const stickyCostCenterIds = useMemo(() => {
+    const s = new Set<string>();
+    selectedTransactions.forEach(t => { if (t.cost_center_id) s.add(t.cost_center_id); });
+    if (bulkCostCenterId) s.add(bulkCostCenterId);
+    if (bulkCategoryId && categoriesList) {
+      const cat = (categoriesList as any[]).find(c => c.id === bulkCategoryId);
+      if (cat?.cost_center_id) s.add(cat.cost_center_id);
+    }
+    return s;
+  }, [selectedTransactions, bulkCostCenterId, bulkCategoryId, categoriesList]);
+
+  // Filtered categories for the bulk-edit dropdown (cross-filter, but always include selected one)
   const bulkFilteredCategories = useMemo(() => {
     let cats = (categoriesList || []) as any[];
     const commonTipo = commonValue(selectedTransactions.map(t => t.tipo_movimento));
-    if (commonTipo) cats = cats.filter(c => c.type === commonTipo);
-    if (bulkAccountId) cats = cats.filter(c => c.default_account_id === bulkAccountId);
-    if (bulkCostCenterId) cats = cats.filter(c => c.cost_center_id === bulkCostCenterId);
+    if (commonTipo) cats = cats.filter(c => c.type === commonTipo || c.id === bulkCategoryId);
+    if (bulkAccountId) cats = cats.filter(c => c.default_account_id === bulkAccountId || c.id === bulkCategoryId);
+    if (bulkCostCenterId) cats = cats.filter(c => c.cost_center_id === bulkCostCenterId || c.id === bulkCategoryId);
     return cats;
-  }, [categoriesList, selectedTransactions, bulkAccountId, bulkCostCenterId]);
+  }, [categoriesList, selectedTransactions, bulkAccountId, bulkCostCenterId, bulkCategoryId]);
 
-  // Accounts/CCs that contain at least one relevant category
+  // Accounts/CCs that contain at least one relevant category — plus sticky IDs (selection / current category)
   const bulkVisibleAccounts = useMemo(() => {
     const cats = (categoriesList || []) as any[];
     const commonTipo = commonValue(selectedTransactions.map(t => t.tipo_movimento));
     const relevant = commonTipo ? cats.filter(c => c.type === commonTipo) : cats;
     const accIds = new Set(relevant.map(c => c.default_account_id).filter(Boolean));
+    stickyAccountIds.forEach(id => accIds.add(id));
     return ((accountsList || []) as any[]).filter(a => accIds.has(a.id));
-  }, [categoriesList, accountsList, selectedTransactions]);
+  }, [categoriesList, accountsList, selectedTransactions, stickyAccountIds]);
 
   const bulkVisibleCostCenters = useMemo(() => {
     const cats = (categoriesList || []) as any[];
     const commonTipo = commonValue(selectedTransactions.map(t => t.tipo_movimento));
     const relevant = commonTipo ? cats.filter(c => c.type === commonTipo) : cats;
     const ccIds = new Set(relevant.map(c => c.cost_center_id).filter(Boolean));
+    stickyCostCenterIds.forEach(id => ccIds.add(id));
     return ((costCentersList || []) as any[]).filter(c => ccIds.has(c.id));
-  }, [categoriesList, costCentersList, selectedTransactions]);
+  }, [categoriesList, costCentersList, selectedTransactions, stickyCostCenterIds]);
 
   // Group categories by account name for the dropdown UI (style matches Transactions)
   const groupedBulkCategories = useMemo(() => {
@@ -391,6 +432,7 @@ export function ApprovalView() {
   const resetBulkFields = () => {
     setBulkCategoryId(''); setBulkAccountId(''); setBulkCostCenterId('');
     setBulkClienteId(''); setBulkEntityId(''); setBulkResponsavelId(''); setBulkOrigem('');
+    setBulkDescricao(''); setBulkValor(''); setBulkDataVencimento(''); setBulkStatus(''); setBulkNotes('');
   };
 
   // Filter and sort
@@ -522,6 +564,18 @@ export function ApprovalView() {
     if (bulkEntityId) updates.entity_id = bulkEntityId;
     if (bulkResponsavelId) updates.responsavel_id = bulkResponsavelId;
     if (bulkOrigem) updates.origem = bulkOrigem;
+    if (bulkDescricao.trim()) updates.descricao = bulkDescricao.trim();
+    if (bulkValor.trim()) {
+      const v = parseFloat(bulkValor.replace(',', '.'));
+      if (isNaN(v) || v < 0) {
+        toast.error('Valor inválido');
+        return;
+      }
+      updates.valor = v;
+    }
+    if (bulkDataVencimento) updates.data_vencimento = bulkDataVencimento;
+    if (bulkStatus) updates.status = bulkStatus;
+    if (bulkNotes.trim()) updates.notes = bulkNotes.trim();
     if (Object.keys(updates).length === 0) {
       toast.error('Selecione pelo menos um campo para alterar');
       return;
@@ -1115,6 +1169,7 @@ export function ApprovalView() {
                           <div className="flex items-center gap-2">
                             <Icon className="w-4 h-4 shrink-0" style={{ color }} />
                             <span style={{ color }} className="font-medium">{c.name}</span>
+                            {c.active === false && <Badge variant="outline" className="text-[9px] px-1 py-0">inativo</Badge>}
                           </div>
                         </SelectItem>
                       );
@@ -1277,6 +1332,90 @@ export function ApprovalView() {
                     <SelectItem value="IMPORTACAO">Importação</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            {/* Campos de conteúdo do lançamento */}
+            <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3">
+              <p className="text-xs font-semibold text-foreground">Conteúdo do lançamento</p>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center justify-between">
+                  <span>Descrição</span>
+                  {bulkDescricao && (
+                    <button type="button" onClick={() => setBulkDescricao('')} className="text-[10px] text-muted-foreground hover:text-foreground">limpar</button>
+                  )}
+                </Label>
+                <Input
+                  value={bulkDescricao}
+                  onChange={(e) => setBulkDescricao(e.target.value)}
+                  placeholder="Não alterar (deixe vazio)"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center justify-between">
+                    <span>Valor (R$)</span>
+                    {bulkValor && (
+                      <button type="button" onClick={() => setBulkValor('')} className="text-[10px] text-muted-foreground hover:text-foreground">limpar</button>
+                    )}
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={bulkValor}
+                    onChange={(e) => setBulkValor(e.target.value)}
+                    placeholder="Não alterar"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center justify-between">
+                    <span>Vencimento</span>
+                    {bulkDataVencimento && (
+                      <button type="button" onClick={() => setBulkDataVencimento('')} className="text-[10px] text-muted-foreground hover:text-foreground">limpar</button>
+                    )}
+                  </Label>
+                  <Input
+                    type="date"
+                    value={bulkDataVencimento}
+                    onChange={(e) => setBulkDataVencimento(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center justify-between">
+                    <span>Status</span>
+                    {bulkStatus && (
+                      <button type="button" onClick={() => setBulkStatus('')} className="text-[10px] text-muted-foreground hover:text-foreground">limpar</button>
+                    )}
+                  </Label>
+                  <Select value={bulkStatus} onValueChange={setBulkStatus}>
+                    <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EM_ABERTO">Em aberto</SelectItem>
+                      <SelectItem value="PAGO">Pago</SelectItem>
+                      <SelectItem value="ATRASADO">Atrasado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center justify-between">
+                  <span>Observações (substitui as existentes)</span>
+                  {bulkNotes && (
+                    <button type="button" onClick={() => setBulkNotes('')} className="text-[10px] text-muted-foreground hover:text-foreground">limpar</button>
+                  )}
+                </Label>
+                <Textarea
+                  value={bulkNotes}
+                  onChange={(e) => setBulkNotes(e.target.value)}
+                  placeholder="Não alterar (deixe vazio)"
+                  rows={2}
+                />
               </div>
             </div>
           </div>
