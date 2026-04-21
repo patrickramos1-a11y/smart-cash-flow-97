@@ -143,22 +143,23 @@ export function useOpenPaymentStats() {
       };
       
       currentData?.forEach(item => {
+        const v = Number(item.valor) || 0;
         if (item.tipo_movimento === 'ENTRADA') {
-          stats.totalReceivable += item.valor;
+          stats.totalReceivable += v;
           stats.countReceivable++;
         } else {
-          stats.totalPayable += item.valor;
+          stats.totalPayable += v;
           stats.countPayable++;
         }
-        
+
         // All are overdue since we filtered by lte today
-        stats.totalOverdue += item.valor;
+        stats.totalOverdue += v;
         stats.countOverdue++;
       });
-      
+
       // Calculate trend
       const currentTotal = stats.totalReceivable + stats.totalPayable;
-      const previousTotal = previousData?.reduce((sum, item) => sum + item.valor, 0) || 0;
+      const previousTotal = previousData?.reduce((sum, item) => sum + (Number(item.valor) || 0), 0) || 0;
       
       if (previousTotal > 0) {
         const change = ((currentTotal - previousTotal) / previousTotal) * 100;

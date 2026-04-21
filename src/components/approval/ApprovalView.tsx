@@ -130,10 +130,13 @@ export function ApprovalView() {
           responsible:financial_entities!transactions_responsavel_id_fkey(name),
           fixed_expenses:fixed_expense_id(
             nome,
-            categoria_id,
-            conta_id,
-            centro_custo_id,
-            recurring_clients:cliente_id(name)
+            transaction_category_id,
+            account_id,
+            cost_center_id,
+            recurring_clients:cliente_id(name),
+            fx_category:transaction_categories!fixed_expenses_transaction_category_id_fkey(name),
+            fx_account:accounts!fixed_expenses_account_id_fkey(name),
+            fx_cc:cost_centers!fixed_expenses_cost_center_id_fkey(name)
           )
         `)
         .order('created_at', { ascending: false });
@@ -145,41 +148,13 @@ export function ApprovalView() {
       const { data, error } = await query;
       if (error) throw error;
 
-      // Collect text-based ids from fixed_expenses to resolve names
-      const catTextIds = new Set<string>();
-      const accTextIds = new Set<string>();
-      const ccTextIds = new Set<string>();
-      (data || []).forEach((t: any) => {
-        const fx = t.fixed_expenses;
-        if (fx) {
-          if (fx.categoria_id) catTextIds.add(fx.categoria_id);
-          if (fx.conta_id) accTextIds.add(fx.conta_id);
-          if (fx.centro_custo_id) ccTextIds.add(fx.centro_custo_id);
-        }
-      });
-
-      const [catsRes, accsRes, ccsRes] = await Promise.all([
-        catTextIds.size
-          ? supabase.from('transaction_categories').select('id, name').in('id', Array.from(catTextIds))
-          : Promise.resolve({ data: [] as any[] }),
-        accTextIds.size
-          ? supabase.from('accounts').select('id, name').in('id', Array.from(accTextIds))
-          : Promise.resolve({ data: [] as any[] }),
-        ccTextIds.size
-          ? supabase.from('cost_centers').select('id, name').in('id', Array.from(ccTextIds))
-          : Promise.resolve({ data: [] as any[] }),
-      ]);
-      const catMap = new Map((catsRes.data || []).map((c: any) => [c.id, c.name]));
-      const accMap = new Map((accsRes.data || []).map((a: any) => [a.id, a.name]));
-      const ccMap = new Map((ccsRes.data || []).map((c: any) => [c.id, c.name]));
-
       return (data || []).map((t: any) => {
         const fx = t.fixed_expenses;
         return {
           ...t,
-          category_name: t.transaction_categories?.name || (fx?.categoria_id ? catMap.get(fx.categoria_id) : undefined),
-          account_name: t.accounts?.name || (fx?.conta_id ? accMap.get(fx.conta_id) : undefined),
-          cost_center_name: t.cost_centers?.name || (fx?.centro_custo_id ? ccMap.get(fx.centro_custo_id) : undefined),
+          category_name: t.transaction_categories?.name || fx?.fx_category?.name,
+          account_name: t.accounts?.name || fx?.fx_account?.name,
+          cost_center_name: t.cost_centers?.name || fx?.fx_cc?.name,
           entity_name: t.entity?.name,
           responsible_name: t.responsible?.name,
           client_name: t.recurring_clients?.name || fx?.recurring_clients?.name,

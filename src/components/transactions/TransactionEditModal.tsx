@@ -213,11 +213,11 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
           }
           await q;
 
-          // Update base fixed expense template
+          // Update base fixed expense template (UUID columns only)
           const feUpdates: any = { valor: parsedValor };
-          if (categoryId) feUpdates.categoria_id = categoryId;
-          if (accountId) feUpdates.conta_id = accountId;
-          if (costCenterId) feUpdates.centro_custo_id = costCenterId;
+          if (categoryId) feUpdates.transaction_category_id = categoryId;
+          if (accountId) feUpdates.account_id = accountId;
+          if (costCenterId) feUpdates.cost_center_id = costCenterId;
           if (clienteId) feUpdates.cliente_id = clienteId;
           await supabase.from('fixed_expenses').update(feUpdates).eq('id', transaction.fixed_expense_id);
         }
