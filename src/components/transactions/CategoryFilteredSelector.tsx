@@ -245,26 +245,7 @@ export function CategoryFilteredSelector({
         </Select>
       </div>
 
-      {/* Painel de heranças — mostra Conta + C. Custo inferidos da categoria */}
-      {selectedCategory && (
-        <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1 border border-border/50">
-          <div className="flex items-center gap-1.5 mb-1 text-xs text-muted-foreground">
-            <Link2 className="w-3 h-3" />
-            <span>Vínculos automáticos</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Conta vinculada:</span>
-            <span className="font-medium">
-              {linkedAccount?.name
-                ?? (overrideAccount ? `${overrideAccount.name} (manual)` : '—')}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Centro de Custo:</span>
-            <span className="font-medium">{linkedCostCenter?.name || '—'}</span>
-          </div>
-        </div>
-      )}
+      {/* Heranças agora refletem nos próprios dropdowns acima — sem painel extra. */}
 
       {/* Override de Conta — quando a categoria não tem default_account_id */}
       {resolution.needsAccountOverride && onOverrideAccountChange && (
