@@ -47,6 +47,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
   const [documentoTipo, setDocumentoTipo] = useState('');
   const [documentoNumero, setDocumentoNumero] = useState('');
   const [notes, setNotes] = useState('');
+  const [categorySearch, setCategorySearch] = useState('');
 
   // Lookup data — fetch active + inactive so currently-selected (possibly inactive)
   // values still appear and so newly-reactivated cost centers / accounts show up.
