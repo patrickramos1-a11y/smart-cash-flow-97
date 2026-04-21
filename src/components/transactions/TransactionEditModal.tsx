@@ -269,15 +269,8 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
   })();
 
   // Sticky IDs: keep currently-selected items visible even if normally filtered out
-  const visibleAccounts = useMemo(() => {
-    if (!accounts) return [];
-    return accounts.filter(a => a.active || a.id === accountId);
-  }, [accounts, accountId]);
-
-  const visibleCostCenters = useMemo(() => {
-    if (!costCenters) return [];
-    return costCenters.filter(cc => cc.active || cc.id === costCenterId);
-  }, [costCenters, costCenterId]);
+  const visibleAccounts = (accounts || []).filter(a => a.active || a.id === accountId);
+  const visibleCostCenters = (costCenters || []).filter(cc => cc.active || cc.id === costCenterId);
 
   // When category is selected, auto-fill account + cost-center from its defaults
   const handleCategoryChange = (newCategoryId: string) => {
