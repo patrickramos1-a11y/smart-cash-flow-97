@@ -908,8 +908,9 @@ export function ApprovalView() {
                     <th className="text-left p-3 text-xs font-medium cursor-pointer select-none" onClick={() => handleSort('descricao')}>
                       <span className="flex items-center">Descrição <SortIcon field="descricao" /></span>
                     </th>
-                    <th className="text-left p-3 text-xs font-medium">Cliente</th>
-                    <th className="text-left p-3 text-xs font-medium">Entidade</th>
+                    <th className="text-left p-3 text-xs font-medium">Cliente (empresa)</th>
+                    <th className="text-left p-3 text-xs font-medium">Vinculado a</th>
+                    <th className="text-left p-3 text-xs font-medium">Responsável</th>
                     <th className="text-left p-3 text-xs font-medium">Categoria</th>
                     <th className="text-left p-3 text-xs font-medium">Origem</th>
                     <th className="text-left p-3 text-xs font-medium cursor-pointer select-none" onClick={() => handleSort('data_vencimento')}>
@@ -925,7 +926,7 @@ export function ApprovalView() {
                 <tbody className="divide-y">
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={isAdmin ? 10 : 9} className="text-center py-8 text-muted-foreground text-sm">
+                      <td colSpan={isAdmin ? 12 : 11} className="text-center py-8 text-muted-foreground text-sm">
                         Nenhum lançamento encontrado
                       </td>
                     </tr>
@@ -959,6 +960,20 @@ export function ApprovalView() {
                             missingClient
                               ? <span className="text-amber-600 text-xs italic">⚠ não preenchido</span>
                               : '-'
+                          )}
+                        </td>
+                        <td className="p-3 text-xs">
+                          {t.entity_name ? (
+                            <span className="font-medium">{t.entity_name}</span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-xs">
+                          {t.responsible_name ? (
+                            <span className="font-medium">{t.responsible_name}</span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
                           )}
                         </td>
                         <td className="p-3 text-xs">
@@ -1285,7 +1300,7 @@ export function ApprovalView() {
               {/* Cliente */}
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center justify-between">
-                  <span>Cliente</span>
+                  <span>Cliente (empresa)</span>
                   {bulkClienteId && (
                     <button
                       type="button"
@@ -1309,7 +1324,7 @@ export function ApprovalView() {
               {/* Entidade */}
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center justify-between">
-                  <span>Entidade</span>
+                  <span>Vinculado a (Entidade)</span>
                   {bulkEntityId && (
                     <button
                       type="button"
@@ -1338,7 +1353,7 @@ export function ApprovalView() {
               {/* Responsável */}
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center justify-between">
-                  <span>Responsável</span>
+                  <span>Responsável (executor)</span>
                   {bulkResponsavelId && (
                     <button
                       type="button"
