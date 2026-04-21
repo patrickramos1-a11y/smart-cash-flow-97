@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import type { TransactionWithClient } from '@/hooks/useTransactions';
 import { getEntityIcon } from '@/utils/entityIcons';
 import { ensureDarkColor, colorFromName } from '@/utils/entityVisual';
+import { CategorySearchInput, normalizeForSearch } from './CategorySearchInput';
 
 interface TransactionEditModalProps {
   open: boolean;
