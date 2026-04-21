@@ -302,8 +302,25 @@ export function useCreateTransaction() {
     }) => {
       // Normaliza aliases: se o caller mandou nome legado, usa esse valor
       const categoryId = transaction.transaction_category_id ?? transaction.categoria_id ?? null;
-      const accountId = transaction.account_id ?? transaction.conta_id ?? null;
-      const costCenterId = transaction.cost_center_id ?? transaction.centro_custo_id ?? null;
+      let accountId = transaction.account_id ?? transaction.conta_id ?? null;
+      let costCenterId = transaction.cost_center_id ?? transaction.centro_custo_id ?? null;
+
+      // Fallback: se conta não foi informada mas categoria tem default_account_id, usa o default
+      if (!accountId && categoryId) {
+        const { data: cat } = await supabase
+          .from('transaction_categories')
+          .select('default_account_id, cost_center_id')
+          .eq('id', categoryId)
+          .maybeSingle();
+        if (cat?.default_account_id) accountId = cat.default_account_id;
+        if (!costCenterId && cat?.cost_center_id) costCenterId = cat.cost_center_id;
+      }
+
+      // Bloqueia inserção sem conta para lançamentos manuais
+      const isManual = (transaction.origem || 'LANCAMENTO_MANUAL') === 'LANCAMENTO_MANUAL';
+      if (isManual && !accountId) {
+        throw new Error('Selecione uma Conta para o lançamento (a categoria escolhida não tem conta padrão).');
+      }
 
       const insertData: any = {
         tipo_movimento: transaction.tipo_movimento!,

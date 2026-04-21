@@ -14,6 +14,7 @@ import { useSaveTransactionEntities } from '@/hooks/useTransactionEntities';
 import { formatCurrency } from '@/data/mockData';
 import { MultiEntitySelector } from './MultiEntitySelector';
 import { CategoryFilteredSelector } from './CategoryFilteredSelector';
+import { toast } from 'sonner';
 
 interface NewFixedExpenseModalProps {
   open: boolean;
@@ -36,6 +37,7 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
     data_fim: '',
     notes: '',
     documento_tipo: '' as string,
+    account_id_override: '' as string, // usado quando categoria não tem default_account_id
   });
 
   const [entityIds, setEntityIds] = useState<string[]>([]);
@@ -64,6 +66,7 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
       forma_pagamento_id: '', cliente_id: '',
       data_inicio: `${currentYear}-01-01`, data_fim: '', notes: '',
       documento_tipo: '',
+      account_id_override: '',
     });
     setEntityIds([]);
     setFilterAccountId('');
@@ -72,14 +75,23 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
 
   const handleClose = () => { resetForm(); onClose(); };
 
+  // Conta efetiva: default da categoria → override do usuário
+  const effectiveAccountId = selectedCategory?.default_account_id || formData.account_id_override || null;
+  const accountIsRequired = !!selectedCategory && !selectedCategory.default_account_id;
+
   const handleSubmit = async () => {
+    if (!effectiveAccountId) {
+      toast.error('Selecione uma Conta — a categoria escolhida não tem conta padrão.');
+      return;
+    }
+
     const result = await createFixedExpense.mutateAsync({
       nome: formData.nome,
       valor,
       dia_vencimento: formData.dia_vencimento,
       transaction_category_id: formData.categoria_id || null,
       cost_center_id: selectedCategory?.cost_center_id || null,
-      account_id: selectedCategory?.default_account_id || null,
+      account_id: effectiveAccountId,
       payment_method_id: formData.forma_pagamento_id || null,
       cliente_id: formData.cliente_id || null,
       data_inicio: formData.data_inicio,
@@ -104,7 +116,7 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
   };
 
   const isSubmitting = createFixedExpense.isPending || generateTransactions.isPending;
-  const canSubmit = formData.nome.trim().length > 0 && valor > 0 && formData.dia_vencimento >= 1 && formData.dia_vencimento <= 31 && formData.categoria_id.length > 0 && formData.forma_pagamento_id.length > 0 && formData.cliente_id.length > 0 && entityIds.length > 0 && formData.documento_tipo.length > 0;
+  const canSubmit = formData.nome.trim().length > 0 && valor > 0 && formData.dia_vencimento >= 1 && formData.dia_vencimento <= 31 && formData.categoria_id.length > 0 && formData.forma_pagamento_id.length > 0 && formData.cliente_id.length > 0 && entityIds.length > 0 && formData.documento_tipo.length > 0 && !!effectiveAccountId;
 
   const startDate = new Date(formData.data_inicio);
   const startMonth = startDate.getMonth() + 1;
@@ -173,6 +185,29 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
                 <span className="text-muted-foreground">Centro de Custo:</span>
                 <span className="font-medium">{linkedCostCenter?.name || '—'}</span>
               </div>
+            </div>
+          )}
+
+          {/* Conta obrigatória quando categoria não tem default */}
+          {accountIsRequired && (
+            <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 space-y-2">
+              <Label className="text-warning">Conta * (categoria sem conta padrão)</Label>
+              <Select
+                value={formData.account_id_override}
+                onValueChange={(v) => setFormData({ ...formData, account_id_override: v })}
+              >
+                <SelectTrigger className={!formData.account_id_override ? 'border-destructive' : ''}>
+                  <SelectValue placeholder="Selecionar conta para esta despesa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts?.filter(a => a.active).map(a => (
+                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground">
+                Esta conta será aplicada a todas as parcelas geradas. Para mudar o padrão da categoria, edite-a em Configurações.
+              </p>
             </div>
           )}
 

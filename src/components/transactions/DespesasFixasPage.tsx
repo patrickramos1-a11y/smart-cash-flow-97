@@ -87,6 +87,9 @@ export function DespesasFixasPage() {
     ...data
   })).sort((a, b) => b.total - a.total);
 
+  // Despesas fixas órfãs (sem conta vinculada) — alerta de auditoria
+  const orphanFixedExpenses = (fixedExpenses || []).filter(fe => !fe.account_id);
+
   return (
     <div className="space-y-6">
       {/* Header with filters */}
@@ -101,6 +104,19 @@ export function DespesasFixasPage() {
           Nova Despesa Fixa
         </Button>
       </div>
+
+      {/* Alerta: despesas fixas sem conta vinculada */}
+      {orphanFixedExpenses.length > 0 && (
+        <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 flex items-center gap-2 text-sm">
+          <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
+          <span className="text-warning font-medium">
+            {orphanFixedExpenses.length} despesa(s) fixa(s) sem conta vinculada
+          </span>
+          <span className="text-muted-foreground text-xs">
+            — edite o cadastro para evitar lançamentos órfãos: {orphanFixedExpenses.slice(0, 3).map(e => e.nome).join(', ')}{orphanFixedExpenses.length > 3 ? '…' : ''}
+          </span>
+        </div>
+      )}
 
       {/* Month/Year Navigator */}
       <MonthYearNavigator 

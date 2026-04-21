@@ -601,6 +601,18 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
               >
                 Selecionar sem NF
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const ids = sortedTransactions.filter(t => !t.account_id).map(t => t.id);
+                  setSelectedIds(new Set(ids));
+                  if (ids.length === 0) toast.info('Nenhum lançamento sem conta nesta listagem');
+                }}
+                className="h-7 text-xs"
+              >
+                Selecionar sem Conta
+              </Button>
               <Button size="sm" variant="destructive" onClick={handleBulkDelete} className="h-7 text-xs">
                 <Trash2 className="w-3 h-3 mr-1" /> Excluir Selecionadas
               </Button>
@@ -748,7 +760,18 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
                           )}
                           {visibleColumns.has('conta') && (
                             <td className="p-4">
-                              <span className="text-xs text-muted-foreground">{t.account_name || 'Não vinculado'}</span>
+                              {t.account_name ? (
+                                <span className="text-xs text-muted-foreground">{t.account_name}</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingTransaction(t)}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-warning/10 text-warning border border-warning/30 hover:bg-warning/20 transition-colors"
+                                  title="Clique para vincular uma conta"
+                                >
+                                  ⚠ Sem conta
+                                </button>
+                              )}
                             </td>
                           )}
                           {visibleColumns.has('centro_custo') && (
