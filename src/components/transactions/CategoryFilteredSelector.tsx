@@ -78,6 +78,10 @@ export function CategoryFilteredSelector({
   if (filterCostCenterId) {
     filteredCategories = filteredCategories.filter(c => c.cost_center_id === filterCostCenterId);
   }
+  if (search.trim()) {
+    const q = normalizeForSearch(search);
+    filteredCategories = filteredCategories.filter(c => normalizeForSearch(c.name).includes(q));
+  }
 
   // Group categories by account name, then sort alphabetically within each group
   const groupedCategories = useMemo(() => {
