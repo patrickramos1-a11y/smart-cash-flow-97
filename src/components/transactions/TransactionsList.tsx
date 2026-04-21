@@ -12,7 +12,7 @@ import {
   Search, ArrowUpCircle, ArrowDownCircle, MoreVertical, 
   CheckCircle, Clock, AlertTriangle, Send, Copy, Pencil, Trash2,
   RefreshCw, FileText, Loader2, DollarSign, ArrowUpDown, Settings2,
-  ArrowUp, ArrowDown, Undo2
+  ArrowUp, ArrowDown, Undo2, Filter, X
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { 
@@ -96,6 +96,10 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(
     new Set(ALL_COLUMNS.filter(c => c.default).map(c => c.key))
   );
+  // Filtros por coluna estilo Excel: { coluna: Set<valor selecionado> }.
+  // Quando o Set existe e está não-vazio, apenas linhas com valor pertencente são exibidas.
+  // "__EMPTY__" é o valor sentinel para representar células vazias/nulas.
+  const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
   const isMobile = useIsMobile();
   const updateMutation = useUpdateTransaction();
 
@@ -112,11 +116,31 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
   const duplicateMutation = useDuplicateTransaction();
   const deleteMutation = useDeleteTransaction();
 
-  // Sort + client-side text search (fluid, no refetch).
+  // Helper: extrai o valor "filtrável" (string) de uma transação por coluna.
+  const getColumnValue = (t: TransactionWithClient, col: string): string => {
+    switch (col) {
+      case 'tipo': return t.tipo_movimento;
+      case 'cliente': return t.recurring_clients?.name || '';
+      case 'natureza': {
+        if (t.tipo_movimento === 'ENTRADA') return t.natureza === 'RECORRENTE' ? 'Recorrente' : 'Avulso';
+        if (t.natureza === 'RECORRENTE' || (t as any).expense_type === 'FIXA' || (t as any).category_subtype === 'FIXA') return 'Fixo';
+        return 'Variável';
+      }
+      case 'categoria': return t.category_name || '';
+      case 'conta': return t.account_name || '';
+      case 'centro_custo': return t.cost_center_name || '';
+      case 'responsavel': return t.responsible_name || t.entity_name || '';
+      case 'nf': return t.documento_recebimento || '';
+      case 'status': return statusConfig[t.status]?.label || t.status;
+      default: return '';
+    }
+  };
+
+  // Sort + client-side text search + filtros por coluna (fluido, no refetch).
   const sortedTransactions = useMemo(() => {
     if (!transactions) return [];
     const q = search.trim().toLowerCase();
-    const filtered = q
+    let filtered = q
       ? transactions.filter(t =>
           t.descricao?.toLowerCase().includes(q) ||
           t.recurring_clients?.name?.toLowerCase().includes(q) ||
@@ -124,6 +148,18 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
           t.account_name?.toLowerCase().includes(q)
         )
       : transactions;
+
+    // Aplica filtros por coluna (Excel-like).
+    const activeColFilters = Object.entries(columnFilters).filter(([, set]) => set.size > 0);
+    if (activeColFilters.length > 0) {
+      filtered = filtered.filter(t =>
+        activeColFilters.every(([col, allowed]) => {
+          const v = getColumnValue(t, col);
+          return allowed.has(v === '' ? '__EMPTY__' : v);
+        })
+      );
+    }
+
     return [...filtered].sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
@@ -140,7 +176,30 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
       }
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [transactions, search, sortField, sortDir]);
+  }, [transactions, search, sortField, sortDir, columnFilters]);
+
+  // Valores únicos por coluna calculados a partir do conjunto SEM o filtro daquela própria coluna,
+  // para que o usuário sempre veja todas as opções disponíveis no popover.
+  const getUniqueValuesForColumn = (col: string): string[] => {
+    if (!transactions) return [];
+    const otherFilters = Object.entries(columnFilters).filter(([k, set]) => k !== col && set.size > 0);
+    const base = transactions.filter(t =>
+      otherFilters.every(([k, allowed]) => {
+        const v = getColumnValue(t, k);
+        return allowed.has(v === '' ? '__EMPTY__' : v);
+      })
+    );
+    const set = new Set<string>();
+    base.forEach(t => {
+      const v = getColumnValue(t, col);
+      set.add(v === '' ? '__EMPTY__' : v);
+    });
+    return Array.from(set).sort((a, b) => {
+      if (a === '__EMPTY__') return 1;
+      if (b === '__EMPTY__') return -1;
+      return a.localeCompare(b, 'pt-BR');
+    });
+  };
 
   const getNatureIcon = (tipo: string) => {
     if (tipo === 'ENTRADA') return <ArrowDownCircle className="w-5 h-5 text-income" />;
@@ -250,6 +309,119 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
     return sortDir === 'asc' ? <ArrowUp className="w-3 h-3 ml-1" /> : <ArrowDown className="w-3 h-3 ml-1" />;
   };
 
+  // Filtro estilo Excel por coluna: popover com checkboxes dos valores únicos.
+  const ColumnFilter = ({ col, label }: { col: string; label: string }) => {
+    const active = columnFilters[col]?.size ?? 0;
+    const [popoverSearch, setPopoverSearch] = useState('');
+    const uniqueValues = getUniqueValuesForColumn(col);
+    const filteredValues = popoverSearch
+      ? uniqueValues.filter(v => {
+          const display = v === '__EMPTY__' ? 'em branco' : v;
+          return display.toLowerCase().includes(popoverSearch.toLowerCase());
+        })
+      : uniqueValues;
+    const current = columnFilters[col] ?? new Set<string>();
+    const allSelected = current.size === 0;
+
+    const toggleValue = (v: string) => {
+      setColumnFilters(prev => {
+        const next = { ...prev };
+        const set = new Set(next[col] ?? []);
+        // Se vazio (= todos), inicia com todos os valores e remove o clicado.
+        if (set.size === 0) {
+          uniqueValues.forEach(uv => set.add(uv));
+        }
+        if (set.has(v)) set.delete(v);
+        else set.add(v);
+        // Se voltou a ter todos, limpa o filtro.
+        if (set.size === uniqueValues.length || set.size === 0) {
+          delete next[col];
+        } else {
+          next[col] = set;
+        }
+        return next;
+      });
+    };
+
+    const clearFilter = () => {
+      setColumnFilters(prev => {
+        const next = { ...prev };
+        delete next[col];
+        return next;
+      });
+    };
+
+    const selectOnly = (v: string) => {
+      setColumnFilters(prev => ({ ...prev, [col]: new Set([v]) }));
+    };
+
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            className={cn(
+              "ml-1 inline-flex items-center justify-center rounded p-0.5 hover:bg-muted transition-colors",
+              active > 0 && "bg-primary/15 text-primary"
+            )}
+            title={`Filtrar ${label}`}
+          >
+            <Filter className="w-3 h-3" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-0" align="start">
+          <div className="p-2 border-b flex items-center justify-between gap-2">
+            <span className="text-xs font-medium">Filtrar: {label}</span>
+            {active > 0 && (
+              <button onClick={clearFilter} className="text-[10px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+                <X className="w-3 h-3" /> Limpar
+              </button>
+            )}
+          </div>
+          <div className="p-2 border-b">
+            <Input
+              autoFocus
+              value={popoverSearch}
+              onChange={e => setPopoverSearch(e.target.value)}
+              placeholder="Pesquisar..."
+              className="h-7 text-xs"
+            />
+          </div>
+          <div className="max-h-64 overflow-y-auto p-1">
+            {filteredValues.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-3">Nenhum valor</p>
+            )}
+            {filteredValues.map(v => {
+              const display = v === '__EMPTY__' ? '(em branco)' : v;
+              const isChecked = allSelected || current.has(v);
+              return (
+                <div
+                  key={v}
+                  className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted text-xs group"
+                >
+                  <Checkbox
+                    checked={isChecked}
+                    onCheckedChange={() => toggleValue(v)}
+                  />
+                  <span className="flex-1 truncate cursor-pointer" onClick={() => toggleValue(v)}>
+                    {display}
+                  </span>
+                  <button
+                    onClick={() => selectOnly(v)}
+                    className="opacity-0 group-hover:opacity-100 text-[9px] text-primary hover:underline"
+                  >
+                    só este
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
+  const hasActiveColumnFilters = Object.values(columnFilters).some(s => s.size > 0);
+
   if (isLoading) {
     return (
       <Card>
@@ -338,6 +510,26 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
           </div>
         )}
       </div>
+
+      {/* Active column filters indicator */}
+      {hasActiveColumnFilters && !isMobile && (
+        <div className="flex items-center gap-2 flex-wrap mb-3 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 text-xs">
+          <Filter className="w-3 h-3 text-primary" />
+          <span className="font-medium">{sortedTransactions.length}</span>
+          <span className="text-muted-foreground">de {transactions?.length ?? 0} linhas após filtros de coluna</span>
+          {Object.entries(columnFilters).filter(([, s]) => s.size > 0).map(([col, set]) => (
+            <Badge key={col} variant="outline" className="text-[10px] gap-1">
+              {col}: {set.size} valor(es)
+              <button onClick={() => setColumnFilters(prev => { const n = { ...prev }; delete n[col]; return n; })}>
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </Badge>
+          ))}
+          <button onClick={() => setColumnFilters({})} className="ml-auto text-primary hover:underline">
+            Limpar todos
+          </button>
+        </div>
+      )}
 
       {/* Mobile Card List */}
       {isMobile ? (
@@ -428,7 +620,11 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
                         onCheckedChange={toggleSelectAll}
                       />
                     </th>
-                    {visibleColumns.has('tipo') && <th className="text-left p-4 text-sm font-medium">Tipo</th>}
+                    {visibleColumns.has('tipo') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <span className="inline-flex items-center">Tipo<ColumnFilter col="tipo" label="Tipo" /></span>
+                      </th>
+                    )}
                     {visibleColumns.has('descricao') && (
                       <th className="text-left p-4 text-sm font-medium">
                         <button onClick={() => toggleSort('descricao')} className="flex items-center hover:text-foreground">
@@ -436,13 +632,41 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
                         </button>
                       </th>
                     )}
-                    {visibleColumns.has('cliente') && <th className="text-left p-4 text-sm font-medium">Cliente</th>}
-                    {visibleColumns.has('natureza') && <th className="text-left p-4 text-sm font-medium">Natureza</th>}
-                    {visibleColumns.has('categoria') && <th className="text-left p-4 text-sm font-medium">Categoria</th>}
-                    {visibleColumns.has('conta') && <th className="text-left p-4 text-sm font-medium">Conta</th>}
-                    {visibleColumns.has('centro_custo') && <th className="text-left p-4 text-sm font-medium">C. Custo</th>}
-                    {visibleColumns.has('responsavel') && <th className="text-left p-4 text-sm font-medium">Responsável</th>}
-                    {visibleColumns.has('nf') && <th className="text-left p-4 text-sm font-medium">NF / Doc.</th>}
+                    {visibleColumns.has('cliente') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <span className="inline-flex items-center">Cliente<ColumnFilter col="cliente" label="Cliente" /></span>
+                      </th>
+                    )}
+                    {visibleColumns.has('natureza') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <span className="inline-flex items-center">Natureza<ColumnFilter col="natureza" label="Natureza" /></span>
+                      </th>
+                    )}
+                    {visibleColumns.has('categoria') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <span className="inline-flex items-center">Categoria<ColumnFilter col="categoria" label="Categoria" /></span>
+                      </th>
+                    )}
+                    {visibleColumns.has('conta') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <span className="inline-flex items-center">Conta<ColumnFilter col="conta" label="Conta" /></span>
+                      </th>
+                    )}
+                    {visibleColumns.has('centro_custo') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <span className="inline-flex items-center">C. Custo<ColumnFilter col="centro_custo" label="Centro de Custo" /></span>
+                      </th>
+                    )}
+                    {visibleColumns.has('responsavel') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <span className="inline-flex items-center">Responsável<ColumnFilter col="responsavel" label="Responsável" /></span>
+                      </th>
+                    )}
+                    {visibleColumns.has('nf') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <span className="inline-flex items-center">NF / Doc.<ColumnFilter col="nf" label="NF / Doc." /></span>
+                      </th>
+                    )}
                     {visibleColumns.has('vencimento') && (
                       <th className="text-left p-4 text-sm font-medium">
                         <button onClick={() => toggleSort('data_vencimento')} className="flex items-center hover:text-foreground">
@@ -450,7 +674,11 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
                         </button>
                       </th>
                     )}
-                    {visibleColumns.has('status') && <th className="text-left p-4 text-sm font-medium">Status</th>}
+                    {visibleColumns.has('status') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <span className="inline-flex items-center">Status<ColumnFilter col="status" label="Status" /></span>
+                      </th>
+                    )}
                     {visibleColumns.has('valor') && (
                       <th className="text-right p-4 text-sm font-medium">
                         <button onClick={() => toggleSort('valor')} className="flex items-center justify-end hover:text-foreground ml-auto">

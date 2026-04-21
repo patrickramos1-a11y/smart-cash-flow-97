@@ -7,7 +7,7 @@ import {
   BarChart3, PieChart
 } from 'lucide-react';
 import { useTransactions, useTransactionKPIs } from '@/hooks/useTransactions';
-import { TransactionsList } from './TransactionsList';
+import { TransactionsListWithTabs } from './TransactionsListWithTabs';
 import { QuickTransactionModal } from './QuickTransactionModal';
 import { MonthYearNavigator } from '@/components/ui/month-year-navigator';
 import { formatCurrency } from '@/data/mockData';
@@ -202,10 +202,10 @@ export function EntradasAvulsasPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Transações do Mês</CardTitle>
+          <CardTitle className="text-lg">Transações</CardTitle>
         </CardHeader>
         <CardContent>
-          <TransactionsList 
+          <TransactionsListWithTabs 
             filters={{ 
               competencia_mes: selectedMonth, 
               competencia_ano: selectedYear,
