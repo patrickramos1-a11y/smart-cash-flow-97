@@ -76,46 +76,56 @@ export function formatNumberBRL(value: number | null | undefined): string {
 }
 
 export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
-  ({ value, onValueChange, showPrefix = true, placeholder = "0,00", className, onBlur, ...props }, ref) => {
-    // Texto interno mostrado no input
-    const [text, setText] = React.useState<string>(() => {
-      const n = parseBRLToNumber(value as any);
-      return n === null ? "" : formatNumberBRL(n);
-    });
-    const [focused, setFocused] = React.useState(false);
+  ({ value, onValueChange, showPrefix = true, placeholder = "0,00", className, onBlur, onFocus, autoFocus, ...props }, ref) => {
+    // Estado interno em CENTAVOS (inteiro). Ex.: R$ 91,00 → 9100.
+    const toCents = (v: number | string | null | undefined): number => {
+      const n = parseBRLToNumber(v as any);
+      if (n === null) return 0;
+      return Math.round(n * 100);
+    };
 
-    // Sincroniza quando o valor externo muda e o usuário não está digitando
+    const [cents, setCents] = React.useState<number>(() => toCents(value));
+    const isEditingRef = React.useRef(false);
+
+    // Sincroniza com valor externo somente quando NÃO está em edição ativa.
     React.useEffect(() => {
-      if (focused) return;
-      const n = parseBRLToNumber(value as any);
-      const next = n === null ? "" : formatNumberBRL(n);
-      setText(next);
-    }, [value, focused]);
+      if (isEditingRef.current) return;
+      setCents(toCents(value));
+    }, [value]);
+
+    const display = formatNumberBRL(cents / 100);
+
+    const emit = (newCents: number) => {
+      setCents(newCents);
+      onValueChange(newCents / 100);
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      // Aceita somente dígitos, vírgula e ponto
-      let raw = e.target.value.replace(/[^\d.,]/g, "");
-      // Converte ponto em vírgula para coerência BR durante digitação
-      // (só se não houver vírgula ainda — senão mantém o usuário colando "1.234,56")
-      if (!raw.includes(",") && raw.includes(".")) {
-        // Se tem apenas 1 ponto, tratar como decimal
-        const dots = (raw.match(/\./g) || []).length;
-        if (dots === 1) raw = raw.replace(".", ",");
+      isEditingRef.current = true;
+      // Modo "caixa eletrônico": cada dígito empurra centavos da direita p/ esquerda.
+      const digits = e.target.value.replace(/\D/g, "").slice(0, 14);
+      const next = digits === "" ? 0 : parseInt(digits, 10);
+      emit(next);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        isEditingRef.current = true;
+        emit(Math.floor(cents / 10));
       }
-      setText(raw);
-      const n = parseBRLToNumber(raw);
-      onValueChange(n);
+    };
+
+    const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+      isEditingRef.current = true;
+      requestAnimationFrame(() => e.target.select());
+      onFocus?.(e);
     };
 
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-      setFocused(false);
-      const n = parseBRLToNumber(text);
-      setText(n === null ? "" : formatNumberBRL(n));
-      onValueChange(n);
+      isEditingRef.current = false;
       onBlur?.(e);
     };
-
-    const handleFocus = () => setFocused(true);
 
     return (
       <div className="relative">
@@ -127,13 +137,15 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
         <Input
           ref={ref}
           type="text"
-          inputMode="decimal"
-          value={text}
+          inputMode="numeric"
+          value={display}
           onChange={handleChange}
+          onKeyDown={handleKeyDown}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          autoFocus={autoFocus}
           placeholder={placeholder}
-          className={cn(showPrefix && "pl-9", className)}
+          className={cn(showPrefix && "pl-9", "text-right", className)}
           {...props}
         />
       </div>
