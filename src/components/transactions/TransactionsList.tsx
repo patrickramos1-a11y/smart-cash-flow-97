@@ -533,6 +533,20 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
                               <span className="text-xs text-muted-foreground">{t.responsible_name || t.entity_name || '-'}</span>
                             </td>
                           )}
+                          {visibleColumns.has('nf') && (
+                            <td className="p-4">
+                              {t.documento_recebimento ? (
+                                <Badge
+                                  variant="outline"
+                                  className={cn("text-[10px]", DOC_BADGE[t.documento_recebimento]?.color || 'bg-muted text-muted-foreground')}
+                                >
+                                  {DOC_BADGE[t.documento_recebimento]?.label || t.documento_recebimento}
+                                </Badge>
+                              ) : (
+                                <span className="text-[10px] italic text-muted-foreground">não informado</span>
+                              )}
+                            </td>
+                          )}
                           {visibleColumns.has('vencimento') && (
                             <td className="p-4">
                               <span className="text-sm">{formatDate(t.data_vencimento)}</span>
