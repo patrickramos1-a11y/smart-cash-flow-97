@@ -43,6 +43,8 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
   const [entityIds, setEntityIds] = useState<string[]>([]);
   const [filterAccountId, setFilterAccountId] = useState('');
   const [filterCostCenterId, setFilterCostCenterId] = useState('');
+  const [resolvedAccountId, setResolvedAccountId] = useState<string | null>(null);
+  const [resolvedCostCenterId, setResolvedCostCenterId] = useState<string | null>(null);
 
   const { data: accounts } = useAccounts();
   const { data: categories } = useTransactionCategories();
@@ -55,8 +57,6 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
   const saveEntities = useSaveTransactionEntities();
 
   const selectedCategory = categories?.find(c => c.id === formData.categoria_id);
-  const linkedCostCenter = costCenters?.find(cc => cc.id === selectedCategory?.cost_center_id);
-  const linkedAccount = accounts?.find(a => a.id === selectedCategory?.default_account_id);
 
   const valor = parseFloat(formData.valor.replace(/\./g, '').replace(',', '.')) || 0;
 
