@@ -36,6 +36,7 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
     data_fim: '',
     notes: '',
     documento_tipo: '' as string,
+    account_id_override: '' as string, // usado quando categoria não tem default_account_id
   });
 
   const [entityIds, setEntityIds] = useState<string[]>([]);
