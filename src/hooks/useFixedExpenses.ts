@@ -7,10 +7,11 @@ export interface FixedExpenseRow {
   nome: string;
   valor: number;
   dia_vencimento: number;
-  categoria_id: string | null;
-  centro_custo_id: string | null;
-  conta_id: string | null;
-  forma_pagamento_id: string | null;
+  transaction_category_id: string | null;
+  cost_center_id: string | null;
+  account_id: string | null;
+  payment_method_id: string | null;
+  cliente_id: string | null;
   data_inicio: string;
   data_fim: string | null;
   active: boolean;
@@ -48,10 +49,11 @@ export function useCreateFixedExpense() {
           nome: expense.nome!,
           valor: expense.valor!,
           dia_vencimento: expense.dia_vencimento!,
-          categoria_id: expense.categoria_id,
-          centro_custo_id: expense.centro_custo_id,
-          conta_id: expense.conta_id,
-          forma_pagamento_id: expense.forma_pagamento_id,
+          transaction_category_id: expense.transaction_category_id,
+          cost_center_id: expense.cost_center_id,
+          account_id: expense.account_id,
+          payment_method_id: expense.payment_method_id,
+          cliente_id: expense.cliente_id,
           data_inicio: expense.data_inicio || new Date().toISOString().split('T')[0],
           data_fim: expense.data_fim,
           notes: expense.notes,
@@ -129,7 +131,6 @@ export function useGenerateFixedExpenseTransactions() {
 
   return useMutation({
     mutationFn: async ({ year, month }: { year: number; month: number }) => {
-      // Get all active fixed expenses
       const { data: expenses, error: fetchError } = await supabase
         .from('fixed_expenses')
         .select('*')
@@ -137,7 +138,6 @@ export function useGenerateFixedExpenseTransactions() {
 
       if (fetchError) throw fetchError;
 
-      // Check which ones don't have transactions for this month yet
       const { data: existingTransactions } = await supabase
         .from('transactions')
         .select('fixed_expense_id')
@@ -147,7 +147,6 @@ export function useGenerateFixedExpenseTransactions() {
 
       const existingExpenseIds = new Set(existingTransactions?.map(t => t.fixed_expense_id) || []);
 
-      // Create transactions for expenses that don't have one yet
       const newTransactions = expenses
         ?.filter(e => !existingExpenseIds.has(e.id))
         .filter(e => {
@@ -157,7 +156,6 @@ export function useGenerateFixedExpenseTransactions() {
           return startDate <= checkDate && (!endDate || endDate >= checkDate);
         })
         .map(e => {
-          // Calculate due date for this month
           const lastDayOfMonth = new Date(year, month, 0).getDate();
           const dueDay = Math.min(e.dia_vencimento, lastDayOfMonth);
           const dueDate = new Date(year, month - 1, dueDay);
@@ -173,10 +171,10 @@ export function useGenerateFixedExpenseTransactions() {
             data_vencimento: dueDate.toISOString().split('T')[0],
             status: 'EM_ABERTO' as const,
             descricao: `${e.nome} - ${month.toString().padStart(2, '0')}/${year}`,
-            categoria_id: e.categoria_id,
-            centro_custo_id: e.centro_custo_id,
-            conta_id: e.conta_id,
-            forma_pagamento_id: e.forma_pagamento_id,
+            transaction_category_id: e.transaction_category_id,
+            cost_center_id: e.cost_center_id,
+            account_id: e.account_id,
+            cliente_id: e.cliente_id,
           };
         });
 
