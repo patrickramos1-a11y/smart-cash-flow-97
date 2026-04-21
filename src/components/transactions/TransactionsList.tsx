@@ -66,9 +66,11 @@ type ColumnKey = typeof ALL_COLUMNS[number]['key'];
 
 interface TransactionsListProps {
   filters: TransactionFilters;
+  /** Define quais campos podem ser editados em massa neste contexto. */
+  bulkContext?: BulkContext;
 }
 
-export function TransactionsList({ filters }: TransactionsListProps) {
+export function TransactionsList({ filters, bulkContext = 'GERAL' }: TransactionsListProps) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
