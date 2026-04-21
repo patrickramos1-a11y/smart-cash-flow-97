@@ -117,6 +117,7 @@ export function ApprovalView() {
   const [bulkCategoryId, setBulkCategoryId] = useState<string>('');
   const [bulkAccountId, setBulkAccountId] = useState<string>('');
   const [bulkCostCenterId, setBulkCostCenterId] = useState<string>('');
+  const [bulkCategorySearch, setBulkCategorySearch] = useState<string>('');
   const [bulkClienteId, setBulkClienteId] = useState<string>('');
   const [bulkEntityId, setBulkEntityId] = useState<string>('');
   const [bulkResponsavelId, setBulkResponsavelId] = useState<string>('');
