@@ -118,7 +118,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
   const handleSubmit = async () => {
     if (!transaction) return;
     
-    const parsedValor = parseFloat(valor.replace(/\./g, '').replace(',', '.'));
+    const parsedValor = parseBRLToNumber(valor) ?? 0;
     if (!parsedValor || parsedValor <= 0) {
       toast.error('Informe um valor válido');
       return;
