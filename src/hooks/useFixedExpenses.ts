@@ -138,6 +138,16 @@ export function useGenerateFixedExpenseTransactions() {
 
       if (fetchError) throw fetchError;
 
+      // Pré-carrega categorias para resolver fallback de conta (default_account_id)
+      const categoryIds = Array.from(new Set((expenses || [])
+        .map(e => e.transaction_category_id).filter(Boolean))) as string[];
+      const { data: categories } = categoryIds.length > 0
+        ? await supabase.from('transaction_categories')
+            .select('id, default_account_id, cost_center_id')
+            .in('id', categoryIds)
+        : { data: [] as any[] };
+      const categoryMap = new Map((categories || []).map(c => [c.id, c]));
+
       const { data: existingTransactions } = await supabase
         .from('transactions')
         .select('fixed_expense_id')
@@ -147,6 +157,7 @@ export function useGenerateFixedExpenseTransactions() {
 
       const existingExpenseIds = new Set(existingTransactions?.map(t => t.fixed_expense_id) || []);
 
+      const orphans: string[] = [];
       const newTransactions = expenses
         ?.filter(e => !existingExpenseIds.has(e.id))
         .filter(e => {
@@ -160,6 +171,15 @@ export function useGenerateFixedExpenseTransactions() {
           const dueDay = Math.min(e.dia_vencimento, lastDayOfMonth);
           const dueDate = new Date(year, month - 1, dueDay);
 
+          // Fallback: conta da despesa → conta padrão da categoria
+          const cat = e.transaction_category_id ? categoryMap.get(e.transaction_category_id) : null;
+          const resolvedAccountId = e.account_id ?? cat?.default_account_id ?? null;
+          const resolvedCostCenterId = e.cost_center_id ?? cat?.cost_center_id ?? null;
+
+          if (!resolvedAccountId) {
+            orphans.push(e.nome);
+          }
+
           return {
             tipo_movimento: 'SAIDA' as const,
             natureza: 'RECORRENTE' as const,
@@ -172,11 +192,18 @@ export function useGenerateFixedExpenseTransactions() {
             status: 'EM_ABERTO' as const,
             descricao: `${e.nome} - ${month.toString().padStart(2, '0')}/${year}`,
             transaction_category_id: e.transaction_category_id,
-            cost_center_id: e.cost_center_id,
-            account_id: e.account_id,
+            cost_center_id: resolvedCostCenterId,
+            account_id: resolvedAccountId,
             cliente_id: e.cliente_id,
           };
-        });
+        }).filter(t => t.account_id !== null); // Bloqueia inserção de órfãs
+
+      if (orphans.length > 0) {
+        toast.error(
+          `${orphans.length} despesa(s) fixa(s) sem conta vinculada (categoria também não tem conta padrão): ${orphans.slice(0, 3).join(', ')}${orphans.length > 3 ? '…' : ''}. Corrija o cadastro antes de gerar.`,
+          { duration: 8000 }
+        );
+      }
 
       if (newTransactions && newTransactions.length > 0) {
         const { error: insertError } = await supabase
