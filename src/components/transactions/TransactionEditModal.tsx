@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,6 +14,8 @@ import { toast } from 'sonner';
 import { formatCurrency } from '@/data/mockData';
 import { useAuth } from '@/hooks/useAuth';
 import type { TransactionWithClient } from '@/hooks/useTransactions';
+import { getEntityIcon } from '@/utils/entityIcons';
+import { ensureDarkColor, colorFromName } from '@/utils/entityVisual';
 
 interface TransactionEditModalProps {
   open: boolean;
@@ -43,31 +46,31 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
   const [documentoNumero, setDocumentoNumero] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Fetch lookup data
+  // Lookup data — fetch active + inactive so currently-selected (possibly inactive)
+  // values still appear and so newly-reactivated cost centers / accounts show up.
   const { data: categories } = useQuery({
-    queryKey: ['transaction_categories_with_account'],
+    queryKey: ['transaction_categories_with_account_all'],
     queryFn: async () => {
       const { data } = await supabase
         .from('transaction_categories')
-        .select('id, name, type, expense_type, subtype, default_account_id')
-        .eq('active', true)
+        .select('id, name, type, expense_type, subtype, default_account_id, cost_center_id, color, active')
         .order('name');
       return data || [];
     },
   });
 
   const { data: accounts } = useQuery({
-    queryKey: ['accounts_list'],
+    queryKey: ['accounts_list_all'],
     queryFn: async () => {
-      const { data } = await supabase.from('accounts').select('id, name').eq('active', true).order('name');
+      const { data } = await supabase.from('accounts').select('id, name, active').order('name');
       return data || [];
     },
   });
 
   const { data: costCenters } = useQuery({
-    queryKey: ['cost_centers_list'],
+    queryKey: ['cost_centers_list_all'],
     queryFn: async () => {
-      const { data } = await supabase.from('cost_centers').select('id, name').eq('active', true).order('name');
+      const { data } = await supabase.from('cost_centers').select('id, name, active').order('name');
       return data || [];
     },
   });
@@ -247,16 +250,16 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
 
   const filteredCategories = categories?.filter(c => c.type === transaction.tipo_movimento) || [];
 
-  // Bidirectional category/account filtering
-  // If account selected → show only categories whose default_account_id matches (or no default)
-  // Categories displayed grouped by their default account
-  const categoriesForAccount = accountId
-    ? filteredCategories.filter(c => !c.default_account_id || c.default_account_id === accountId)
-    : filteredCategories;
+  // Cross-filter: a category may be filtered by account AND by cost-center
+  const categoriesForFilters = filteredCategories.filter(c => {
+    if (accountId && c.default_account_id && c.default_account_id !== accountId) return false;
+    if (costCenterId && c.cost_center_id && c.cost_center_id !== costCenterId) return false;
+    return true;
+  });
 
   const groupedCategories = (() => {
     const groups: Record<string, { accountName: string; items: typeof filteredCategories }> = {};
-    categoriesForAccount.forEach(c => {
+    categoriesForFilters.forEach(c => {
       const accId = c.default_account_id || '__nodef__';
       const accName = accounts?.find(a => a.id === accId)?.name || 'Sem conta padrão';
       if (!groups[accId]) groups[accId] = { accountName: accName, items: [] };
@@ -265,23 +268,37 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
     return Object.values(groups).sort((a, b) => a.accountName.localeCompare(b.accountName));
   })();
 
-  // When category is selected, auto-fill account from its default
+  // Sticky IDs: keep currently-selected items visible even if normally filtered out
+  const visibleAccounts = (accounts || []).filter(a => a.active || a.id === accountId);
+  const visibleCostCenters = (costCenters || []).filter(cc => cc.active || cc.id === costCenterId);
+
+  // When category is selected, auto-fill account + cost-center from its defaults
   const handleCategoryChange = (newCategoryId: string) => {
     setCategoryId(newCategoryId);
     if (newCategoryId) {
       const cat = filteredCategories.find(c => c.id === newCategoryId);
-      if (cat?.default_account_id && !accountId) {
-        setAccountId(cat.default_account_id);
-      }
+      if (cat?.default_account_id) setAccountId(cat.default_account_id);
+      if (cat?.cost_center_id) setCostCenterId(cat.cost_center_id);
     }
   };
 
-  // When account changes, if current category doesn't belong, clear it
+  // When account changes, clear category if it doesn't match
   const handleAccountChange = (newAccountId: string) => {
     setAccountId(newAccountId);
     if (newAccountId && categoryId) {
       const cat = filteredCategories.find(c => c.id === categoryId);
       if (cat?.default_account_id && cat.default_account_id !== newAccountId) {
+        setCategoryId('');
+      }
+    }
+  };
+
+  // When cost-center changes, clear category if it doesn't match
+  const handleCostCenterChange = (newCcId: string) => {
+    setCostCenterId(newCcId);
+    if (newCcId && categoryId) {
+      const cat = filteredCategories.find(c => c.id === categoryId);
+      if (cat?.cost_center_id && cat.cost_center_id !== newCcId) {
         setCategoryId('');
       }
     }
@@ -377,33 +394,78 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
               <SelectTrigger><SelectValue placeholder="Todas as contas" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">Todas as contas</SelectItem>
-                {accounts?.map(a => (
-                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                ))}
+                {visibleAccounts.map(a => {
+                  const Icon = getEntityIcon(a.name);
+                  const color = colorFromName(a.name);
+                  return (
+                    <SelectItem key={a.id} value={a.id}>
+                      <span className="inline-flex items-center gap-2">
+                        <span
+                          className="inline-flex items-center justify-center w-5 h-5 rounded"
+                          style={{ backgroundColor: `${color}20`, color }}
+                        >
+                          <Icon className="w-3 h-3" />
+                        </span>
+                        <span style={{ color }} className="font-medium">{a.name}</span>
+                        {!a.active && <Badge variant="outline" className="text-[9px] px-1 py-0">inativo</Badge>}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Category grouped by account */}
+          {/* Category grouped by account, with icons + colors */}
           <div>
-            <Label>Categoria {accountId && <span className="text-xs text-muted-foreground">(filtrada pela conta)</span>}</Label>
+            <Label>
+              Categoria{' '}
+              {(accountId || costCenterId) && (
+                <span className="text-xs text-muted-foreground">
+                  (filtrada {accountId && costCenterId ? 'pela conta + centro de custo' : accountId ? 'pela conta' : 'pelo centro de custo'})
+                </span>
+              )}
+            </Label>
             <Select value={categoryId || '__none__'} onValueChange={(v) => handleCategoryChange(v === '__none__' ? '' : v)}>
               <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent className="max-h-[300px]">
+              <SelectContent className="max-h-[320px]">
                 <SelectItem value="__none__">Nenhuma</SelectItem>
                 {groupedCategories.map(group => (
                   <div key={group.accountName}>
                     <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/40 sticky top-0">
                       {group.accountName}
                     </div>
-                    {group.items.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
+                    {group.items.map(c => {
+                      const Icon = getEntityIcon(c.name);
+                      const color = ensureDarkColor((c as any).color);
+                      return (
+                        <SelectItem key={c.id} value={c.id}>
+                          <span className="inline-flex items-center gap-2">
+                            <span
+                              className="inline-flex items-center justify-center w-5 h-5 rounded"
+                              style={{ backgroundColor: `${color}20`, color }}
+                            >
+                              <Icon className="w-3 h-3" />
+                            </span>
+                            <span style={{ color }} className="font-medium">{c.name}</span>
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
                   </div>
                 ))}
                 {groupedCategories.length === 0 && (
-                  <div className="px-2 py-3 text-xs text-muted-foreground text-center">
-                    Nenhuma categoria para esta conta
+                  <div className="px-2 py-3 text-xs text-muted-foreground text-center space-y-2">
+                    <p>Nenhuma categoria para este filtro</p>
+                    {(accountId || costCenterId) && (
+                      <button
+                        type="button"
+                        className="text-primary underline"
+                        onClick={() => { setAccountId(''); setCostCenterId(''); }}
+                      >
+                        Limpar filtros
+                      </button>
+                    )}
                   </div>
                 )}
               </SelectContent>
@@ -435,13 +497,28 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Centro de Custo</Label>
-              <Select value={costCenterId || '__none__'} onValueChange={(v) => setCostCenterId(v === '__none__' ? '' : v)}>
+              <Select value={costCenterId || '__none__'} onValueChange={(v) => handleCostCenterChange(v === '__none__' ? '' : v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Nenhum</SelectItem>
-                  {costCenters?.map(cc => (
-                    <SelectItem key={cc.id} value={cc.id}>{cc.name}</SelectItem>
-                  ))}
+                  {visibleCostCenters.map(cc => {
+                    const Icon = getEntityIcon(cc.name);
+                    const color = colorFromName(cc.name);
+                    return (
+                      <SelectItem key={cc.id} value={cc.id}>
+                        <span className="inline-flex items-center gap-2">
+                          <span
+                            className="inline-flex items-center justify-center w-5 h-5 rounded"
+                            style={{ backgroundColor: `${color}20`, color }}
+                          >
+                            <Icon className="w-3 h-3" />
+                          </span>
+                          <span style={{ color }} className="font-medium">{cc.name}</span>
+                          {!cc.active && <Badge variant="outline" className="text-[9px] px-1 py-0">inativo</Badge>}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
