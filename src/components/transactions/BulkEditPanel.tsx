@@ -350,7 +350,7 @@ export function BulkEditPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bulkClienteId, bulkEntityId, bulkResponsavelId, bulkCategoryId, bulkAccountId,
       bulkCostCenterId, bulkStatus, bulkValor, bulkDataVencimento, bulkNotes,
-      selectedTransactions, allowedFields]);
+      bulkDocumentoRecebimento, selectedTransactions, allowedFields]);
 
   // ----- Mutação chunked -----
   const bulkMutation = useMutation({
