@@ -9,7 +9,7 @@ import {
   TrendingUp, TrendingDown, Clock, AlertTriangle, CheckCircle,
   FileText, BarChart3, Eye, EyeOff
 } from 'lucide-react';
-import { TransactionsList } from './TransactionsList';
+import { TransactionsListWithTabs } from './TransactionsListWithTabs';
 import { NewTransactionWizard } from './NewTransactionWizard';
 import { TransactionAnalytics } from './TransactionAnalytics';
 import { TransactionsAnnualChart } from './TransactionsAnnualChart';
@@ -491,7 +491,7 @@ export function TransactionsHub() {
         </div>
 
         <TabsContent value="all" className="mt-4 lg:mt-6">
-          <TransactionsList 
+          <TransactionsListWithTabs 
             filters={{ 
               competencia_mes: selectedMonth, 
               competencia_ano: selectedYear 
@@ -526,7 +526,7 @@ export function TransactionsHub() {
             </Badge>
           </div>
           
-          <TransactionsList 
+          <TransactionsListWithTabs 
             filters={{ 
               competencia_mes: selectedMonth, 
               competencia_ano: selectedYear,
@@ -556,7 +556,7 @@ export function TransactionsHub() {
             </Badge>
           </div>
           
-          <TransactionsList 
+          <TransactionsListWithTabs 
             filters={{ 
               competencia_mes: selectedMonth, 
               competencia_ano: selectedYear,
