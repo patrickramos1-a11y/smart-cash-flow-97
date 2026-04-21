@@ -137,6 +137,7 @@ export function ApprovalView() {
           id, tipo_movimento, natureza, origem, descricao, valor, data_vencimento,
           competencia_mes, competencia_ano, approval_status, rejection_reason,
           created_at, created_by, status, fixed_expense_id, cliente_id,
+          entity_id, responsavel_id, account_id, transaction_category_id, cost_center_id,
           recurring_clients:cliente_id(name),
           transaction_categories:transaction_category_id(name),
           accounts:account_id(name),
