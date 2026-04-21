@@ -475,7 +475,11 @@ export function ApprovalView() {
   const groupedBulkCategories = useMemo(() => {
     const accMap = new Map(((accountsList || []) as any[]).map(a => [a.id, a]));
     const groups = new Map<string, { accountName: string; categories: any[] }>();
-    for (const cat of bulkFilteredCategories) {
+    const q = normalizeForSearch(bulkCategorySearch.trim());
+    const source = q
+      ? bulkFilteredCategories.filter((c: any) => normalizeForSearch(c.name).includes(q))
+      : bulkFilteredCategories;
+    for (const cat of source) {
       const accId = cat.default_account_id || '__none__';
       const accName = accId === '__none__' ? 'Sem conta vinculada' : (accMap.get(accId)?.name || 'Conta desconhecida');
       if (!groups.has(accId)) groups.set(accId, { accountName: accName, categories: [] });
@@ -484,7 +488,7 @@ export function ApprovalView() {
     return Array.from(groups.values())
       .map(g => ({ ...g, categories: g.categories.sort((a, b) => a.name.localeCompare(b.name)) }))
       .sort((a, b) => a.accountName.localeCompare(b.accountName));
-  }, [bulkFilteredCategories, accountsList]);
+  }, [bulkFilteredCategories, accountsList, bulkCategorySearch]);
 
   const resetBulkFields = () => {
     setBulkCategoryId(''); setBulkAccountId(''); setBulkCostCenterId('');
