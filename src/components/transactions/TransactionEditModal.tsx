@@ -552,7 +552,29 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
             </Select>
           </div>
 
-          {/* Vinculado a (Entidade) — obrigatória */}
+          {/* Inheritance panel — Conta + C. Custo herdados da categoria */}
+          {categoryId && (() => {
+            const linkedAccount = accounts?.find(a => a.id === accountId);
+            const linkedCC = costCenters?.find(cc => cc.id === costCenterId);
+            return (
+              <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1 border border-border/50">
+                <div className="flex items-center gap-1.5 mb-1 text-xs text-muted-foreground">
+                  <Link2 className="w-3 h-3" />
+                  <span>Vínculos automáticos</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Conta vinculada:</span>
+                  <span className={`font-medium ${!linkedAccount ? 'text-warning' : ''}`}>
+                    {linkedAccount?.name || '⚠ Sem conta'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Centro de Custo:</span>
+                  <span className="font-medium">{linkedCC?.name || '—'}</span>
+                </div>
+              </div>
+            );
+          })()}
           <div>
             <Label>Vinculado a (Entidade) <span className="text-destructive">*</span></Label>
             <p className="text-[10px] text-muted-foreground mb-1">Pessoa ou grupo beneficiário do lançamento (ex.: FGTS → colaborador específico).</p>
