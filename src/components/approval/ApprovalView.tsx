@@ -343,6 +343,12 @@ export function ApprovalView() {
     setBulkEntityId(commonValue(selectedTransactions.map(t => t.entity_id)) || '');
     setBulkResponsavelId(commonValue(selectedTransactions.map(t => t.responsavel_id)) || '');
     setBulkOrigem(commonValue(selectedTransactions.map(t => t.origem)) || '');
+    setBulkDescricao(commonValue(selectedTransactions.map(t => t.descricao)) || '');
+    const commonV = commonValue(selectedTransactions.map(t => String(t.valor)));
+    setBulkValor(commonV || '');
+    setBulkDataVencimento(commonValue(selectedTransactions.map(t => t.data_vencimento)) || '');
+    setBulkStatus(commonValue(selectedTransactions.map(t => t.status)) || '');
+    setBulkNotes('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bulkEditOpen]);
 
@@ -356,32 +362,57 @@ export function ApprovalView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bulkCategoryId, categoriesList]);
 
-  // Filtered categories for the bulk-edit dropdown (cross-filter)
+  // IDs that must always remain available even if filters/inactive would hide them
+  const stickyAccountIds = useMemo(() => {
+    const s = new Set<string>();
+    selectedTransactions.forEach(t => { if (t.account_id) s.add(t.account_id); });
+    if (bulkAccountId) s.add(bulkAccountId);
+    if (bulkCategoryId && categoriesList) {
+      const cat = (categoriesList as any[]).find(c => c.id === bulkCategoryId);
+      if (cat?.default_account_id) s.add(cat.default_account_id);
+    }
+    return s;
+  }, [selectedTransactions, bulkAccountId, bulkCategoryId, categoriesList]);
+
+  const stickyCostCenterIds = useMemo(() => {
+    const s = new Set<string>();
+    selectedTransactions.forEach(t => { if (t.cost_center_id) s.add(t.cost_center_id); });
+    if (bulkCostCenterId) s.add(bulkCostCenterId);
+    if (bulkCategoryId && categoriesList) {
+      const cat = (categoriesList as any[]).find(c => c.id === bulkCategoryId);
+      if (cat?.cost_center_id) s.add(cat.cost_center_id);
+    }
+    return s;
+  }, [selectedTransactions, bulkCostCenterId, bulkCategoryId, categoriesList]);
+
+  // Filtered categories for the bulk-edit dropdown (cross-filter, but always include selected one)
   const bulkFilteredCategories = useMemo(() => {
     let cats = (categoriesList || []) as any[];
     const commonTipo = commonValue(selectedTransactions.map(t => t.tipo_movimento));
-    if (commonTipo) cats = cats.filter(c => c.type === commonTipo);
-    if (bulkAccountId) cats = cats.filter(c => c.default_account_id === bulkAccountId);
-    if (bulkCostCenterId) cats = cats.filter(c => c.cost_center_id === bulkCostCenterId);
+    if (commonTipo) cats = cats.filter(c => c.type === commonTipo || c.id === bulkCategoryId);
+    if (bulkAccountId) cats = cats.filter(c => c.default_account_id === bulkAccountId || c.id === bulkCategoryId);
+    if (bulkCostCenterId) cats = cats.filter(c => c.cost_center_id === bulkCostCenterId || c.id === bulkCategoryId);
     return cats;
-  }, [categoriesList, selectedTransactions, bulkAccountId, bulkCostCenterId]);
+  }, [categoriesList, selectedTransactions, bulkAccountId, bulkCostCenterId, bulkCategoryId]);
 
-  // Accounts/CCs that contain at least one relevant category
+  // Accounts/CCs that contain at least one relevant category — plus sticky IDs (selection / current category)
   const bulkVisibleAccounts = useMemo(() => {
     const cats = (categoriesList || []) as any[];
     const commonTipo = commonValue(selectedTransactions.map(t => t.tipo_movimento));
     const relevant = commonTipo ? cats.filter(c => c.type === commonTipo) : cats;
     const accIds = new Set(relevant.map(c => c.default_account_id).filter(Boolean));
+    stickyAccountIds.forEach(id => accIds.add(id));
     return ((accountsList || []) as any[]).filter(a => accIds.has(a.id));
-  }, [categoriesList, accountsList, selectedTransactions]);
+  }, [categoriesList, accountsList, selectedTransactions, stickyAccountIds]);
 
   const bulkVisibleCostCenters = useMemo(() => {
     const cats = (categoriesList || []) as any[];
     const commonTipo = commonValue(selectedTransactions.map(t => t.tipo_movimento));
     const relevant = commonTipo ? cats.filter(c => c.type === commonTipo) : cats;
     const ccIds = new Set(relevant.map(c => c.cost_center_id).filter(Boolean));
+    stickyCostCenterIds.forEach(id => ccIds.add(id));
     return ((costCentersList || []) as any[]).filter(c => ccIds.has(c.id));
-  }, [categoriesList, costCentersList, selectedTransactions]);
+  }, [categoriesList, costCentersList, selectedTransactions, stickyCostCenterIds]);
 
   // Group categories by account name for the dropdown UI (style matches Transactions)
   const groupedBulkCategories = useMemo(() => {
