@@ -1044,7 +1044,14 @@ export function ApprovalView() {
                     </button>
                   )}
                 </Label>
-                <Select value={bulkAccountId} onValueChange={setBulkAccountId}>
+                <Select value={bulkAccountId} onValueChange={(v) => {
+                  setBulkAccountId(v);
+                  // If chosen account doesn't match the current category, clear category
+                  if (v && bulkCategoryId) {
+                    const cat = (categoriesList as any[] | undefined)?.find(c => c.id === bulkCategoryId);
+                    if (cat?.default_account_id && cat.default_account_id !== v) setBulkCategoryId('');
+                  }
+                }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Não alterar" />
                   </SelectTrigger>
@@ -1054,15 +1061,20 @@ export function ApprovalView() {
                         Nenhuma conta disponível
                       </div>
                     )}
-                    {bulkVisibleAccounts.map((a: any) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{a.name}</span>
-                          {a.bank && <span className="text-[10px] text-muted-foreground">({a.bank})</span>}
-                          {!a.active && <Badge variant="outline" className="text-[9px] px-1 py-0">inativa</Badge>}
-                        </div>
-                      </SelectItem>
-                    ))}
+                    {bulkVisibleAccounts.map((a: any) => {
+                      const Icon = getEntityIcon(a.name);
+                      const color = colorFromName(a.name);
+                      return (
+                        <SelectItem key={a.id} value={a.id}>
+                          <div className="flex items-center gap-2">
+                            <Icon className="w-4 h-4 shrink-0" style={{ color }} />
+                            <span style={{ color }} className="font-medium">{a.name}</span>
+                            {a.bank && <span className="text-[10px] text-muted-foreground">({a.bank})</span>}
+                            {!a.active && <Badge variant="outline" className="text-[9px] px-1 py-0">inativa</Badge>}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -1081,12 +1093,32 @@ export function ApprovalView() {
                     </button>
                   )}
                 </Label>
-                <Select value={bulkCostCenterId} onValueChange={setBulkCostCenterId}>
+                <Select value={bulkCostCenterId} onValueChange={(v) => {
+                  setBulkCostCenterId(v);
+                  if (v && bulkCategoryId) {
+                    const cat = (categoriesList as any[] | undefined)?.find(c => c.id === bulkCategoryId);
+                    if (cat?.cost_center_id && cat.cost_center_id !== v) setBulkCategoryId('');
+                  }
+                }}>
                   <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
                   <SelectContent className="max-h-[280px]">
-                    {bulkVisibleCostCenters.map((c: any) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
+                    {bulkVisibleCostCenters.length === 0 && (
+                      <div className="px-2 py-3 text-xs text-muted-foreground text-center">
+                        Nenhum centro de custo disponível
+                      </div>
+                    )}
+                    {bulkVisibleCostCenters.map((c: any) => {
+                      const Icon = getEntityIcon(c.name);
+                      const color = colorFromName(c.name);
+                      return (
+                        <SelectItem key={c.id} value={c.id}>
+                          <div className="flex items-center gap-2">
+                            <Icon className="w-4 h-4 shrink-0" style={{ color }} />
+                            <span style={{ color }} className="font-medium">{c.name}</span>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
