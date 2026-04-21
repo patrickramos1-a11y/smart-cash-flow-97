@@ -600,7 +600,11 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
                         onCheckedChange={toggleSelectAll}
                       />
                     </th>
-                    {visibleColumns.has('tipo') && <th className="text-left p-4 text-sm font-medium">Tipo</th>}
+                    {visibleColumns.has('tipo') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <span className="inline-flex items-center">Tipo<ColumnFilter col="tipo" label="Tipo" /></span>
+                      </th>
+                    )}
                     {visibleColumns.has('descricao') && (
                       <th className="text-left p-4 text-sm font-medium">
                         <button onClick={() => toggleSort('descricao')} className="flex items-center hover:text-foreground">
@@ -608,13 +612,41 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
                         </button>
                       </th>
                     )}
-                    {visibleColumns.has('cliente') && <th className="text-left p-4 text-sm font-medium">Cliente</th>}
-                    {visibleColumns.has('natureza') && <th className="text-left p-4 text-sm font-medium">Natureza</th>}
-                    {visibleColumns.has('categoria') && <th className="text-left p-4 text-sm font-medium">Categoria</th>}
-                    {visibleColumns.has('conta') && <th className="text-left p-4 text-sm font-medium">Conta</th>}
-                    {visibleColumns.has('centro_custo') && <th className="text-left p-4 text-sm font-medium">C. Custo</th>}
-                    {visibleColumns.has('responsavel') && <th className="text-left p-4 text-sm font-medium">Responsável</th>}
-                    {visibleColumns.has('nf') && <th className="text-left p-4 text-sm font-medium">NF / Doc.</th>}
+                    {visibleColumns.has('cliente') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <span className="inline-flex items-center">Cliente<ColumnFilter col="cliente" label="Cliente" /></span>
+                      </th>
+                    )}
+                    {visibleColumns.has('natureza') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <span className="inline-flex items-center">Natureza<ColumnFilter col="natureza" label="Natureza" /></span>
+                      </th>
+                    )}
+                    {visibleColumns.has('categoria') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <span className="inline-flex items-center">Categoria<ColumnFilter col="categoria" label="Categoria" /></span>
+                      </th>
+                    )}
+                    {visibleColumns.has('conta') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <span className="inline-flex items-center">Conta<ColumnFilter col="conta" label="Conta" /></span>
+                      </th>
+                    )}
+                    {visibleColumns.has('centro_custo') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <span className="inline-flex items-center">C. Custo<ColumnFilter col="centro_custo" label="Centro de Custo" /></span>
+                      </th>
+                    )}
+                    {visibleColumns.has('responsavel') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <span className="inline-flex items-center">Responsável<ColumnFilter col="responsavel" label="Responsável" /></span>
+                      </th>
+                    )}
+                    {visibleColumns.has('nf') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <span className="inline-flex items-center">NF / Doc.<ColumnFilter col="nf" label="NF / Doc." /></span>
+                      </th>
+                    )}
                     {visibleColumns.has('vencimento') && (
                       <th className="text-left p-4 text-sm font-medium">
                         <button onClick={() => toggleSort('data_vencimento')} className="flex items-center hover:text-foreground">
@@ -622,7 +654,11 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
                         </button>
                       </th>
                     )}
-                    {visibleColumns.has('status') && <th className="text-left p-4 text-sm font-medium">Status</th>}
+                    {visibleColumns.has('status') && (
+                      <th className="text-left p-4 text-sm font-medium">
+                        <span className="inline-flex items-center">Status<ColumnFilter col="status" label="Status" /></span>
+                      </th>
+                    )}
                     {visibleColumns.has('valor') && (
                       <th className="text-right p-4 text-sm font-medium">
                         <button onClick={() => toggleSort('valor')} className="flex items-center justify-end hover:text-foreground ml-auto">
