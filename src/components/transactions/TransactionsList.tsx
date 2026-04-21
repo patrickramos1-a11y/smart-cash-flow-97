@@ -116,11 +116,31 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
   const duplicateMutation = useDuplicateTransaction();
   const deleteMutation = useDeleteTransaction();
 
-  // Sort + client-side text search (fluid, no refetch).
+  // Helper: extrai o valor "filtrável" (string) de uma transação por coluna.
+  const getColumnValue = (t: TransactionWithClient, col: string): string => {
+    switch (col) {
+      case 'tipo': return t.tipo_movimento;
+      case 'cliente': return t.recurring_clients?.name || '';
+      case 'natureza': {
+        if (t.tipo_movimento === 'ENTRADA') return t.natureza === 'RECORRENTE' ? 'Recorrente' : 'Avulso';
+        if (t.natureza === 'RECORRENTE' || (t as any).expense_type === 'FIXA' || (t as any).category_subtype === 'FIXA') return 'Fixo';
+        return 'Variável';
+      }
+      case 'categoria': return t.category_name || '';
+      case 'conta': return t.account_name || '';
+      case 'centro_custo': return t.cost_center_name || '';
+      case 'responsavel': return t.responsible_name || t.entity_name || '';
+      case 'nf': return t.documento_recebimento || '';
+      case 'status': return statusConfig[t.status]?.label || t.status;
+      default: return '';
+    }
+  };
+
+  // Sort + client-side text search + filtros por coluna (fluido, no refetch).
   const sortedTransactions = useMemo(() => {
     if (!transactions) return [];
     const q = search.trim().toLowerCase();
-    const filtered = q
+    let filtered = q
       ? transactions.filter(t =>
           t.descricao?.toLowerCase().includes(q) ||
           t.recurring_clients?.name?.toLowerCase().includes(q) ||
@@ -128,6 +148,18 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
           t.account_name?.toLowerCase().includes(q)
         )
       : transactions;
+
+    // Aplica filtros por coluna (Excel-like).
+    const activeColFilters = Object.entries(columnFilters).filter(([, set]) => set.size > 0);
+    if (activeColFilters.length > 0) {
+      filtered = filtered.filter(t =>
+        activeColFilters.every(([col, allowed]) => {
+          const v = getColumnValue(t, col);
+          return allowed.has(v === '' ? '__EMPTY__' : v);
+        })
+      );
+    }
+
     return [...filtered].sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
@@ -144,7 +176,30 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
       }
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [transactions, search, sortField, sortDir]);
+  }, [transactions, search, sortField, sortDir, columnFilters]);
+
+  // Valores únicos por coluna calculados a partir do conjunto SEM o filtro daquela própria coluna,
+  // para que o usuário sempre veja todas as opções disponíveis no popover.
+  const getUniqueValuesForColumn = (col: string): string[] => {
+    if (!transactions) return [];
+    const otherFilters = Object.entries(columnFilters).filter(([k, set]) => k !== col && set.size > 0);
+    const base = transactions.filter(t =>
+      otherFilters.every(([k, allowed]) => {
+        const v = getColumnValue(t, k);
+        return allowed.has(v === '' ? '__EMPTY__' : v);
+      })
+    );
+    const set = new Set<string>();
+    base.forEach(t => {
+      const v = getColumnValue(t, col);
+      set.add(v === '' ? '__EMPTY__' : v);
+    });
+    return Array.from(set).sort((a, b) => {
+      if (a === '__EMPTY__') return 1;
+      if (b === '__EMPTY__') return -1;
+      return a.localeCompare(b, 'pt-BR');
+    });
+  };
 
   const getNatureIcon = (tipo: string) => {
     if (tipo === 'ENTRADA') return <ArrowDownCircle className="w-5 h-5 text-income" />;
