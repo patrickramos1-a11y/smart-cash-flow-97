@@ -395,24 +395,67 @@ export function ApprovalView() {
     return cats;
   }, [categoriesList, selectedTransactions, bulkAccountId, bulkCostCenterId, bulkCategoryId]);
 
-  // Accounts/CCs that contain at least one relevant category — plus sticky IDs (selection / current category)
+  // Cascading: Account list depends on CC (and vice-versa). Categories ∩ tipo ∩ cc → accounts.
   const bulkVisibleAccounts = useMemo(() => {
     const cats = (categoriesList || []) as any[];
     const commonTipo = commonValue(selectedTransactions.map(t => t.tipo_movimento));
-    const relevant = commonTipo ? cats.filter(c => c.type === commonTipo) : cats;
+    let relevant = commonTipo ? cats.filter(c => c.type === commonTipo) : cats;
+    if (bulkCostCenterId) relevant = relevant.filter(c => c.cost_center_id === bulkCostCenterId);
     const accIds = new Set(relevant.map(c => c.default_account_id).filter(Boolean));
     stickyAccountIds.forEach(id => accIds.add(id));
     return ((accountsList || []) as any[]).filter(a => accIds.has(a.id));
-  }, [categoriesList, accountsList, selectedTransactions, stickyAccountIds]);
+  }, [categoriesList, accountsList, selectedTransactions, stickyAccountIds, bulkCostCenterId]);
 
   const bulkVisibleCostCenters = useMemo(() => {
     const cats = (categoriesList || []) as any[];
     const commonTipo = commonValue(selectedTransactions.map(t => t.tipo_movimento));
-    const relevant = commonTipo ? cats.filter(c => c.type === commonTipo) : cats;
+    let relevant = commonTipo ? cats.filter(c => c.type === commonTipo) : cats;
+    if (bulkAccountId) relevant = relevant.filter(c => c.default_account_id === bulkAccountId);
     const ccIds = new Set(relevant.map(c => c.cost_center_id).filter(Boolean));
     stickyCostCenterIds.forEach(id => ccIds.add(id));
     return ((costCentersList || []) as any[]).filter(c => ccIds.has(c.id));
-  }, [categoriesList, costCentersList, selectedTransactions, stickyCostCenterIds]);
+  }, [categoriesList, costCentersList, selectedTransactions, stickyCostCenterIds, bulkAccountId]);
+
+  // Cascading handlers: clear downstream field if it becomes incompatible with the new choice.
+  const handleBulkAccountChange = (newAccountId: string) => {
+    setBulkAccountId(newAccountId);
+    if (!newAccountId) return;
+    const cats = (categoriesList as any[] | undefined) || [];
+    const commonTipo = commonValue(selectedTransactions.map(t => t.tipo_movimento));
+    // 1) Clear category if it no longer belongs to this account
+    if (bulkCategoryId) {
+      const cat = cats.find(c => c.id === bulkCategoryId);
+      if (cat?.default_account_id && cat.default_account_id !== newAccountId) setBulkCategoryId('');
+    }
+    // 2) Clear CC if no category in new account shares it
+    if (bulkCostCenterId) {
+      const hasMatch = cats.some(c =>
+        c.default_account_id === newAccountId &&
+        c.cost_center_id === bulkCostCenterId &&
+        (!commonTipo || c.type === commonTipo)
+      );
+      if (!hasMatch) setBulkCostCenterId('');
+    }
+  };
+
+  const handleBulkCostCenterChange = (newCcId: string) => {
+    setBulkCostCenterId(newCcId);
+    if (!newCcId) return;
+    const cats = (categoriesList as any[] | undefined) || [];
+    const commonTipo = commonValue(selectedTransactions.map(t => t.tipo_movimento));
+    if (bulkCategoryId) {
+      const cat = cats.find(c => c.id === bulkCategoryId);
+      if (cat?.cost_center_id && cat.cost_center_id !== newCcId) setBulkCategoryId('');
+    }
+    if (bulkAccountId) {
+      const hasMatch = cats.some(c =>
+        c.cost_center_id === newCcId &&
+        c.default_account_id === bulkAccountId &&
+        (!commonTipo || c.type === commonTipo)
+      );
+      if (!hasMatch) setBulkAccountId('');
+    }
+  };
 
   // Group categories by account name for the dropdown UI (style matches Transactions)
   const groupedBulkCategories = useMemo(() => {
