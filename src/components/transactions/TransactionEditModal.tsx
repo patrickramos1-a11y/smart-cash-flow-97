@@ -46,31 +46,31 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
   const [documentoNumero, setDocumentoNumero] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Fetch lookup data
+  // Lookup data — fetch active + inactive so currently-selected (possibly inactive)
+  // values still appear and so newly-reactivated cost centers / accounts show up.
   const { data: categories } = useQuery({
-    queryKey: ['transaction_categories_with_account'],
+    queryKey: ['transaction_categories_with_account_all'],
     queryFn: async () => {
       const { data } = await supabase
         .from('transaction_categories')
-        .select('id, name, type, expense_type, subtype, default_account_id')
-        .eq('active', true)
+        .select('id, name, type, expense_type, subtype, default_account_id, cost_center_id, color, active')
         .order('name');
       return data || [];
     },
   });
 
   const { data: accounts } = useQuery({
-    queryKey: ['accounts_list'],
+    queryKey: ['accounts_list_all'],
     queryFn: async () => {
-      const { data } = await supabase.from('accounts').select('id, name').eq('active', true).order('name');
+      const { data } = await supabase.from('accounts').select('id, name, active').order('name');
       return data || [];
     },
   });
 
   const { data: costCenters } = useQuery({
-    queryKey: ['cost_centers_list'],
+    queryKey: ['cost_centers_list_all'],
     queryFn: async () => {
-      const { data } = await supabase.from('cost_centers').select('id, name').eq('active', true).order('name');
+      const { data } = await supabase.from('cost_centers').select('id, name, active').order('name');
       return data || [];
     },
   });
