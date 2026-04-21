@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAccounts, useCostCenters, useTransactionCategories, type CategorySubtype } from '@/hooks/useFinancialConfig';
 import { getEntityIcon } from '@/utils/entityIcons';
+import { CategorySearchInput, normalizeForSearch } from './CategorySearchInput';
 
 interface CategoryFilteredSelectorProps {
   tipo: 'ENTRADA' | 'SAIDA';
