@@ -256,6 +256,7 @@ export function BulkEditPanel({
     setBulkAccountId(commonValue(selectedTransactions.map(t => t.account_id ?? null)) || '');
     setBulkCostCenterId(commonValue(selectedTransactions.map(t => t.cost_center_id ?? null)) || '');
     setBulkStatus(commonValue(selectedTransactions.map(t => t.status ?? null)) || '');
+    setBulkDocumentoRecebimento(commonValue(selectedTransactions.map(t => t.documento_recebimento ?? null)) || '');
     setBulkValor('');
     setBulkDataVencimento('');
     setBulkNotes('');
@@ -270,7 +271,7 @@ export function BulkEditPanel({
     setBulkClienteId(''); setBulkEntityId(''); setBulkResponsavelId('');
     setBulkCategoryId(''); setBulkAccountId(''); setBulkCostCenterId('');
     setBulkStatus(''); setBulkValor(''); setBulkDataVencimento('');
-    setBulkNotes(''); setBulkCategorySearch('');
+    setBulkNotes(''); setBulkCategorySearch(''); setBulkDocumentoRecebimento('');
   };
 
   // ----- Categorias agrupadas por conta + busca por substring -----
@@ -306,6 +307,7 @@ export function BulkEditPanel({
     if (allowedFields.status && bulkStatus) updates.status = bulkStatus;
     if (allowedFields.vencimento && bulkDataVencimento) updates.data_vencimento = bulkDataVencimento;
     if (allowedFields.notes && bulkNotes.trim()) updates.notes = bulkNotes.trim();
+    if (allowedFields.documentoRecebimento && bulkDocumentoRecebimento) updates.documento_recebimento = bulkDocumentoRecebimento;
     if (allowedFields.valor && bulkValor.trim()) {
       const v = parseBRLToNumber(bulkValor);
       if (v === null || isNaN(v) || v < 0) return { updates, error: 'Valor inválido' };
