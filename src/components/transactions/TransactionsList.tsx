@@ -96,6 +96,10 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(
     new Set(ALL_COLUMNS.filter(c => c.default).map(c => c.key))
   );
+  // Filtros por coluna estilo Excel: { coluna: Set<valor selecionado> }.
+  // Quando o Set existe e está não-vazio, apenas linhas com valor pertencente são exibidas.
+  // "__EMPTY__" é o valor sentinel para representar células vazias/nulas.
+  const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
   const isMobile = useIsMobile();
   const updateMutation = useUpdateTransaction();
 
