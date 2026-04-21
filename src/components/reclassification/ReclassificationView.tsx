@@ -141,8 +141,10 @@ export function ReclassificationView() {
     <div className="space-y-4">
       <div>
         <h2 className="text-xl font-semibold">Reclassificação em Lote</h2>
-        <p className="text-sm text-muted-foreground">Corrija categorias e centros de custo de transações históricas</p>
+        <p className="text-sm text-muted-foreground">Corrija categorias, centros de custo e vínculos (entidade/responsável) de transações históricas</p>
       </div>
+
+      <BackfillPanel />
 
       {/* Filters */}
       <Card>
