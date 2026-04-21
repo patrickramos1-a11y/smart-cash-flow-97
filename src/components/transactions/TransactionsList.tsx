@@ -87,9 +87,11 @@ export function TransactionsList({ filters }: TransactionsListProps) {
   const isMobile = useIsMobile();
   const updateMutation = useUpdateTransaction();
 
+  // Note: `search` is intentionally NOT passed into useTransactions to avoid
+  // a network refetch (and loading flash) on every keystroke. We filter the
+  // already-loaded data locally below.
   const combinedFilters: TransactionFilters = {
     ...filters,
-    search,
     status: statusFilter !== 'all' ? statusFilter as TransactionStatusType : undefined,
   };
 
@@ -98,10 +100,19 @@ export function TransactionsList({ filters }: TransactionsListProps) {
   const duplicateMutation = useDuplicateTransaction();
   const deleteMutation = useDeleteTransaction();
 
-  // Sort transactions
+  // Sort + client-side text search (fluid, no refetch).
   const sortedTransactions = useMemo(() => {
     if (!transactions) return [];
-    return [...transactions].sort((a, b) => {
+    const q = search.trim().toLowerCase();
+    const filtered = q
+      ? transactions.filter(t =>
+          t.descricao?.toLowerCase().includes(q) ||
+          t.recurring_clients?.name?.toLowerCase().includes(q) ||
+          t.category_name?.toLowerCase().includes(q) ||
+          t.account_name?.toLowerCase().includes(q)
+        )
+      : transactions;
+    return [...filtered].sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
         case 'valor':
@@ -117,7 +128,7 @@ export function TransactionsList({ filters }: TransactionsListProps) {
       }
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [transactions, sortField, sortDir]);
+  }, [transactions, search, sortField, sortDir]);
 
   const getNatureIcon = (tipo: string) => {
     if (tipo === 'ENTRADA') return <ArrowDownCircle className="w-5 h-5 text-income" />;
