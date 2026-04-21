@@ -348,7 +348,10 @@ export function QuickTransactionModal({
 
           {/* Client - always required */}
           <div>
-            <Label>Cliente *</Label>
+            <Label>Cliente (empresa) *</Label>
+            <p className="text-[10px] text-muted-foreground -mt-0.5 mb-1">
+              Empresa/CNPJ ao qual a transação se refere.
+            </p>
             <Select value={formData.cliente_id} onValueChange={(v) => setFormData({ ...formData, cliente_id: v })}>
               <SelectTrigger className={!formData.cliente_id ? 'border-destructive' : ''}>
                 <SelectValue placeholder="Selecionar cliente" />
@@ -366,6 +369,7 @@ export function QuickTransactionModal({
             <MultiEntitySelector
               selectedIds={entityIds}
               onChange={setEntityIds}
+              required
             />
             {entityIds.length === 0 && (
               <p className="text-[10px] text-destructive mt-1 flex items-center gap-1">

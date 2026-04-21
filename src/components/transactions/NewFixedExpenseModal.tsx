@@ -208,7 +208,10 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
 
           {/* Client - obrigatório */}
           <div>
-            <Label>Cliente *</Label>
+            <Label>Cliente (empresa) *</Label>
+            <p className="text-[10px] text-muted-foreground -mt-0.5 mb-1">
+              Empresa/CNPJ ao qual a despesa será atribuída.
+            </p>
             <Select value={formData.cliente_id} onValueChange={(v) => setFormData({ ...formData, cliente_id: v })}>
               <SelectTrigger className={!formData.cliente_id ? 'border-destructive' : ''}>
                 <SelectValue placeholder="Vincular a um cliente" />
@@ -225,6 +228,7 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
           <MultiEntitySelector
             selectedIds={entityIds}
             onChange={setEntityIds}
+            required
           />
 
           <div className="grid grid-cols-2 gap-4">
