@@ -14,6 +14,7 @@ import { useSaveTransactionEntities } from '@/hooks/useTransactionEntities';
 import { formatCurrency } from '@/data/mockData';
 import { MultiEntitySelector } from './MultiEntitySelector';
 import { CategoryFilteredSelector } from './CategoryFilteredSelector';
+import { toast } from 'sonner';
 
 interface NewFixedExpenseModalProps {
   open: boolean;
@@ -184,6 +185,29 @@ export function NewFixedExpenseModal({ open, onClose, defaultMonth, defaultYear 
                 <span className="text-muted-foreground">Centro de Custo:</span>
                 <span className="font-medium">{linkedCostCenter?.name || '—'}</span>
               </div>
+            </div>
+          )}
+
+          {/* Conta obrigatória quando categoria não tem default */}
+          {accountIsRequired && (
+            <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 space-y-2">
+              <Label className="text-warning">Conta * (categoria sem conta padrão)</Label>
+              <Select
+                value={formData.account_id_override}
+                onValueChange={(v) => setFormData({ ...formData, account_id_override: v })}
+              >
+                <SelectTrigger className={!formData.account_id_override ? 'border-destructive' : ''}>
+                  <SelectValue placeholder="Selecionar conta para esta despesa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts?.filter(a => a.active).map(a => (
+                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground">
+                Esta conta será aplicada a todas as parcelas geradas. Para mudar o padrão da categoria, edite-a em Configurações.
+              </p>
             </div>
           )}
 
