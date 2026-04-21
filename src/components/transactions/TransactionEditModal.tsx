@@ -394,33 +394,78 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
               <SelectTrigger><SelectValue placeholder="Todas as contas" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">Todas as contas</SelectItem>
-                {accounts?.map(a => (
-                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                ))}
+                {visibleAccounts.map(a => {
+                  const Icon = getEntityIcon(a.name);
+                  const color = colorFromName(a.name);
+                  return (
+                    <SelectItem key={a.id} value={a.id}>
+                      <span className="inline-flex items-center gap-2">
+                        <span
+                          className="inline-flex items-center justify-center w-5 h-5 rounded"
+                          style={{ backgroundColor: `${color}20`, color }}
+                        >
+                          <Icon className="w-3 h-3" />
+                        </span>
+                        <span style={{ color }} className="font-medium">{a.name}</span>
+                        {!a.active && <Badge variant="outline" className="text-[9px] px-1 py-0">inativo</Badge>}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Category grouped by account */}
+          {/* Category grouped by account, with icons + colors */}
           <div>
-            <Label>Categoria {accountId && <span className="text-xs text-muted-foreground">(filtrada pela conta)</span>}</Label>
+            <Label>
+              Categoria{' '}
+              {(accountId || costCenterId) && (
+                <span className="text-xs text-muted-foreground">
+                  (filtrada {accountId && costCenterId ? 'pela conta + centro de custo' : accountId ? 'pela conta' : 'pelo centro de custo'})
+                </span>
+              )}
+            </Label>
             <Select value={categoryId || '__none__'} onValueChange={(v) => handleCategoryChange(v === '__none__' ? '' : v)}>
               <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent className="max-h-[300px]">
+              <SelectContent className="max-h-[320px]">
                 <SelectItem value="__none__">Nenhuma</SelectItem>
                 {groupedCategories.map(group => (
                   <div key={group.accountName}>
                     <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/40 sticky top-0">
                       {group.accountName}
                     </div>
-                    {group.items.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
+                    {group.items.map(c => {
+                      const Icon = getEntityIcon(c.name);
+                      const color = ensureDarkColor((c as any).color);
+                      return (
+                        <SelectItem key={c.id} value={c.id}>
+                          <span className="inline-flex items-center gap-2">
+                            <span
+                              className="inline-flex items-center justify-center w-5 h-5 rounded"
+                              style={{ backgroundColor: `${color}20`, color }}
+                            >
+                              <Icon className="w-3 h-3" />
+                            </span>
+                            <span style={{ color }} className="font-medium">{c.name}</span>
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
                   </div>
                 ))}
                 {groupedCategories.length === 0 && (
-                  <div className="px-2 py-3 text-xs text-muted-foreground text-center">
-                    Nenhuma categoria para esta conta
+                  <div className="px-2 py-3 text-xs text-muted-foreground text-center space-y-2">
+                    <p>Nenhuma categoria para este filtro</p>
+                    {(accountId || costCenterId) && (
+                      <button
+                        type="button"
+                        className="text-primary underline"
+                        onClick={() => { setAccountId(''); setCostCenterId(''); }}
+                      >
+                        Limpar filtros
+                      </button>
+                    )}
                   </div>
                 )}
               </SelectContent>
