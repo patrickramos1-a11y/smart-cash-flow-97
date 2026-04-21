@@ -676,6 +676,15 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
         onClose={() => setEditingTransaction(null)}
         transaction={editingTransaction}
       />
+
+      {/* Bulk Edit Panel — edição em massa com proteções por contexto */}
+      <BulkEditPanel
+        open={showBulkEdit}
+        onClose={() => setShowBulkEdit(false)}
+        selectedTransactions={sortedTransactions.filter(t => selectedIds.has(t.id))}
+        context={bulkContext}
+        onSuccess={() => setSelectedIds(new Set())}
+      />
     </>
   );
 }
