@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAccounts, useCostCenters, useTransactionCategories, type CategorySubtype } from '@/hooks/useFinancialConfig';
 import { getEntityIcon } from '@/utils/entityIcons';
+import { CategorySearchInput, normalizeForSearch } from './CategorySearchInput';
 
 interface CategoryFilteredSelectorProps {
   tipo: 'ENTRADA' | 'SAIDA';
@@ -47,6 +48,7 @@ export function CategoryFilteredSelector({
   const { data: accounts } = useAccounts();
   const { data: costCenters } = useCostCenters();
   const { data: categories } = useTransactionCategories();
+  const [search, setSearch] = useState('');
 
   // Base categories for this tipo+subtype
   const baseCategories = categories?.filter(c => c.type === tipo && c.subtype === subtype && c.active) || [];
@@ -75,6 +77,10 @@ export function CategoryFilteredSelector({
   }
   if (filterCostCenterId) {
     filteredCategories = filteredCategories.filter(c => c.cost_center_id === filterCostCenterId);
+  }
+  if (search.trim()) {
+    const q = normalizeForSearch(search);
+    filteredCategories = filteredCategories.filter(c => normalizeForSearch(c.name).includes(q));
   }
 
   // Group categories by account name, then sort alphabetically within each group
@@ -152,7 +158,8 @@ export function CategoryFilteredSelector({
           <SelectTrigger>
             <SelectValue placeholder="Selecionar categoria" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="max-h-[360px]">
+            <CategorySearchInput value={search} onChange={setSearch} />
             {groupedCategories.map((group) => (
               <div key={group.accountName}>
                 {/* Account group header */}

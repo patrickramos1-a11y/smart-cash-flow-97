@@ -24,6 +24,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { TransactionEditModal } from '@/components/transactions/TransactionEditModal';
 import type { TransactionWithClient } from '@/hooks/useTransactions';
 import { getEntityIcon } from '@/utils/entityIcons';
+import { CategorySearchInput, normalizeForSearch } from '@/components/transactions/CategorySearchInput';
 
 // Ensures color contrast for readable text on white surfaces
 function ensureDarkColor(hex?: string | null): string {
@@ -116,6 +117,7 @@ export function ApprovalView() {
   const [bulkCategoryId, setBulkCategoryId] = useState<string>('');
   const [bulkAccountId, setBulkAccountId] = useState<string>('');
   const [bulkCostCenterId, setBulkCostCenterId] = useState<string>('');
+  const [bulkCategorySearch, setBulkCategorySearch] = useState<string>('');
   const [bulkClienteId, setBulkClienteId] = useState<string>('');
   const [bulkEntityId, setBulkEntityId] = useState<string>('');
   const [bulkResponsavelId, setBulkResponsavelId] = useState<string>('');
@@ -473,7 +475,11 @@ export function ApprovalView() {
   const groupedBulkCategories = useMemo(() => {
     const accMap = new Map(((accountsList || []) as any[]).map(a => [a.id, a]));
     const groups = new Map<string, { accountName: string; categories: any[] }>();
-    for (const cat of bulkFilteredCategories) {
+    const q = normalizeForSearch(bulkCategorySearch.trim());
+    const source = q
+      ? bulkFilteredCategories.filter((c: any) => normalizeForSearch(c.name).includes(q))
+      : bulkFilteredCategories;
+    for (const cat of source) {
       const accId = cat.default_account_id || '__none__';
       const accName = accId === '__none__' ? 'Sem conta vinculada' : (accMap.get(accId)?.name || 'Conta desconhecida');
       if (!groups.has(accId)) groups.set(accId, { accountName: accName, categories: [] });
@@ -482,10 +488,10 @@ export function ApprovalView() {
     return Array.from(groups.values())
       .map(g => ({ ...g, categories: g.categories.sort((a, b) => a.name.localeCompare(b.name)) }))
       .sort((a, b) => a.accountName.localeCompare(b.accountName));
-  }, [bulkFilteredCategories, accountsList]);
+  }, [bulkFilteredCategories, accountsList, bulkCategorySearch]);
 
   const resetBulkFields = () => {
-    setBulkCategoryId(''); setBulkAccountId(''); setBulkCostCenterId('');
+    setBulkCategoryId(''); setBulkAccountId(''); setBulkCostCenterId(''); setBulkCategorySearch('');
     setBulkClienteId(''); setBulkEntityId(''); setBulkResponsavelId(''); setBulkOrigem('');
     setBulkDescricao(''); setBulkValor(''); setBulkDataVencimento(''); setBulkStatus(''); setBulkNotes('');
   };
@@ -1252,6 +1258,7 @@ export function ApprovalView() {
                 <Select value={bulkCategoryId} onValueChange={setBulkCategoryId}>
                   <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
                   <SelectContent className="max-h-[360px]">
+                    <CategorySearchInput value={bulkCategorySearch} onChange={setBulkCategorySearch} />
                     {groupedBulkCategories.length === 0 && (
                       <div className="px-2 py-4 text-center text-xs text-muted-foreground space-y-2">
                         <p>Nenhuma categoria corresponde aos filtros atuais</p>

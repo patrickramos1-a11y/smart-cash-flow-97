@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import type { TransactionWithClient } from '@/hooks/useTransactions';
 import { getEntityIcon } from '@/utils/entityIcons';
 import { ensureDarkColor, colorFromName } from '@/utils/entityVisual';
+import { CategorySearchInput, normalizeForSearch } from './CategorySearchInput';
 
 interface TransactionEditModalProps {
   open: boolean;
@@ -46,6 +47,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
   const [documentoTipo, setDocumentoTipo] = useState('');
   const [documentoNumero, setDocumentoNumero] = useState('');
   const [notes, setNotes] = useState('');
+  const [categorySearch, setCategorySearch] = useState('');
 
   // Lookup data — fetch active + inactive so currently-selected (possibly inactive)
   // values still appear and so newly-reactivated cost centers / accounts show up.
@@ -272,8 +274,12 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
   });
 
   const groupedCategories = (() => {
+    const q = normalizeForSearch(categorySearch.trim());
+    const source = q
+      ? categoriesForFilters.filter(c => normalizeForSearch(c.name).includes(q))
+      : categoriesForFilters;
     const groups: Record<string, { accountName: string; items: typeof filteredCategories }> = {};
-    categoriesForFilters.forEach(c => {
+    source.forEach(c => {
       const accId = c.default_account_id || '__nodef__';
       const accName = accounts?.find(a => a.id === accId)?.name || 'Sem conta padrão';
       if (!groups[accId]) groups[accId] = { accountName: accName, items: [] };
@@ -467,7 +473,8 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
             </Label>
             <Select value={categoryId || '__none__'} onValueChange={(v) => handleCategoryChange(v === '__none__' ? '' : v)}>
               <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent className="max-h-[320px]">
+              <SelectContent className="max-h-[360px]">
+                <CategorySearchInput value={categorySearch} onChange={setCategorySearch} />
                 <SelectItem value="__none__">Nenhuma</SelectItem>
                 {groupedCategories.map(group => (
                   <div key={group.accountName}>
