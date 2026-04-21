@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import { ConfirmModal } from '@/components/modals/ConfirmModal';
 import { TransactionEditModal } from './TransactionEditModal';
 import { MobileTransactionCard } from './MobileTransactionCard';
+import { BulkEditPanel, type BulkContext } from './BulkEditPanel';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 
@@ -65,9 +66,11 @@ type ColumnKey = typeof ALL_COLUMNS[number]['key'];
 
 interface TransactionsListProps {
   filters: TransactionFilters;
+  /** Define quais campos podem ser editados em massa neste contexto. */
+  bulkContext?: BulkContext;
 }
 
-export function TransactionsList({ filters }: TransactionsListProps) {
+export function TransactionsList({ filters, bulkContext = 'GERAL' }: TransactionsListProps) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -356,12 +359,39 @@ export function TransactionsList({ filters }: TransactionsListProps) {
         <Card>
           {/* Bulk actions bar */}
           {selectedIds.size > 0 && (
-            <div className="flex items-center gap-3 p-3 bg-primary/5 border-b">
+            <div className="flex items-center gap-2 flex-wrap p-3 bg-primary/5 border-b">
               <span className="text-sm font-medium">{selectedIds.size} selecionada(s)</span>
+              <Button size="sm" variant="default" onClick={() => setShowBulkEdit(true)} className="h-7 text-xs">
+                <Pencil className="w-3 h-3 mr-1" /> Editar Selecionadas
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const ids = sortedTransactions.filter(t => !t.responsavel_id).map(t => t.id);
+                  setSelectedIds(new Set(ids));
+                  if (ids.length === 0) toast.info('Nenhum lançamento sem responsável nesta listagem');
+                }}
+                className="h-7 text-xs"
+              >
+                Selecionar sem Responsável
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const ids = sortedTransactions.filter(t => !t.entity_id).map(t => t.id);
+                  setSelectedIds(new Set(ids));
+                  if (ids.length === 0) toast.info('Nenhum lançamento sem entidade nesta listagem');
+                }}
+                className="h-7 text-xs"
+              >
+                Selecionar sem Entidade
+              </Button>
               <Button size="sm" variant="destructive" onClick={handleBulkDelete} className="h-7 text-xs">
                 <Trash2 className="w-3 h-3 mr-1" /> Excluir Selecionadas
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setSelectedIds(new Set())} className="h-7 text-xs">
+              <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())} className="h-7 text-xs">
                 Limpar Seleção
               </Button>
             </div>
@@ -645,6 +675,15 @@ export function TransactionsList({ filters }: TransactionsListProps) {
         open={!!editingTransaction}
         onClose={() => setEditingTransaction(null)}
         transaction={editingTransaction}
+      />
+
+      {/* Bulk Edit Panel — edição em massa com proteções por contexto */}
+      <BulkEditPanel
+        open={showBulkEdit}
+        onClose={() => setShowBulkEdit(false)}
+        selectedTransactions={sortedTransactions.filter(t => selectedIds.has(t.id))}
+        context={bulkContext}
+        onSuccess={() => setSelectedIds(new Set())}
       />
     </>
   );

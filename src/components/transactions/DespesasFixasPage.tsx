@@ -267,6 +267,7 @@ export function DespesasFixasPage() {
               tipo_movimento: 'SAIDA',
               origem: 'DESPESA_FIXA'
             }}
+            bulkContext="DESPESAS_FIXAS"
           />
         </CardContent>
       </Card>

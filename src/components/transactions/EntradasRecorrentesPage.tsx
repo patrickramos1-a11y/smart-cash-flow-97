@@ -255,6 +255,7 @@ export function EntradasRecorrentesPage() {
               tipo_movimento: 'ENTRADA',
               natureza: 'RECORRENTE'
             }}
+            bulkContext="ENTRADAS_RECORRENTES"
           />
         </CardContent>
       </Card>
