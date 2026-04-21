@@ -56,10 +56,23 @@ export function DespesasFixasPage() {
     return { month: label, previsto: expected, pago: paid };
   });
 
-  const expenseRanking = fixedExpenses
-    ?.map(e => ({ name: e.nome, valor: Number(e.valor) }))
-    .sort((a, b) => b.valor - a.valor)
-    .slice(0, 10) || [];
+  // Ranking baseado nas transações REAIS do ano (média mensal),
+  // não no valor cadastrado em fixed_expenses (que pode estar desatualizado).
+  const rankingMap = new Map<string, { name: string; total: number; count: number }>();
+  yearlyTransactions?.forEach(t => {
+    if (!t.fixed_expense_id) return;
+    const fe = fixedExpenses?.find(e => e.id === t.fixed_expense_id);
+    const name = fe?.nome || t.descricao?.split(' - ')[0] || 'Sem nome';
+    const key = t.fixed_expense_id;
+    const cur = rankingMap.get(key) || { name, total: 0, count: 0 };
+    cur.total += Number(t.valor);
+    cur.count++;
+    rankingMap.set(key, cur);
+  });
+  const expenseRanking = Array.from(rankingMap.values())
+    .map(r => ({ name: r.name, valor: r.count > 0 ? r.total / r.count : 0, total: r.total }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 10);
 
   const byAccount = yearlyTransactions?.reduce((acc, t) => {
     const accountId = t.account_id || 'sem-conta';
