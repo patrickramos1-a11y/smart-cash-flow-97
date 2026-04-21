@@ -53,6 +53,9 @@ export function QuickTransactionModal({
   const [entityIds, setEntityIds] = useState<string[]>([]);
   const [filterAccountId, setFilterAccountId] = useState('');
   const [filterCostCenterId, setFilterCostCenterId] = useState('');
+  const [accountIdOverride, setAccountIdOverride] = useState('');
+  const [resolvedAccountId, setResolvedAccountId] = useState<string | null>(null);
+  const [resolvedCostCenterId, setResolvedCostCenterId] = useState<string | null>(null);
 
   // Repetition state
   const [enableRepetition, setEnableRepetition] = useState(false);
