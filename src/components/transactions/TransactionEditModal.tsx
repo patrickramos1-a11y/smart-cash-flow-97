@@ -227,10 +227,23 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
         }
       }
 
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['recurring-installments'] });
-      queryClient.invalidateQueries({ queryKey: ['fixed-expenses'] });
-      queryClient.invalidateQueries({ queryKey: ['pending-approval-count'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['transactions'] }),
+        queryClient.invalidateQueries({ queryKey: ['approval-transactions'] }),
+        queryClient.invalidateQueries({ queryKey: ['rejected-transactions'] }),
+        queryClient.invalidateQueries({ queryKey: ['recurring-installments'] }),
+        queryClient.invalidateQueries({ queryKey: ['recurring_installments'] }),
+        queryClient.invalidateQueries({ queryKey: ['fixed-expenses'] }),
+        queryClient.invalidateQueries({ queryKey: ['pending-approval-count'] }),
+        queryClient.invalidateQueries({ queryKey: ['open-payments'] }),
+        queryClient.invalidateQueries({ queryKey: ['open-payment-stats'] }),
+        queryClient.invalidateQueries({ queryKey: ['transactions_chart_v2'] }),
+        queryClient.invalidateQueries({ queryKey: ['transactions_annual'] }),
+        queryClient.invalidateQueries({ queryKey: ['transactions_projection'] }),
+      ]);
+      // Force refetch of active queries so the UI updates immediately
+      await queryClient.refetchQueries({ queryKey: ['approval-transactions'], type: 'active' });
+      await queryClient.refetchQueries({ queryKey: ['transactions'], type: 'active' });
 
       const msg = scope === 'all' && isRecurring
         ? 'Lançamento atualizado em TODAS as parcelas (passadas e futuras).'
