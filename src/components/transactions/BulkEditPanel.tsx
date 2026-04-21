@@ -588,6 +588,19 @@ export function BulkEditPanel({
                 <SelectItem value="ATRASADO">Atrasado</SelectItem>
               </BulkSelectField>
             )}
+
+            {allowedFields.documentoRecebimento && (
+              <BulkSelectField
+                label="Documento (NF / Recibo / N. Débito)"
+                value={bulkDocumentoRecebimento}
+                onChange={setBulkDocumentoRecebimento}
+                disabled={isPending}
+              >
+                {DOC_RECEB_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </BulkSelectField>
+            )}
           </div>
 
           {(allowedFields.valor || allowedFields.vencimento || allowedFields.notes) && (
