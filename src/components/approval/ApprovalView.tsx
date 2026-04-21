@@ -1141,14 +1141,7 @@ export function ApprovalView() {
                     </button>
                   )}
                 </Label>
-                <Select value={bulkAccountId} onValueChange={(v) => {
-                  setBulkAccountId(v);
-                  // If chosen account doesn't match the current category, clear category
-                  if (v && bulkCategoryId) {
-                    const cat = (categoriesList as any[] | undefined)?.find(c => c.id === bulkCategoryId);
-                    if (cat?.default_account_id && cat.default_account_id !== v) setBulkCategoryId('');
-                  }
-                }}>
+                <Select value={bulkAccountId} onValueChange={handleBulkAccountChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Não alterar" />
                   </SelectTrigger>
