@@ -9,7 +9,7 @@ import {
 import { useTransactions, useTransactionKPIs } from '@/hooks/useTransactions';
 import { useFixedExpenses, useGenerateFixedExpenseTransactions } from '@/hooks/useFixedExpenses';
 import { useAccounts } from '@/hooks/useFinancialConfig';
-import { TransactionsList } from './TransactionsList';
+import { TransactionsListWithTabs } from './TransactionsListWithTabs';
 import { NewFixedExpenseModal } from './NewFixedExpenseModal';
 import { MonthYearNavigator } from '@/components/ui/month-year-navigator';
 import { formatCurrency } from '@/data/mockData';
@@ -273,10 +273,10 @@ export function DespesasFixasPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Lançamentos do Mês</CardTitle>
+          <CardTitle className="text-lg">Lançamentos</CardTitle>
         </CardHeader>
         <CardContent>
-          <TransactionsList 
+          <TransactionsListWithTabs 
             filters={{ 
               competencia_mes: selectedMonth, 
               competencia_ano: selectedYear,

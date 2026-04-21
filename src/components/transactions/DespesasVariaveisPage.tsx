@@ -8,7 +8,7 @@ import {
 import { useTransactions, useTransactionKPIs } from '@/hooks/useTransactions';
 import { useAccounts, useCostCenters, useTransactionCategories } from '@/hooks/useFinancialConfig';
 import { useFinancialEntities, ENTITY_TYPE_LABELS, EntityType } from '@/hooks/useFinancialEntities';
-import { TransactionsList } from './TransactionsList';
+import { TransactionsListWithTabs } from './TransactionsListWithTabs';
 import { QuickTransactionModal } from './QuickTransactionModal';
 import { MonthYearNavigator } from '@/components/ui/month-year-navigator';
 import { formatCurrency } from '@/data/mockData';
@@ -340,10 +340,10 @@ export function DespesasVariaveisPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Lançamentos do Mês</CardTitle>
+          <CardTitle className="text-lg">Lançamentos</CardTitle>
         </CardHeader>
         <CardContent>
-          <TransactionsList 
+          <TransactionsListWithTabs 
             filters={{ 
               competencia_mes: selectedMonth, 
               competencia_ano: selectedYear,
