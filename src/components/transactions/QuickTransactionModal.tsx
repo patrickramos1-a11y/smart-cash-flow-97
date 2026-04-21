@@ -99,6 +99,9 @@ export function QuickTransactionModal({
     setEntityIds([]);
     setFilterAccountId('');
     setFilterCostCenterId('');
+    setAccountIdOverride('');
+    setResolvedAccountId(null);
+    setResolvedCostCenterId(null);
     setEnableRepetition(false);
     setRepetitionCount(2);
     setRepetitionMode('parcelamento');
