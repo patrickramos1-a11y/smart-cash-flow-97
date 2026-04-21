@@ -75,7 +75,7 @@ export function AccountsView() {
     if (!selectedAccount || !allTransactions) return [];
     
     return allTransactions.filter(t => {
-      if (t.conta_id !== selectedAccount) return false;
+      if (t.account_id !== selectedAccount) return false;
       
       if (periodFilter === '12m') {
         // Last 12 months
@@ -157,7 +157,7 @@ export function AccountsView() {
       const isPast = monthNum <= currentMonth || selectedYear < currentYear;
       
       const monthTransactions = allTransactions?.filter(t => 
-        t.conta_id === selectedAccount &&
+        t.account_id === selectedAccount &&
         t.competencia_ano === selectedYear && 
         t.competencia_mes === monthNum
       ) || [];
@@ -186,7 +186,7 @@ export function AccountsView() {
     
     const categoryTotals = getAccountTransactions.reduce((acc, t) => {
       if (t.tipo_movimento !== 'SAIDA') return acc;
-      const catId = t.categoria_id || 'sem-categoria';
+      const catId = t.transaction_category_id || 'sem-categoria';
       if (!acc[catId]) acc[catId] = 0;
       acc[catId] += Number(t.valor);
       return acc;

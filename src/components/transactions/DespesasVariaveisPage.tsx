@@ -56,7 +56,7 @@ export function DespesasVariaveisPage() {
   });
 
   const byCategory = yearlyTransactions?.reduce((acc, t) => {
-    const catId = (t as any).transaction_category_id || t.categoria_id || 'sem-categoria';
+    const catId = t.transaction_category_id || 'sem-categoria';
     if (!acc[catId]) acc[catId] = 0;
     acc[catId] += Number(t.valor);
     return acc;
@@ -71,7 +71,7 @@ export function DespesasVariaveisPage() {
     .slice(0, 8);
 
   const byCostCenter = yearlyTransactions?.reduce((acc, t) => {
-    const ccId = (t as any).cost_center_id || t.centro_custo_id || 'sem-centro';
+    const ccId = t.cost_center_id || 'sem-centro';
     if (!acc[ccId]) acc[ccId] = 0;
     acc[ccId] += Number(t.valor);
     return acc;
@@ -86,7 +86,7 @@ export function DespesasVariaveisPage() {
     .slice(0, 6);
 
   const byAccount = yearlyTransactions?.reduce((acc, t) => {
-    const accId = (t as any).account_id || t.conta_id || 'sem-conta';
+    const accId = t.account_id || 'sem-conta';
     if (!acc[accId]) acc[accId] = 0;
     acc[accId] += Number(t.valor);
     return acc;

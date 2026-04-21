@@ -27,10 +27,9 @@ export interface TransactionRow {
   data_pagamento: string | null;
   status: TransactionStatusType;
   descricao: string | null;
-  categoria_id: string | null;
-  centro_custo_id: string | null;
-  conta_id: string | null;
-  forma_pagamento_id: string | null;
+  transaction_category_id: string | null;
+  cost_center_id: string | null;
+  account_id: string | null;
   documento_tipo: DocumentoTipo | null;
   documento_numero: string | null;
   notes: string | null;
@@ -295,7 +294,18 @@ export function useCreateTransaction() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (transaction: Partial<TransactionRow> & { created_by_user_id?: string }) => {
+    mutationFn: async (transaction: Partial<TransactionRow> & {
+      created_by_user_id?: string;
+      // Aliases legados aceitos pela UI antiga — mapeados para colunas uuid
+      categoria_id?: string | null;
+      centro_custo_id?: string | null;
+      conta_id?: string | null;
+    }) => {
+      // Normaliza aliases: se o caller mandou nome legado, usa esse valor
+      const categoryId = transaction.transaction_category_id ?? transaction.categoria_id ?? null;
+      const accountId = transaction.account_id ?? transaction.conta_id ?? null;
+      const costCenterId = transaction.cost_center_id ?? transaction.centro_custo_id ?? null;
+
       const insertData: any = {
         tipo_movimento: transaction.tipo_movimento!,
         natureza: transaction.natureza || 'AVULSA',
@@ -307,13 +317,9 @@ export function useCreateTransaction() {
         data_vencimento: transaction.data_vencimento!,
         status: transaction.status || 'EM_ABERTO',
         descricao: transaction.descricao,
-        transaction_category_id: transaction.categoria_id,
-        account_id: transaction.conta_id,
-        cost_center_id: transaction.centro_custo_id,
-        categoria_id: transaction.categoria_id,
-        centro_custo_id: transaction.centro_custo_id,
-        conta_id: transaction.conta_id,
-        forma_pagamento_id: transaction.forma_pagamento_id,
+        transaction_category_id: categoryId,
+        account_id: accountId,
+        cost_center_id: costCenterId,
         documento_tipo: transaction.documento_tipo,
         documento_numero: transaction.documento_numero,
         notes: transaction.notes,
