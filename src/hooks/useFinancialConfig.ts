@@ -348,6 +348,87 @@ export function useDeleteAccount() {
 }
 
 // =============================================
+// CATEGORIES BY ACCOUNT (governance helpers)
+// =============================================
+
+/**
+ * Retorna todas as transaction_categories cuja default_account_id = accountId.
+ */
+export function useCategoriesByAccount(accountId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['categories-by-account', accountId],
+    enabled: !!accountId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('transaction_categories')
+        .select('*, cost_center:cost_centers(*)')
+        .eq('default_account_id', accountId!)
+        .order('name');
+      if (error) throw error;
+      return data as TransactionCategory[];
+    },
+  });
+}
+
+/**
+ * Sincroniza o conjunto de categorias vinculadas a uma conta:
+ * - categorias em `categoryIds` que ainda não apontam para a conta → passam a apontar.
+ * - categorias que apontavam e não estão em `categoryIds` → têm default_account_id zerado.
+ */
+export function useLinkCategoriesToAccount() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ accountId, categoryIds }: { accountId: string; categoryIds: string[] }) => {
+      // Remover vínculo das categorias que NÃO devem mais apontar para esta conta
+      const { error: clearError } = await supabase
+        .from('transaction_categories')
+        .update({ default_account_id: null })
+        .eq('default_account_id', accountId)
+        .not('id', 'in', `(${categoryIds.length ? categoryIds.map(id => `"${id}"`).join(',') : '""'})`);
+      if (clearError && categoryIds.length) throw clearError;
+
+      // Vincular as selecionadas
+      if (categoryIds.length) {
+        const { error: linkError } = await supabase
+          .from('transaction_categories')
+          .update({ default_account_id: accountId })
+          .in('id', categoryIds);
+        if (linkError) throw linkError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transaction-categories'] });
+      queryClient.invalidateQueries({ queryKey: ['categories-by-account'] });
+      toast.success('Categorias vinculadas à conta atualizadas!');
+    },
+    onError: (error) => {
+      toast.error('Erro ao vincular categorias: ' + error.message);
+    },
+  });
+}
+
+/**
+ * Reconcilia (recalcula) o saldo de uma conta chamando a função SQL.
+ */
+export function useRecalculateAccountBalance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (accountId: string) => {
+      const { error } = await supabase.rpc('recalculate_account_balance', { p_account_id: accountId } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      toast.success('Saldo reconciliado!');
+    },
+    onError: (error) => {
+      toast.error('Erro ao reconciliar saldo: ' + error.message);
+    },
+  });
+}
+
+// =============================================
 // COST CENTERS
 // =============================================
 
