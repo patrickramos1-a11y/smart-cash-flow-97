@@ -191,6 +191,7 @@ export function BulkEditPanel({
   const [bulkDataVencimento, setBulkDataVencimento] = useState('');
   const [bulkNotes, setBulkNotes] = useState('');
   const [bulkCategorySearch, setBulkCategorySearch] = useState('');
+  const [bulkDocumentoRecebimento, setBulkDocumentoRecebimento] = useState('');
 
   // Toggle de segurança: default OFF = só preenche onde está nulo
   const [overwriteExisting, setOverwriteExisting] = useState(false);
