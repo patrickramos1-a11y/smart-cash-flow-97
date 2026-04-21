@@ -48,6 +48,7 @@ export function CategoryFilteredSelector({
   const { data: accounts } = useAccounts();
   const { data: costCenters } = useCostCenters();
   const { data: categories } = useTransactionCategories();
+  const [search, setSearch] = useState('');
 
   // Base categories for this tipo+subtype
   const baseCategories = categories?.filter(c => c.type === tipo && c.subtype === subtype && c.active) || [];
