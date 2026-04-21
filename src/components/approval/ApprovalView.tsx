@@ -1333,6 +1333,90 @@ export function ApprovalView() {
                 </Select>
               </div>
             </div>
+
+            {/* Campos de conteúdo do lançamento */}
+            <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3">
+              <p className="text-xs font-semibold text-foreground">Conteúdo do lançamento</p>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center justify-between">
+                  <span>Descrição</span>
+                  {bulkDescricao && (
+                    <button type="button" onClick={() => setBulkDescricao('')} className="text-[10px] text-muted-foreground hover:text-foreground">limpar</button>
+                  )}
+                </Label>
+                <Input
+                  value={bulkDescricao}
+                  onChange={(e) => setBulkDescricao(e.target.value)}
+                  placeholder="Não alterar (deixe vazio)"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center justify-between">
+                    <span>Valor (R$)</span>
+                    {bulkValor && (
+                      <button type="button" onClick={() => setBulkValor('')} className="text-[10px] text-muted-foreground hover:text-foreground">limpar</button>
+                    )}
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={bulkValor}
+                    onChange={(e) => setBulkValor(e.target.value)}
+                    placeholder="Não alterar"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center justify-between">
+                    <span>Vencimento</span>
+                    {bulkDataVencimento && (
+                      <button type="button" onClick={() => setBulkDataVencimento('')} className="text-[10px] text-muted-foreground hover:text-foreground">limpar</button>
+                    )}
+                  </Label>
+                  <Input
+                    type="date"
+                    value={bulkDataVencimento}
+                    onChange={(e) => setBulkDataVencimento(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center justify-between">
+                    <span>Status</span>
+                    {bulkStatus && (
+                      <button type="button" onClick={() => setBulkStatus('')} className="text-[10px] text-muted-foreground hover:text-foreground">limpar</button>
+                    )}
+                  </Label>
+                  <Select value={bulkStatus} onValueChange={setBulkStatus}>
+                    <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EM_ABERTO">Em aberto</SelectItem>
+                      <SelectItem value="PAGO">Pago</SelectItem>
+                      <SelectItem value="ATRASADO">Atrasado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center justify-between">
+                  <span>Observações (substitui as existentes)</span>
+                  {bulkNotes && (
+                    <button type="button" onClick={() => setBulkNotes('')} className="text-[10px] text-muted-foreground hover:text-foreground">limpar</button>
+                  )}
+                </Label>
+                <Textarea
+                  value={bulkNotes}
+                  onChange={(e) => setBulkNotes(e.target.value)}
+                  placeholder="Não alterar (deixe vazio)"
+                  rows={2}
+                />
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBulkEditOpen(false)}>Cancelar</Button>
