@@ -364,7 +364,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Valor (R$) *</Label>
-              <Input value={valor} onChange={(e) => setValor(e.target.value)} />
+              <CurrencyInput value={valor} onValueChange={(n) => setValor(n === null ? '' : String(n))} autoFocus />
             </div>
             <div>
               <Label>Status</Label>
@@ -384,7 +384,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Valor Pago</Label>
-                <Input value={valorPago} onChange={(e) => setValorPago(e.target.value)} placeholder={valor} />
+                <CurrencyInput value={valorPago} onValueChange={(n) => setValorPago(n === null ? '' : String(n))} placeholder={valor || '0,00'} />
               </div>
               <div>
                 <Label>Data Pagamento</Label>
