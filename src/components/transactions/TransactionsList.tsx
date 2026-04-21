@@ -627,7 +627,7 @@ export function TransactionsList({ filters, bulkContext = 'GERAL' }: Transaction
                     })
                   ) : (
                     <tr>
-                      <td colSpan={12} className="p-8 text-center text-muted-foreground">
+                      <td colSpan={13} className="p-8 text-center text-muted-foreground">
                         Nenhuma transação encontrada para os filtros selecionados.
                       </td>
                     </tr>
