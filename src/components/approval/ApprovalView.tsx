@@ -926,7 +926,7 @@ export function ApprovalView() {
                 <tbody className="divide-y">
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={isAdmin ? 10 : 9} className="text-center py-8 text-muted-foreground text-sm">
+                      <td colSpan={isAdmin ? 12 : 11} className="text-center py-8 text-muted-foreground text-sm">
                         Nenhum lançamento encontrado
                       </td>
                     </tr>
