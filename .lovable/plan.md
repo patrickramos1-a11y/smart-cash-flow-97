@@ -1,92 +1,90 @@
 
 
-## Padronização do Workflow Categoria-Cêntrico nas Janelas de Lançamento
+## Bloco 1 — Reconstrução da página Contas: Clareza & Confiança
 
-### Diagnóstico atual
+### Objetivo
+Ao abrir **Contas**, o usuário entende em segundos: saldo total, contas positivas, negativas, zeradas, em alerta, e quais merecem atenção. Mantemos as abas existentes (Composição, Transferências, Saúde) intactas — refazemos apenas a aba **"Visão Geral"**.
 
-Analisando as 4 janelas mostradas nos prints + o módulo de Aprovações:
+### Nova estrutura da aba Visão Geral
 
-| Janela | Filtros pré-categoria | Auto-fill Conta/C.Custo | Mostra heranças | Bloqueia órfã | Botão Limpar |
-|---|---|---|---|---|---|
-| **Nova Entrada Avulsa** (`QuickTransactionModal`) | ✅ filtros existem | ⚠️ envia para o banco mas **não mostra** ao usuário | ❌ | ❌ | ❌ |
-| **Nova Despesa Variável** (`QuickTransactionModal`) | ✅ filtros existem | ⚠️ idem | ❌ | ❌ | ❌ |
-| **Nova Despesa Fixa** (`NewFixedExpenseModal`) | ✅ | ✅ painel "Conta vinculada / C. Custo" | ✅ | ✅ (já corrigido) | ❌ |
-| **Novo Contrato Recorrente** | ❌ não usa CategoryFilteredSelector | ❌ | ❌ | ❌ | ❌ |
-| **Aprovações (bulk)** | ✅ | ✅ | ✅ | ✅ | ✅ "Limpar" |
-| **Editar Lançamento** | ✅ cross-filter | ✅ via `handleCategoryChange` | ❌ não mostra texto | ❌ | ❌ |
+```text
+┌─ Cabeçalho inteligente ──────────────────────────────────────┐
+│ [Ano ▼] [Mês ▼] [Mês Atual] [Ano Completo] [↻ Atualizar]    │
+└──────────────────────────────────────────────────────────────┘
 
-**Problemas observados nos prints:**
-- Print 1 e 4 (Avulsa/Variável): a categoria é selecionada e o usuário **não tem feedback visual** de qual conta/centro de custo foi herdado.
-- Print 2 (Avulsa, categoria AJUDA DE CUSTO selecionada): mostra "Conta: BANCARIA / C. Custo: Despesas Administrativas" mas isso vem só do `CategoryFilteredSelector` interno; não há painel de inherited info nem campo override para casos sem default_account_id.
-- Print 3 (Despesa Fixa): é o **padrão correto** a ser replicado em todas.
-- Em nenhuma janela existe um botão **"Limpar filtros"** para zerar os filtros de Conta/C. Custo + categoria de uma vez (existe em Aprovações).
+┌─ KPIs (6 cards) ─────────────────────────────────────────────┐
+│ Saldo │ Positivas │ Negativas │ Zeradas │ Alerta │ Nº Contas│
+└──────────────────────────────────────────────────────────────┘
 
-### O plano
+┌─ Grid de Contas (cards) ─────────────────────────────────────┐
+│ [conta] [conta] [conta] ...                                  │
+│ filtros: Todas | Positivas | Negativas | Zeradas | Alerta    │
+└──────────────────────────────────────────────────────────────┘
 
-#### 1. Consolidar `CategoryFilteredSelector` como componente único e completo
-
-Estender o componente atual para conter, **dentro dele**, tudo que hoje é repetido fora:
-
-- **Painel de heranças** (igual ao da Despesa Fixa): "Conta vinculada / Centro de Custo" mostrado em destaque assim que uma categoria é escolhida.
-- **Botão "Limpar filtros"** (X discreto ao lado dos selects de filtro) que zera `filterAccountId`, `filterCostCenterId`, **mantendo** a categoria já escolhida.
-- **Override de Conta** quando a categoria escolhida não tem `default_account_id`: bloco amarelo igual ao já existente no `NewFixedExpenseModal`, exigindo o usuário escolher manualmente uma conta antes de submeter.
-- Nova prop `onResolvedAccountChange(accountId | null)` para o modal pai saber qual `account_id` deve persistir (default da categoria → override do usuário → null).
-- Nova prop `onResolvedCostCenterChange(costCenterId | null)`.
-
-Isso elimina a duplicação atual onde cada modal decide individualmente como mostrar/usar a herança.
-
-#### 2. Padronizar as 4 janelas de lançamento + modal de edição
-
-Aplicar o componente unificado em:
-
-- **`QuickTransactionModal`** (Entrada Avulsa + Despesa Variável)
-  - Adicionar painel de heranças.
-  - Exigir conta override quando categoria não tem default (mesma regra da despesa fixa).
-  - No `handleSubmit`, usar `effectiveAccountId` (default → override) em vez de `selectedCategory?.default_account_id`.
-  - Bloquear submissão com toast claro se nada se resolver.
-
-- **`NewFixedExpenseModal`** — apenas migrar para usar o painel embutido em vez do código próprio (sem mudança visual).
-
-- **`NewRecurringContractModal`** — investigar se já usa `CategoryFilteredSelector`; se não, adicionar para que a categoria também guie a Conta/C. Custo do contrato recorrente.
-
-- **`TransactionEditModal`** — exibir o mesmo painel de heranças após `handleCategoryChange`, e botão "Limpar filtros" para os pré-filtros já existentes.
-
-#### 3. Hook compartilhado de validação no submit
-
-Criar pequena helper `resolveAccountAndCostCenter(category, overrideAccountId)` em `src/lib/financial/categoryResolution.ts`:
-
-```ts
-return {
-  accountId: category?.default_account_id ?? overrideAccountId ?? null,
-  costCenterId: category?.cost_center_id ?? null,
-  isOrphan: !(category?.default_account_id ?? overrideAccountId),
-};
+┌─ Rankings ───────────────────────────────────────────────────┐
+│ Top 5 + │ Top 5 - │ Sem movimentação │ Mais utilizadas      │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-Usada em todos os 4 modais e no `useCreateTransaction` como guard final.
+### 1. Cabeçalho inteligente
+- Seletor de **Ano** + **Mês** + atalhos **"Mês Atual"** / **"Ano Completo"** (alterna escopo do período).
+- Botão **"Atualizar saldos"** — chama `recalculate_account_balance` para todas as contas (loop client-side sobre o RPC já existente) e invalida queries.
+- Padrão ao abrir: **ano atual + mês atual**.
 
-#### 4. UX adicional pedido pelo usuário ("limpar tipo aprovação")
+### 2. Cards de KPI (6)
+Calculados a partir de `computeAllBalances` (já existente em `src/lib/financial/balances.ts`) — fonte única e confiável.
 
-Replicar exatamente o botão **"Limpar"** que existe em Aprovações:
-- Posicionado à direita dos dois selects de filtro.
-- Reseta filterAccountId + filterCostCenterId + busca interna da categoria (não a categoria já escolhida).
-- Ícone `X` com tooltip "Limpar filtros".
+| KPI | Fórmula | Cor |
+|---|---|---|
+| Saldo Consolidado | Σ `computedBalance` de todas as contas ativas | primary |
+| Positivas | Σ saldos > 0 (e contagem) | income/verde |
+| Negativas | Σ saldos < 0 (e contagem) | expense/vermelho |
+| Zeradas | contagem de saldos == 0 | muted |
+| Em Alerta | contagem de contas com `drift > 0.01` ou sem categoria vinculada | warning/amarelo |
+| Total de Contas | contagem ativas | neutro |
 
-### Arquivos afetados
+### 3. Grid visual de contas
+Cada card (substitui o `AccountCard` atual com versão mais informativa):
+- Nome + categoria de conta (cor)
+- **Saldo grande**, com cor por status
+- **% do total geral** (`saldo / saldo consolidado × 100`)
+- **Status pill**: Positiva / Negativa / Zerada / Em Alerta
+- Movimentações no período selecionado (count de transações PAGAS no mês/ano)
+- **Mini sparkline** de saldo acumulado dos últimos 6 meses
+- Selo **"Revisar"** se: sem categoria de conta, sem categorias de transação vinculadas, ou drift detectado
+- Botão **"Ver detalhes"** → abre a aba Composição já filtrada por essa conta
 
-- **Editar:** `src/components/transactions/CategoryFilteredSelector.tsx` — adicionar painel de herança, override de conta, botão limpar e callbacks.
-- **Editar:** `src/components/transactions/QuickTransactionModal.tsx` — usar `effectiveAccountId`, remover lógica duplicada de auto-fill, bloquear submit órfão.
-- **Editar:** `src/components/transactions/NewFixedExpenseModal.tsx` — migrar para o painel embutido (remove código duplicado).
-- **Editar:** `src/components/contracts/NewRecurringContractModal.tsx` — adotar `CategoryFilteredSelector`.
-- **Editar:** `src/components/transactions/TransactionEditModal.tsx` — exibir painel de herança e botão limpar.
-- **Novo:** `src/lib/financial/categoryResolution.ts` — helper único de resolução conta/CC.
-- **Editar:** `src/hooks/useTransactions.ts` — usar a helper como guard final no `useCreateTransaction`.
+Filtros rápidos acima do grid: **Todas | Positivas | Negativas | Zeradas | Em Alerta** + busca por nome.
+
+### 4. Rankings (4 listas compactas)
+- **Top 5 maiores saldos positivos**
+- **Top 5 maiores déficits** (mais negativas)
+- **Sem movimentação** no período selecionado (0 transações PAGAS)
+- **Mais utilizadas no mês** (maior nº de transações PAGAS)
+
+### Regras de cálculo (consistência total)
+- Todos os saldos vêm de `computeAllBalances` — mesma função usada na aba Saúde, espelha o `recalculate_account_balance` SQL.
+- Movimentações = só `status = 'PAGO'`, valor `valor_pago ?? valor`.
+- Transferências contam como entrada/saída para fins de movimentação no card.
+- Se `drift > 0.01` aparece banner amarelo no topo: *"X contas com saldo divergente — Reconciliar agora"* com ação que dispara o RPC.
+
+### Arquitetura de arquivos
+
+- **Novo:** `src/components/accounts/AccountsHeader.tsx` — Ano/Mês/atalhos/atualizar.
+- **Novo:** `src/components/accounts/AccountsKpiGrid.tsx` — 6 cards de KPI.
+- **Novo:** `src/components/accounts/AccountsGrid.tsx` — grid + filtros de status + busca.
+- **Novo:** `src/components/accounts/AccountSummaryCard.tsx` — card moderno (substitui visualmente o atual `AccountCard.tsx` no contexto da Visão Geral).
+- **Novo:** `src/components/accounts/AccountsRankings.tsx` — 4 listas de ranking.
+- **Novo:** `src/hooks/useAccountsOverview.ts` — hook único que retorna `{ accounts, balances, kpis, rankings, drifts, period }` baseado em `useAccounts`, `useTransactions`, `useAccountTransfers` + `computeAllBalances`. Centraliza toda a matemática.
+- **Editar:** `src/components/accounts/AccountsOverviewTab.tsx` — vira orquestrador fino que monta Header + KPIs + Grid + Rankings consumindo o novo hook.
+- **Editar:** `src/components/accounts/AccountsView.tsx` — promover o seletor de período para o nível da página (compartilhado com as outras abas no futuro), remover o seletor de ano duplicado.
+
+### O que NÃO entra neste bloco
+- Histórico profundo de conta · transferências avançadas · automações · reconciliação massiva · IA de insights. (Reservado para próximos blocos.)
 
 ### Resultado esperado
-
-- Consistência visual e comportamental: as 5 janelas (4 de criação + 1 de edição) funcionam exatamente igual quanto ao fluxo categoria → conta → centro de custo.
-- Impossível criar transação órfã (`account_id IS NULL`) por nenhuma das janelas.
-- Usuário sempre vê de forma clara qual conta/CC foi inferida.
-- Botão "Limpar filtros" disponível em todas as janelas, idêntico ao módulo de Aprovações.
-- Código consolidado: a lógica de auto-fill vive em **um único componente** + **uma única helper**, eliminando duplicação.
+- Tela carrega em até 1 telão visual, sem scroll para entender a situação.
+- Saldos 100% consistentes com a função SQL (mesma fórmula em um só lugar).
+- Status visual imediato (cores + selos), revisão a um clique.
+- Filtros e rankings que respondem à pergunta *"onde está o dinheiro e o que precisa de atenção?"* em segundos.
 
