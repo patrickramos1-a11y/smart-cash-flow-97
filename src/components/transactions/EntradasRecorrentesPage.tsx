@@ -12,6 +12,7 @@ import { TransactionsListWithTabs } from './TransactionsListWithTabs';
 import { NewRecurringContractModal } from '@/components/contracts/NewRecurringContractModal';
 import { MonthYearNavigator } from '@/components/ui/month-year-navigator';
 import { formatCurrency } from '@/data/mockData';
+import { useAuth } from '@/hooks/useAuth';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -23,6 +24,7 @@ export function EntradasRecorrentesPage() {
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [showContractModal, setShowContractModal] = useState(false);
+  const { isFinanceiro } = useAuth();
 
   const { kpis: recurringKpis } = useRecurringKPIs(selectedYear);
   const { data: contracts } = useRecurringContracts();
@@ -71,10 +73,12 @@ export function EntradasRecorrentesPage() {
           <h2 className="text-xl font-bold">Entradas Recorrentes</h2>
           <Badge variant="outline" className="ml-2">Contratos</Badge>
         </div>
-        <Button onClick={() => setShowContractModal(true)} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Novo Contrato
-        </Button>
+        {!isFinanceiro && (
+          <Button onClick={() => setShowContractModal(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Novo Contrato
+          </Button>
+        )}
       </div>
 
       <MonthYearNavigator 
