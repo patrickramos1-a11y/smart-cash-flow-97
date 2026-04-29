@@ -16,6 +16,7 @@ import { TransactionsAnnualChart } from './TransactionsAnnualChart';
 import { useTransactionKPIs, useTransactions } from '@/hooks/useTransactions';
 import { formatCurrency } from '@/data/mockData';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
 const MONTH_ABBREV = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -24,6 +25,7 @@ export function TransactionsHub() {
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
   const isMobile = useIsMobile();
+  const { isFinanceiro } = useAuth();
   
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
@@ -388,10 +390,12 @@ export function TransactionsHub() {
           </SelectContent>
         </Select>
 
-        <Button onClick={() => setShowWizard(true)} size={isMobile ? "sm" : "default"} className="gap-1.5">
-          <Plus className="w-4 h-4" />
-          {!isMobile && 'Novo Lançamento'}
-        </Button>
+        {!isFinanceiro && (
+          <Button onClick={() => setShowWizard(true)} size={isMobile ? "sm" : "default"} className="gap-1.5">
+            <Plus className="w-4 h-4" />
+            {!isMobile && 'Novo Lançamento'}
+          </Button>
+        )}
       </div>
 
       {/* Month strip - 12 months compact */}
