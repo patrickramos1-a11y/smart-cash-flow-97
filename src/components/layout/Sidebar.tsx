@@ -6,7 +6,7 @@ import {
   LayoutDashboard, ArrowDownUp, Wallet, Users, Settings, FileSpreadsheet,
   BarChart3, ChevronLeft, ChevronRight, LogOut, Menu, RefreshCw,
   AlertCircle, ClipboardList, ChevronDown, ArrowDownCircle, ArrowUpCircle,
-  FileText, Building2, ShieldCheck
+  FileText, Building2, ShieldCheck, PlusCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
