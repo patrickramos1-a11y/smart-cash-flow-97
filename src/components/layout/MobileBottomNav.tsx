@@ -22,7 +22,7 @@ const navItems = [
 ];
 
 export function MobileBottomNav({ activeTab, onTabChange, onMenuOpen }: MobileBottomNavProps) {
-  const isTransactionPage = ['transactions', 'entradas-recorrentes', 'entradas-avulsas', 'despesas-fixas', 'despesas-variaveis'].includes(activeTab);
+  const isTransactionPage = ['transactions', 'entradas-recorrentes', 'entradas-avulsas', 'despesas-fixas', 'despesas-variaveis', 'lancamento'].includes(activeTab);
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border safe-area-bottom">
