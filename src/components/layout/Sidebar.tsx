@@ -53,6 +53,7 @@ const menuItems: MenuItemType[] = [
       { id: 'entradas-avulsas', label: 'Entradas Avulsas', icon: ArrowDownCircle },
       { id: 'despesas-fixas', label: 'Despesas Fixas', icon: RefreshCw },
       { id: 'despesas-variaveis', label: 'Despesas Variáveis', icon: ArrowUpCircle },
+      { id: 'lancamento', label: 'Lançamento', icon: PlusCircle },
     ]
   },
   { id: 'accounts', label: 'Contas', icon: Wallet },
