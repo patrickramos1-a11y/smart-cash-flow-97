@@ -13,6 +13,7 @@ import { TransactionsListWithTabs } from './TransactionsListWithTabs';
 import { NewFixedExpenseModal } from './NewFixedExpenseModal';
 import { MonthYearNavigator } from '@/components/ui/month-year-navigator';
 import { formatCurrency } from '@/data/mockData';
+import { useAuth } from '@/hooks/useAuth';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { toast } from 'sonner';
 
@@ -25,6 +26,7 @@ export function DespesasFixasPage() {
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const { isFinanceiro } = useAuth();
 
   const { data: fixedExpenses } = useFixedExpenses();
   const { data: accounts } = useAccounts();
@@ -99,10 +101,12 @@ export function DespesasFixasPage() {
           <h2 className="text-xl font-bold">Despesas Fixas</h2>
           <Badge variant="outline" className="ml-2">Recorrentes</Badge>
         </div>
-        <Button onClick={() => setShowExpenseModal(true)} className="gap-2 bg-expense hover:bg-expense/90">
-          <Plus className="w-4 h-4" />
-          Nova Despesa Fixa
-        </Button>
+        {!isFinanceiro && (
+          <Button onClick={() => setShowExpenseModal(true)} className="gap-2 bg-expense hover:bg-expense/90">
+            <Plus className="w-4 h-4" />
+            Nova Despesa Fixa
+          </Button>
+        )}
       </div>
 
       {/* Alerta: despesas fixas sem conta vinculada */}

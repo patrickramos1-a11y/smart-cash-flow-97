@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Pencil, AlertCircle, History, Save, X, Link2 } from 'lucide-react';
+import { Loader2, Pencil, AlertCircle, History, Save, X, Link2, Lock, Unlock } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -30,6 +31,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [scope, setScope] = useState<'single' | 'future' | 'all'>('single');
+  const [allowValueEdit, setAllowValueEdit] = useState(false);
 
   // Form state
   const [valor, setValor] = useState('');
@@ -114,6 +116,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
       setDocumentoNumero(transaction.documento_numero || '');
       setNotes(transaction.notes || '');
       setScope('single');
+      setAllowValueEdit(false);
     }
   }, [transaction, open]);
 
@@ -382,8 +385,23 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
           {/* Value + Status row */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Valor (R$) *</Label>
-              <CurrencyInput value={valor} onValueChange={(n) => setValor(n === null ? '' : String(n))} autoFocus />
+              <Label className="flex items-center gap-1.5">
+                Valor (R$) *
+                {allowValueEdit ? <Unlock className="w-3 h-3 text-amber-500" /> : <Lock className="w-3 h-3 text-muted-foreground" />}
+              </Label>
+              <CurrencyInput
+                value={valor}
+                onValueChange={(n) => setValor(n === null ? '' : String(n))}
+                disabled={!allowValueEdit}
+                autoFocus={allowValueEdit}
+              />
+              <label className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+                <Checkbox
+                  checked={allowValueEdit}
+                  onCheckedChange={(v) => setAllowValueEdit(v === true)}
+                />
+                Permitir alteração do valor
+              </label>
             </div>
             <div>
               <Label>Status</Label>

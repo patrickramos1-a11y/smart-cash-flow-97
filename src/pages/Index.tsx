@@ -11,6 +11,7 @@ import { EntradasRecorrentesPage } from '@/components/transactions/EntradasRecor
 import { EntradasAvulsasPage } from '@/components/transactions/EntradasAvulsasPage';
 import { DespesasFixasPage } from '@/components/transactions/DespesasFixasPage';
 import { DespesasVariaveisPage } from '@/components/transactions/DespesasVariaveisPage';
+import { LancamentoPage } from '@/components/transactions/LancamentoPage';
 import { ClientsView } from '@/components/clients/ClientsView';
 import { EntitiesView } from '@/components/entities/EntitiesView';
 import { ImportExportView } from '@/components/import/ImportExportView';
@@ -32,6 +33,7 @@ const tabConfig: Record<string, { title: string; subtitle?: string }> = {
   'entradas-avulsas': { title: 'Entradas Avulsas', subtitle: 'Receitas pontuais e serviços' },
   'despesas-fixas': { title: 'Despesas Fixas', subtitle: 'Custos recorrentes mensais' },
   'despesas-variaveis': { title: 'Despesas Variáveis', subtitle: 'Gastos pontuais e variáveis' },
+  lancamento: { title: 'Lançamento', subtitle: 'Criar e revisar últimos lançamentos' },
   'open-payments': { title: 'Em Aberto', subtitle: 'Controle de inadimplência' },
   'recurring-contracts': { title: 'Contratos', subtitle: 'Gestão por salário mínimo' },
   reports: { title: 'Relatórios', subtitle: 'Análises e DRE' },
@@ -70,6 +72,7 @@ const Index = () => {
       case 'entradas-avulsas': return <EntradasAvulsasPage />;
       case 'despesas-fixas': return <DespesasFixasPage />;
       case 'despesas-variaveis': return <DespesasVariaveisPage />;
+      case 'lancamento': return <LancamentoPage />;
       case 'open-payments': return <OpenPaymentsView />;
       case 'recurring-contracts': return <RecurringContractsView />;
       case 'reports': return <ReportsView />;

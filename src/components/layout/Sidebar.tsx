@@ -6,7 +6,7 @@ import {
   LayoutDashboard, ArrowDownUp, Wallet, Users, Settings, FileSpreadsheet,
   BarChart3, ChevronLeft, ChevronRight, LogOut, Menu, RefreshCw,
   AlertCircle, ClipboardList, ChevronDown, ArrowDownCircle, ArrowUpCircle,
-  FileText, Building2, ShieldCheck
+  FileText, Building2, ShieldCheck, PlusCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -53,6 +53,7 @@ const menuItems: MenuItemType[] = [
       { id: 'entradas-avulsas', label: 'Entradas Avulsas', icon: ArrowDownCircle },
       { id: 'despesas-fixas', label: 'Despesas Fixas', icon: RefreshCw },
       { id: 'despesas-variaveis', label: 'Despesas Variáveis', icon: ArrowUpCircle },
+      { id: 'lancamento', label: 'Lançamento', icon: PlusCircle },
     ]
   },
   { id: 'accounts', label: 'Contas', icon: Wallet },

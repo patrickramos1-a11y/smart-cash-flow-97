@@ -12,6 +12,7 @@ import { TransactionsListWithTabs } from './TransactionsListWithTabs';
 import { QuickTransactionModal } from './QuickTransactionModal';
 import { MonthYearNavigator } from '@/components/ui/month-year-navigator';
 import { formatCurrency } from '@/data/mockData';
+import { useAuth } from '@/hooks/useAuth';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPie, Pie, Cell, Legend } from 'recharts';
 
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -24,6 +25,7 @@ export function DespesasVariaveisPage() {
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [showModal, setShowModal] = useState(false);
+  const { isFinanceiro } = useAuth();
 
   const { data: accounts } = useAccounts();
   const { data: categories } = useTransactionCategories();
@@ -125,10 +127,12 @@ export function DespesasVariaveisPage() {
           <h2 className="text-xl font-bold">Despesas Variáveis</h2>
           <Badge variant="outline" className="ml-2">Pontuais</Badge>
         </div>
-        <Button onClick={() => setShowModal(true)} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Nova Despesa
-        </Button>
+        {!isFinanceiro && (
+          <Button onClick={() => setShowModal(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Nova Despesa
+          </Button>
+        )}
       </div>
 
       <MonthYearNavigator 

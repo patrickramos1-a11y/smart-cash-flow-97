@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Check, Loader2, ArrowDownCircle, ArrowUpCircle, Repeat, Split, FileText, AlertCircle } from 'lucide-react';
 import { useCreateTransaction, useClients } from '@/hooks/useTransactions';
+import { useAuth } from '@/hooks/useAuth';
 import { useTransactionCategories, usePaymentMethods, type CategorySubtype } from '@/hooks/useFinancialConfig';
 import { useSaveTransactionEntities } from '@/hooks/useTransactionEntities';
 import { useNFPercentual, useNFEditavel, type OrigemReceita, type DocumentoRecebimento } from '@/hooks/useFiscalConfig';
@@ -66,6 +67,7 @@ export function QuickTransactionModal({
   const { data: categories } = useTransactionCategories();
   const { data: paymentMethods } = usePaymentMethods();
   const createTransaction = useCreateTransaction();
+  const { user } = useAuth();
   const saveEntities = useSaveTransactionEntities();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -135,6 +137,7 @@ export function QuickTransactionModal({
         forma_pagamento_id: formData.forma_pagamento_id || null,
         notes: formData.notes || null,
         entity_id: entityIds[0] || null,
+        created_by_user_id: user?.id,
         // Fiscal fields
         ...(isEntrada ? {
           origem_receita: formData.origem_receita || null,
@@ -187,6 +190,7 @@ export function QuickTransactionModal({
           forma_pagamento_id: formData.forma_pagamento_id || null,
           notes: formData.notes || null,
           entity_id: entityIds[0] || null,
+          created_by_user_id: user?.id,
         } as any);
 
         if (entityIds.length > 0 && result?.id) {
