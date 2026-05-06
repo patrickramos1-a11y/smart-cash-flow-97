@@ -356,6 +356,7 @@ export function AccountAnnualAnalysis({ accountId, year }: Props) {
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
