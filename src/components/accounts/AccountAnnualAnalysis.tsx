@@ -59,6 +59,7 @@ function KPI({
 
 export function AccountAnnualAnalysis({ accountId, year }: Props) {
   const { data, isLoading } = useAccountAnnual(accountId, year);
+  const [expanded, setExpanded] = useState<number | null>(null);
 
   const insights = useMemo(() => {
     if (!data) return null;
