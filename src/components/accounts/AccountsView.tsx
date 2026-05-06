@@ -8,6 +8,7 @@ import { TransferModal } from './TransferModal';
 import { AccountsEvolutionChart } from './AccountsEvolutionChart';
 import { AccountsDistributionPanel } from './AccountsDistributionPanel';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AccountDetailDrawer } from './AccountDetailDrawer';
 import { Card, CardContent } from '@/components/ui/card';
 import { Wallet } from 'lucide-react';
 
@@ -22,6 +23,7 @@ export function AccountsView() {
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [detailAccount, setDetailAccount] = useState<Account | null>(null);
 
   const { data: accounts, isLoading } = useAccounts();
   const { data: snapshots, isLoading: snapLoading } = useAccountsSnapshot(year, month);
@@ -98,7 +100,7 @@ export function AccountsView() {
               key={a.id}
               account={a}
               snapshot={snapshots?.[a.id]}
-              onClick={() => { /* drill-down: Fase 3 */ }}
+              onClick={() => setDetailAccount(a)}
               onEdit={() => { setEditingAccount(a); setAccountModalOpen(true); }}
             />
           ))}
@@ -107,6 +109,14 @@ export function AccountsView() {
 
       <AccountModal open={accountModalOpen} onClose={() => setAccountModalOpen(false)} account={editingAccount} />
       <TransferModal open={transferOpen} onClose={() => setTransferOpen(false)} />
+      <AccountDetailDrawer
+        open={!!detailAccount}
+        onClose={() => setDetailAccount(null)}
+        account={detailAccount}
+        snapshot={detailAccount ? snapshots?.[detailAccount.id] : undefined}
+        year={year}
+        month={month}
+      />
     </div>
   );
 }
