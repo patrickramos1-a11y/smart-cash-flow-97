@@ -339,6 +339,7 @@ export function AccountAnnualAnalysis({ accountId, year }: Props) {
                           accountId={accountId}
                           year={year}
                           month={m.month}
+                          mode={mode}
                           expected={{
                             totalIn: m.totalIn,
                             totalOut: m.totalOut,
