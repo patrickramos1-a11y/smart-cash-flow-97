@@ -3,6 +3,7 @@ import {
   ComposedChart,
   Area,
   Bar,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -11,6 +12,7 @@ import {
   Legend,
 } from 'recharts';
 import { useAccountAnnual } from '@/hooks/useAccountAnnual';
+import { useAccountForecast } from '@/hooks/useAccountForecast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
