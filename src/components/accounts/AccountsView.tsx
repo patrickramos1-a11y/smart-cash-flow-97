@@ -9,7 +9,9 @@ import { AccountsEvolutionChart } from './AccountsEvolutionChart';
 import { AccountsDistributionPanel } from './AccountsDistributionPanel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
-import { Wallet } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Wallet, CalendarClock, LayoutGrid } from 'lucide-react';
+import { PlannedTransfersTab } from './PlannedTransfersTab';
 
 interface AccountsViewProps {
   onOpenDetail?: (accountId: string) => void;
@@ -49,65 +51,82 @@ export function AccountsView({ onOpenDetail }: AccountsViewProps = {}) {
         onTransfer={() => setTransferOpen(true)}
       />
 
-      {/* Totais */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <Wallet className="w-5 h-5 text-primary" />
-            <div>
-              <p className="text-xs text-muted-foreground">Saldo total</p>
-              <p className="text-lg font-bold">{fmt(totalSaldo)}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Entradas no período</p>
-            <p className="text-lg font-bold text-primary">{fmt(totalEntradas)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Saídas no período</p>
-            <p className="text-lg font-bold text-destructive">{fmt(totalSaidas)}</p>
-          </CardContent>
-        </Card>
-      </div>
+      <Tabs defaultValue="overview">
+        <TabsList>
+          <TabsTrigger value="overview" className="gap-1.5">
+            <LayoutGrid className="w-3.5 h-3.5" /> Visão geral
+          </TabsTrigger>
+          <TabsTrigger value="planned" className="gap-1.5">
+            <CalendarClock className="w-3.5 h-3.5" /> Planejadas
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Visão estratégica: evolução + distribuição */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <AccountsEvolutionChart year={year} month={month} />
-        <AccountsDistributionPanel
-          accounts={activeAccounts}
-          snapshots={snapshots}
-          isLoading={isLoading || snapLoading}
-        />
-      </div>
+        <TabsContent value="overview" className="space-y-4 mt-4">
+          {/* Totais */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <Wallet className="w-5 h-5 text-primary" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Saldo total</p>
+                  <p className="text-lg font-bold">{fmt(totalSaldo)}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Entradas no período</p>
+                <p className="text-lg font-bold text-primary">{fmt(totalEntradas)}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Saídas no período</p>
+                <p className="text-lg font-bold text-destructive">{fmt(totalSaidas)}</p>
+              </CardContent>
+            </Card>
+          </div>
 
-      {/* Grid de contas */}
-      {isLoading || snapLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-44" />)}
-        </div>
-      ) : activeAccounts.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center text-muted-foreground">
-            Nenhuma conta cadastrada. Clique em "Nova Conta" para começar.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {activeAccounts.map((a) => (
-            <AccountCard
-              key={a.id}
-              account={a}
-              snapshot={snapshots?.[a.id]}
-              onClick={() => onOpenDetail?.(a.id)}
-              onEdit={() => { setEditingAccount(a); setAccountModalOpen(true); }}
+          {/* Visão estratégica: evolução + distribuição */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <AccountsEvolutionChart year={year} month={month} />
+            <AccountsDistributionPanel
+              accounts={activeAccounts}
+              snapshots={snapshots}
+              isLoading={isLoading || snapLoading}
             />
-          ))}
-        </div>
-      )}
+          </div>
+
+          {/* Grid de contas */}
+          {isLoading || snapLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-44" />)}
+            </div>
+          ) : activeAccounts.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center text-muted-foreground">
+                Nenhuma conta cadastrada. Clique em "Nova Conta" para começar.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {activeAccounts.map((a) => (
+                <AccountCard
+                  key={a.id}
+                  account={a}
+                  snapshot={snapshots?.[a.id]}
+                  onClick={() => onOpenDetail?.(a.id)}
+                  onEdit={() => { setEditingAccount(a); setAccountModalOpen(true); }}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="planned" className="mt-4">
+          <PlannedTransfersTab />
+        </TabsContent>
+      </Tabs>
 
       <AccountModal open={accountModalOpen} onClose={() => setAccountModalOpen(false)} account={editingAccount} />
       <TransferModal open={transferOpen} onClose={() => setTransferOpen(false)} />
