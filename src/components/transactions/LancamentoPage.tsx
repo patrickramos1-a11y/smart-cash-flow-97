@@ -138,20 +138,42 @@ export function LancamentoPage() {
 
   const filtered = useMemo(() => {
     const list = items || [];
-    const today = startOfToday();
-    const week = startOfWeek();
-    const month = startOfMonth();
     return list.filter((t: any) => {
-      const created = new Date(t.created_at);
-      if (filter === 'today' && created < today) return false;
-      if (filter === 'week' && created < week) return false;
-      if (filter === 'month' && created < month) return false;
       if (filter === 'pending' && t.approval_status !== 'pendente') return false;
       if (filter === 'approved' && t.approval_status !== 'aprovado') return false;
       if (filter === 'rejected' && t.approval_status !== 'rejeitado') return false;
       return true;
     });
   }, [items, filter]);
+
+  return (
+    <div className="space-y-6">
+      {/* Period selector */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold">Lançamentos</h1>
+          <p className="text-xs text-muted-foreground">Caixa de lançamento financeiro — rápido e direto.</p>
+        </div>
+        <MonthYearNavigator
+          month={periodMonth}
+          year={periodYear}
+          onMonthChange={setPeriodMonth}
+          onYearChange={setPeriodYear}
+        />
+      </div>
+
+      {/* Inline form (replaces the modal-based hero) */}
+      <InlineLancamentoForm
+        defaultMonth={periodMonth}
+        defaultYear={periodYear}
+        onNeedsDedicatedFlow={(k) => setDedicatedModal(k)}
+        onCreated={() => queryClient.invalidateQueries({ queryKey: ['recent-launches'] })}
+      />
+      {isFinanceiro && (
+        <p className="text-xs text-muted-foreground -mt-3 px-1">
+          Lançamentos criados por você ficam <strong>pendentes de aprovação</strong> até serem revisados pelo administrador.
+        </p>
+      )}
 
   return (
     <div className="space-y-6">
