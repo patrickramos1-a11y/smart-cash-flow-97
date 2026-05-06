@@ -76,6 +76,7 @@ const Index = () => {
         <AccountDetailPage
           accountId={detailAccountId}
           onBack={() => setDetailAccountId(null)}
+          onSelectAccount={setDetailAccountId}
         />
       );
     }
