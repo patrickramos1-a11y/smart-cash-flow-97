@@ -202,11 +202,26 @@ export function Dashboard() {
   const periodLabel = `${months.find(m => m.value === selectedMonth)?.label} ${selectedYear}`;
 
   return (
-    <Tabs defaultValue="visao-geral" className="space-y-3 lg:space-y-6">
+    <Tabs defaultValue="executivo" className="space-y-3 lg:space-y-6">
       <TabsList className="w-full justify-start overflow-x-auto">
+        <TabsTrigger value="executivo">Executivo</TabsTrigger>
         <TabsTrigger value="visao-geral">Visão Geral (Mensal)</TabsTrigger>
         <TabsTrigger value="anual">Análise Anual</TabsTrigger>
       </TabsList>
+
+      <TabsContent value="executivo" className="space-y-3 lg:space-y-6 mt-0">
+        <ExecutiveTab
+          year={selectedYear}
+          accounts={accounts as any}
+          contracts={contracts as any}
+          totalBalance={totalBalance}
+          onSelectMonth={(m) => {
+            setSelectedMonth(m);
+            const trigger = document.querySelector('[data-state][value="visao-geral"]') as HTMLElement | null;
+            trigger?.click();
+          }}
+        />
+      </TabsContent>
 
       <TabsContent value="visao-geral" className="space-y-3 lg:space-y-6 mt-0">
       {/* Period Selector */}
@@ -360,5 +375,115 @@ export function Dashboard() {
         <AnnualAnalysisTab />
       </TabsContent>
     </Tabs>
+  );
+}
+
+// ============= Executive Tab =============
+interface ExecutiveTabProps {
+  year: number;
+  accounts: any[] | null | undefined;
+  contracts: any[] | null | undefined;
+  totalBalance: number;
+  onSelectMonth: (month: number) => void;
+}
+
+function ExecutiveTab({ year, accounts, contracts, totalBalance, onSelectMonth }: ExecutiveTabProps) {
+  const [regime, setRegime] = useState<Regime>('competencia');
+  const { data, isLoading } = useDashboardYTD(year, regime);
+
+  // MRR estimate: sum of contract minimum_wage_factors * latest minimum wage value
+  const { data: mwRow } = useQuery({
+    queryKey: ['mw-latest', year],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('minimum_wage_config')
+        .select('value,year')
+        .lte('year', year)
+        .order('year', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  if (isLoading || !data) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-36" />)}
+        </div>
+        <Skeleton className="h-80" />
+      </div>
+    );
+  }
+
+  const mwValue = Number(mwRow?.value || 0);
+  const totalSMFactor = (contracts || []).filter((c: any) => c.active).reduce((s: number, c: any) => {
+    const f = c.custom_minimum_wage_factor ?? c.plan?.minimum_wage_factor ?? 0;
+    return s + Number(f);
+  }, 0);
+  const mrrEstimado = totalSMFactor * mwValue;
+
+  const margem = data.receitaYTD > 0 ? (data.resultadoYTD / data.receitaYTD) * 100 : 0;
+  const periodLabel = `Acumulado ${year}`;
+
+  return (
+    <div className="space-y-4 lg:space-y-6">
+      <AlertsBar
+        accounts={accounts as any}
+        atrasados={data.atrasados}
+        monthlyReceita={data.monthly.map(m => m.receita)}
+      />
+
+      <HeroKPIs
+        receitaYTD={data.receitaYTD}
+        despesaYTD={data.despesaYTD}
+        resultadoYTD={data.resultadoYTD}
+        totalBalance={totalBalance}
+        receitaYoY={data.receitaYoY}
+        despesaYoY={data.despesaYoY}
+        resultadoYoY={data.resultadoYoY}
+        monthly={data.monthly}
+        periodLabel={periodLabel}
+      />
+
+      <SecondaryKPIs
+        receitaYTD={data.receitaYTD}
+        receitaRecorrente={data.receitaRecorrente}
+        ticketMedio={data.ticketMedio}
+        margemOperacional={margem}
+        aReceber={data.aReceber}
+        aPagar={data.aPagar}
+        atrasados={data.atrasados}
+        burnRate={data.burnRateMensal}
+        mrrEstimado={mrrEstimado}
+      />
+
+      <MasterEvolutionChart
+        monthly={data.monthly}
+        regime={regime}
+        onRegimeChange={setRegime}
+        onMonthClick={onSelectMonth}
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-6">
+        <SplitDonut
+          title="Receita: Recorrente vs Avulsa"
+          parts={[
+            { name: 'Recorrente', value: data.receitaRecorrente, color: 'hsl(var(--income))' },
+            { name: 'Avulsa', value: data.receitaAvulsa, color: 'hsl(var(--info))' },
+          ]}
+        />
+        <SplitDonut
+          title="Despesa: Fixa vs Variável"
+          parts={[
+            { name: 'Fixa', value: data.despesaFixa, color: 'hsl(var(--expense))' },
+            { name: 'Variável', value: data.despesaVariavel, color: 'hsl(var(--warning))' },
+          ]}
+        />
+      </div>
+    </div>
   );
 }
