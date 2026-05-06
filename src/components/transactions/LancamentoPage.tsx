@@ -60,10 +60,47 @@ function fmtDateTime(s: string) {
 
 export function LancamentoPage() {
   const { isFinanceiro, user } = useAuth();
+  const queryClient = useQueryClient();
   const [showWizard, setShowWizard] = useState(false);
   const [filter, setFilter] = useState<QuickFilter>('all');
   const [editTx, setEditTx] = useState<TransactionWithClient | null>(null);
   const [limit, setLimit] = useState(50);
+
+  // Rejected entries for the current user — she can dismiss them after relaunching.
+  const { data: rejectedMine } = useQuery({
+    queryKey: ['my-rejected', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      let q = supabase
+        .from('rejected_transactions')
+        .select(`
+          id, descricao, valor, tipo_movimento, data_vencimento,
+          competencia_mes, competencia_ano, rejection_reason, rejected_at,
+          recurring_clients:cliente_id(name),
+          transaction_categories:transaction_category_id(name)
+        `)
+        .order('rejected_at', { ascending: false })
+        .limit(50);
+      // Financeiro só vê os próprios; admin vê todos
+      if (isFinanceiro) q = q.eq('created_by', user!.id);
+      const { data } = await q;
+      return data || [];
+    },
+    staleTime: 15_000,
+  });
+
+  const dismissRejected = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('rejected_transactions').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-rejected'] });
+      queryClient.invalidateQueries({ queryKey: ['rejected-transactions'] });
+      toast.success('Lançamento rejeitado descartado.');
+    },
+    onError: (e: any) => toast.error('Erro ao descartar: ' + (e?.message || '')),
+  });
 
   const { data: items, isLoading } = useQuery({
     queryKey: ['recent-launches', isFinanceiro ? user?.id : 'all', limit],
