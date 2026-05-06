@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/Header';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import { AccountsView } from '@/components/accounts/AccountsView';
+import { AccountDetailPage } from '@/components/accounts/AccountDetailPage';
 import { TransactionsHub } from '@/components/transactions/TransactionsHub';
 import { EntradasRecorrentesPage } from '@/components/transactions/EntradasRecorrentesPage';
 import { EntradasAvulsasPage } from '@/components/transactions/EntradasAvulsasPage';
@@ -50,6 +51,12 @@ const Index = () => {
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [detailAccountId, setDetailAccountId] = useState<string | null>(null);
+
+  const handleTabChange = (tab: string) => {
+    setDetailAccountId(null);
+    setActiveTab(tab);
+  };
 
   if (loading) {
     return (
@@ -64,9 +71,17 @@ const Index = () => {
   }
 
   const renderContent = () => {
+    if (activeTab === 'accounts' && detailAccountId) {
+      return (
+        <AccountDetailPage
+          accountId={detailAccountId}
+          onBack={() => setDetailAccountId(null)}
+        />
+      );
+    }
     switch (activeTab) {
       case 'dashboard': return <Dashboard />;
-      case 'accounts': return <AccountsView />;
+      case 'accounts': return <AccountsView onOpenDetail={setDetailAccountId} />;
       case 'transactions': return <TransactionsHub />;
       case 'entradas-recorrentes': return <EntradasRecorrentesPage />;
       case 'entradas-avulsas': return <EntradasAvulsasPage />;
@@ -93,7 +108,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Sidebar 
         activeTab={activeTab} 
-        onTabChange={setActiveTab} 
+        onTabChange={handleTabChange} 
         mobileOpen={mobileMenuOpen}
         setMobileOpen={setMobileMenuOpen}
       />
@@ -113,7 +128,7 @@ const Index = () => {
 
       <MobileBottomNav 
         activeTab={activeTab} 
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         onMenuOpen={() => setMobileMenuOpen(true)}
       />
     </div>
