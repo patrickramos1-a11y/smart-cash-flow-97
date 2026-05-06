@@ -182,6 +182,14 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
         updates.approval_status = 'pendente';
       }
 
+      // "Salvar e Aprovar" overrides — admin can approve in the same action
+      if (approveAfter && role === 'admin') {
+        updates.approval_status = 'aprovado';
+        updates.approved_by = user?.id;
+        updates.approved_at = new Date().toISOString();
+        updates.rejection_reason = null;
+      }
+
       await supabase.from('transactions').update(updates).eq('id', transaction.id);
 
       // Keep the fixed_expense master name in sync with the edited description
