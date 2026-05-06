@@ -60,9 +60,7 @@ export function AnnualAnalysisTab() {
       const rows = await fetchAllPaginated<AnnualRow>((q) =>
         q
           .select('tipo_movimento, natureza, status, valor, valor_pago, competencia_mes, competencia_ano, transaction_category_id, account_id, cliente_id, cost_center_id')
-          .in('competencia_ano', [selectedYear - 1, selectedYear])
-          .neq('natureza', 'TRANSFERENCIA')
-          .neq('natureza', 'INVESTIMENTO'),
+          .in('competencia_ano', [selectedYear - 1, selectedYear]),
       );
       return rows;
     },
