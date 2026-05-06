@@ -28,6 +28,8 @@ import { AccountBalanceEvolutionChart } from './AccountBalanceEvolutionChart';
 import { AccountCategoryStackedChart } from './AccountCategoryStackedChart';
 import { AccountCategoryAnalysis } from './AccountCategoryAnalysis';
 import { AccountInsights } from './AccountInsights';
+import { AccountMovementsTable } from './AccountMovementsTable';
+import { AccountAnnualAnalysis } from './AccountAnnualAnalysis';
 
 interface Props {
   accountId: string;
@@ -261,48 +263,8 @@ export function AccountDetailPage({ accountId, onBack }: Props) {
         </TabsContent>
 
         {/* MOVIMENTOS */}
-        <TabsContent value="movimentos" className="mt-3 space-y-1">
-          {isLoading ? (
-            <Skeleton className="h-40 w-full" />
-          ) : data?.paid.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">
-              Sem movimentos pagos no período.
-            </p>
-          ) : (
-            data?.paid.map((t) => {
-              const v = t.valor_pago ?? t.valor;
-              const isIn = t.tipo_movimento === 'ENTRADA';
-              return (
-                <div
-                  key={t.id}
-                  className="flex items-center gap-3 py-2 px-2 hover:bg-muted/50 rounded-lg border-b border-border/50"
-                >
-                  <div
-                    className={cn(
-                      'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
-                      isIn ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive',
-                    )}
-                  >
-                    {isIn ? <ArrowDownLeft className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{t.descricao || '—'}</p>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {fmtDate(t.data_pagamento)} · {t.category_name || 'Sem categoria'}
-                    </p>
-                  </div>
-                  <p
-                    className={cn(
-                      'text-sm font-bold flex-shrink-0',
-                      isIn ? 'text-primary' : 'text-destructive',
-                    )}
-                  >
-                    {isIn ? '+' : '−'} {fmt(v)}
-                  </p>
-                </div>
-              );
-            })
-          )}
+        <TabsContent value="movimentos" className="mt-3">
+          <AccountMovementsTable accountId={accountId} year={year} month={month} />
         </TabsContent>
 
         {/* TRANSFERÊNCIAS */}
@@ -356,10 +318,7 @@ export function AccountDetailPage({ accountId, onBack }: Props) {
 
         {/* ANUAL */}
         <TabsContent value="anual" className="mt-3">
-          <AccountAnnualChart accountId={accountId} year={year} />
-          <p className="text-[11px] text-muted-foreground mt-2">
-            A análise anual completa (KPIs do ano, top categorias, comparativo) será entregue na Fase 3.
-          </p>
+          <AccountAnnualAnalysis accountId={accountId} year={year} />
         </TabsContent>
       </Tabs>
 
