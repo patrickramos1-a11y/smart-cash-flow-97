@@ -301,12 +301,12 @@ export function Dashboard() {
         />
         <KPICard
           title="% Despesas Variáveis"
-          value={100 - fixedExpensePercentage}
+          value={totalExpenses > 0 ? 100 - fixedExpensePercentage : 0}
           icon={Zap}
           type="warning"
           isPercentage={true}
           isCurrency={false}
-          subtitle="Das despesas totais"
+          subtitle={totalExpenses > 0 ? 'Das despesas totais' : 'Sem despesas no período'}
         />
         <KPICard
           title="Total Em Aberto"
@@ -316,11 +316,11 @@ export function Dashboard() {
           subtitle="Entradas + Saídas"
         />
         <KPICard
-          title="Atrasados"
-          value={entryKpis.totalAtrasado + exitKpis.totalAtrasado}
+          title="Atrasados (Geral)"
+          value={overdueTotal}
           icon={AlertCircle}
           type="expense"
-          subtitle="Vencidos"
+          subtitle="Vencidos não pagos"
         />
       </div>
 
