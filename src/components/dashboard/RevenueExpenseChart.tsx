@@ -82,7 +82,7 @@ export function RevenueExpenseChart({ year }: RevenueExpenseChartProps) {
   if (isLoading) {
     return (
       <div className="chart-container">
-        <h3 className="text-lg font-semibold text-foreground mb-4">Receita x Despesa por Mês</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">Receita x Despesa — {currentYear}</h3>
         <Skeleton className="h-[300px] w-full" />
       </div>
     );
