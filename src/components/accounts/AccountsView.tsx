@@ -5,6 +5,8 @@ import { AccountsHeader } from './AccountsHeader';
 import { AccountCard } from './AccountCard';
 import { AccountModal } from './AccountModal';
 import { TransferModal } from './TransferModal';
+import { AccountsEvolutionChart } from './AccountsEvolutionChart';
+import { AccountsDistributionPanel } from './AccountsDistributionPanel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { Wallet } from 'lucide-react';
@@ -66,6 +68,16 @@ export function AccountsView() {
             <p className="text-lg font-bold text-destructive">{fmt(totalSaidas)}</p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Visão estratégica: evolução + distribuição */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <AccountsEvolutionChart year={year} month={month} />
+        <AccountsDistributionPanel
+          accounts={activeAccounts}
+          snapshots={snapshots}
+          isLoading={isLoading || snapLoading}
+        />
       </div>
 
       {/* Grid de contas */}
