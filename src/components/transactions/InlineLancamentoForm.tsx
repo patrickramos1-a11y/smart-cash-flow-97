@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   ArrowDownCircle, ArrowUpCircle, Loader2, Send, RefreshCw,
-  Repeat, Split, Sparkles, AlertCircle,
+  Repeat, Split, Sparkles, AlertCircle, ChevronUp, ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
