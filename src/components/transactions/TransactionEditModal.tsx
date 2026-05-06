@@ -120,7 +120,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
     }
   }, [transaction, open]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (approveAfter: boolean = false) => {
     if (!transaction) return;
     
     const parsedValor = parseBRLToNumber(valor) ?? 0;
@@ -180,6 +180,14 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
       // Role-based approval: financeiro edits reset to pending, admin edits don't
       if (role === 'financeiro') {
         updates.approval_status = 'pendente';
+      }
+
+      // "Salvar e Aprovar" overrides — admin can approve in the same action
+      if (approveAfter && role === 'admin') {
+        updates.approval_status = 'aprovado';
+        updates.approved_by = user?.id;
+        updates.approved_at = new Date().toISOString();
+        updates.rejection_reason = null;
       }
 
       await supabase.from('transactions').update(updates).eq('id', transaction.id);
@@ -268,12 +276,12 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
       await queryClient.refetchQueries({ queryKey: ['approval-transactions'], type: 'active' });
       await queryClient.refetchQueries({ queryKey: ['transactions'], type: 'active' });
 
-      const msg = scope === 'all' && isRecurring
+      const baseMsg = scope === 'all' && isRecurring
         ? 'Lançamento atualizado em TODAS as parcelas (passadas e futuras).'
         : scope === 'future' && isRecurring
         ? 'Lançamento atualizado neste e em todos os próximos.'
         : 'Lançamento atualizado com sucesso.';
-      toast.success(msg);
+      toast.success(approveAfter && role === 'admin' ? `${baseMsg} Aprovado.` : baseMsg);
       onClose();
     } catch (error: any) {
       console.error('Error updating transaction:', error);
@@ -754,12 +762,27 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
           </div>
         </div>
 
-        <div className="flex gap-2 pt-2 border-t">
+        <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t">
           <Button variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting || !entityId} className="flex-1">
+          <Button
+            variant="outline"
+            onClick={() => handleSubmit(false)}
+            disabled={isSubmitting || !entityId}
+            className="flex-1"
+          >
             {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             Salvar Alterações
           </Button>
+          {role === 'admin' && (transaction as any).approval_status === 'pendente' && (
+            <Button
+              onClick={() => handleSubmit(true)}
+              disabled={isSubmitting || !entityId}
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              Salvar e Aprovar
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
