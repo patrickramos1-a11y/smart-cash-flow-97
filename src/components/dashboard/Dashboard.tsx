@@ -34,6 +34,9 @@ import { MasterEvolutionChart } from './executive/MasterEvolutionChart';
 import { AlertsBar } from './executive/AlertsBar';
 import { SplitDonut } from './executive/SplitDonut';
 import { useDashboardYTD, type Regime } from '@/hooks/useDashboardYTD';
+import { RevenueTab } from './revenue/RevenueTab';
+import { ExpensesTab } from './expenses/ExpensesTab';
+import { ClientsTab } from './clients/ClientsTab';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
