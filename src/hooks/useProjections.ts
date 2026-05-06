@@ -70,15 +70,14 @@ export function useProjections(year: number, currentBalance: number) {
       const currentMonth = isCurrentYear ? today.getMonth() + 1 : 12;
       const todayStr = today.toISOString().split('T')[0];
 
-      const empty = <T extends object>(extra: () => T): T[] =>
-        Array.from({ length: 12 }, (_, i) => ({ month: i + 1, ...extra() } as any));
-
-      const monthly: ProjectionMonth[] = empty(() => ({
+      const monthly: ProjectionMonth[] = Array.from({ length: 12 }, (_, i) => ({
+        month: i + 1,
         receitaPrevista: 0, receitaRealizada: 0,
         despesaPrevista: 0, despesaRealizada: 0,
         resultadoPrevisto: 0, resultadoRealizado: 0,
       }));
-      const yoy: YoYMonth[] = empty(() => ({
+      const yoy: YoYMonth[] = Array.from({ length: 12 }, (_, i) => ({
+        month: i + 1,
         receitaAtual: 0, receitaAnterior: 0,
         despesaAtual: 0, despesaAnterior: 0,
       }));
