@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   ArrowDownCircle, ArrowUpCircle, Loader2, Send, RefreshCw,
-  Repeat, Split, Sparkles, AlertCircle,
+  Repeat, Split, Sparkles, AlertCircle, ChevronUp, ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -53,6 +53,7 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
   const [paymentMethodId, setPaymentMethodId] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   // Parcelamento (despesa variável)
   const [enableRep, setEnableRep] = useState(false);
@@ -177,19 +178,35 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
 
   return (
     <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-      <CardContent className="p-4 lg:p-6 space-y-4">
+      <CardContent className={cn("p-4 lg:p-6", collapsed ? "space-y-0" : "space-y-4")}>
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h2 className="text-base lg:text-lg font-bold">Novo lançamento</h2>
-            <p className="text-xs text-muted-foreground">A categoria define tipo, conta e centro de custo automaticamente.</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {collapsed
+                ? 'Clique para expandir e criar um novo lançamento.'
+                : 'A categoria define tipo, conta e centro de custo automaticamente.'}
+            </p>
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="shrink-0 h-8 w-8 p-0"
+            onClick={() => setCollapsed(c => !c)}
+            aria-label={collapsed ? 'Expandir' : 'Minimizar'}
+            title={collapsed ? 'Expandir' : 'Minimizar'}
+          >
+            {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+          </Button>
         </div>
 
-        {/* Linha 1: Categoria com busca */}
-        <div className="space-y-2">
+        {!collapsed && (
+          <div className="space-y-4">
+            {/* Linha 1: Categoria com busca */}
+            <div className="space-y-2">
           <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             1. Categoria *
           </Label>
@@ -382,6 +399,8 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
               </Button>
             </div>
           </>
+        )}
+          </div>
         )}
       </CardContent>
     </Card>
