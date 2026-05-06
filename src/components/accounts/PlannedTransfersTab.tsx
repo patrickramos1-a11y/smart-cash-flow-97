@@ -108,7 +108,7 @@ export function PlannedTransfersTab() {
           plannedThisMonth += Number(o.expected_amount);
         }
         if (o.scheduled_date >= today && o.scheduled_date <= next7) next7Count++;
-        if (o.scheduled_date < today && o.status !== 'EXECUTADA') overdue++;
+        if (o.scheduled_date < today) overdue++;
       });
     });
     return { plannedThisMonth, next7Count, overdue, paused };
