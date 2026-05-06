@@ -58,7 +58,8 @@ function KPI({
 }
 
 export function AccountAnnualAnalysis({ accountId, year }: Props) {
-  const { data, isLoading } = useAccountAnnual(accountId, year);
+  const [mode, setMode] = useState<AnnualPeriodMode>('competencia');
+  const { data, isLoading } = useAccountAnnual(accountId, year, mode);
   const [expanded, setExpanded] = useState<number | null>(null);
 
   const insights = useMemo(() => {
