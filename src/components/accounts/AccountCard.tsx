@@ -18,6 +18,9 @@ export function AccountCard({ account, snapshot, onClick, onEdit }: Props) {
   const variacao = snapshot?.variacao ?? 0;
   const entradas = snapshot?.entradas_mes ?? 0;
   const saidas = snapshot?.saidas_mes ?? 0;
+  const trIn = snapshot?.transferencias_in ?? 0;
+  const trOut = snapshot?.transferencias_out ?? 0;
+  const trNet = trIn - trOut;
   const Trend = variacao > 0 ? TrendingUp : variacao < 0 ? TrendingDown : Wallet;
   const trendColor =
     variacao > 0 ? 'text-primary' : variacao < 0 ? 'text-destructive' : 'text-muted-foreground';
@@ -72,6 +75,14 @@ export function AccountCard({ account, snapshot, onClick, onEdit }: Props) {
           <p className="text-sm font-semibold text-destructive">{fmt(saidas)}</p>
         </div>
       </div>
+      {(trIn > 0 || trOut > 0) && (
+        <div className="flex items-center justify-between text-[11px] text-muted-foreground -mt-1">
+          <span>Transferências</span>
+          <span className={cn('font-medium', trNet >= 0 ? 'text-primary' : 'text-destructive')}>
+            {trNet >= 0 ? '+' : ''}{fmt(trNet)}
+          </span>
+        </div>
+      )}
     </button>
   );
 }

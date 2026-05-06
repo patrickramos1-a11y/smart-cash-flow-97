@@ -113,7 +113,6 @@ export function AccountsView() {
         open={!!detailAccount}
         onClose={() => setDetailAccount(null)}
         account={detailAccount}
-        snapshot={detailAccount ? snapshots?.[detailAccount.id] : undefined}
         year={year}
         month={month}
       />
