@@ -1,66 +1,39 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, ArrowRightLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, CalendarRange, CalendarDays } from 'lucide-react';
-import { cn } from '@/lib/utils';
-
-const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+import { MonthYearNavigator } from '@/components/ui/month-year-navigator';
 
 interface Props {
+  month: number;
   year: number;
-  month: number | null; // null = ano completo
+  onMonthChange: (m: number) => void;
   onYearChange: (y: number) => void;
-  onMonthChange: (m: number | null) => void;
-  onRefresh: () => void;
-  isRefreshing: boolean;
+  onNewAccount: () => void;
+  onTransfer: () => void;
 }
 
-export function AccountsHeader({ year, month, onYearChange, onMonthChange, onRefresh, isRefreshing }: Props) {
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
-
-  const isCurrentMonth = year === currentYear && month === currentMonth;
-  const isFullYear = month === null;
-
+export function AccountsHeader({ month, year, onMonthChange, onYearChange, onNewAccount, onTransfer }: Props) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Select value={year.toString()} onValueChange={(v) => onYearChange(Number(v))}>
-        <SelectTrigger className="w-24 h-9 text-xs"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          {years.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
-        </SelectContent>
-      </Select>
-
-      <Select value={month?.toString() ?? 'all'} onValueChange={(v) => onMonthChange(v === 'all' ? null : Number(v))}>
-        <SelectTrigger className="w-32 h-9 text-xs"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Ano completo</SelectItem>
-          {MONTHS.map((m, i) => <SelectItem key={i} value={(i + 1).toString()}>{m}</SelectItem>)}
-        </SelectContent>
-      </Select>
-
-      <Button
-        variant={isCurrentMonth ? 'default' : 'outline'}
-        size="sm"
-        className="h-9 text-xs"
-        onClick={() => { onYearChange(currentYear); onMonthChange(currentMonth); }}
-      >
-        <CalendarDays className="w-3.5 h-3.5 mr-1" /> Mês atual
-      </Button>
-
-      <Button
-        variant={isFullYear ? 'default' : 'outline'}
-        size="sm"
-        className="h-9 text-xs"
-        onClick={() => onMonthChange(null)}
-      >
-        <CalendarRange className="w-3.5 h-3.5 mr-1" /> Ano completo
-      </Button>
-
-      <Button variant="outline" size="sm" className="h-9 text-xs ml-auto" onClick={onRefresh} disabled={isRefreshing}>
-        <RefreshCw className={cn('w-3.5 h-3.5 mr-1', isRefreshing && 'animate-spin')} />
-        Atualizar saldos
-      </Button>
+    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+      <div>
+        <h1 className="text-xl lg:text-2xl font-bold text-foreground">Contas</h1>
+        <p className="text-xs lg:text-sm text-muted-foreground">
+          Controle e distribuição de recursos por setor
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <MonthYearNavigator
+          month={month}
+          year={year}
+          onMonthChange={onMonthChange}
+          onYearChange={onYearChange}
+        />
+        <Button variant="outline" size="sm" onClick={onTransfer} className="gap-1.5">
+          <ArrowRightLeft className="w-4 h-4" /> Transferir
+        </Button>
+        <Button size="sm" onClick={onNewAccount} className="gap-1.5">
+          <Plus className="w-4 h-4" /> Nova Conta
+        </Button>
+      </div>
     </div>
   );
 }
