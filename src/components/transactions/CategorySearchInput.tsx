@@ -33,9 +33,14 @@ export function CategorySearchInput({ value, onChange, placeholder = 'Buscar cat
           ref={ref}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => {
+          onKeyDownCapture={(e) => {
             // Prevent Radix Select typeahead/navigation from hijacking the input
             e.stopPropagation();
+            (e.nativeEvent as any).stopImmediatePropagation?.();
+          }}
+          onKeyUpCapture={(e) => {
+            e.stopPropagation();
+            (e.nativeEvent as any).stopImmediatePropagation?.();
           }}
           placeholder={placeholder}
           className="w-full h-8 pl-7 pr-7 text-xs rounded-md bg-background border border-input outline-none focus:ring-1 focus:ring-ring"
