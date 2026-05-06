@@ -257,6 +257,7 @@ export function AccountMovementsTable({ accountId, year, month }: Props) {
                     Valor <ArrowUpDown className="w-3 h-3" />
                   </button>
                 </TableHead>
+                <TableHead className="w-[40px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -302,6 +303,24 @@ export function AccountMovementsTable({ accountId, year, month }: Props) {
                     >
                       {isIn ? '+' : '−'} {fmt(v)}
                     </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <MoreVertical className="w-3.5 h-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            disabled={t.tipo_movimento !== 'SAIDA'}
+                            onClick={() => setConvertTx(t)}
+                          >
+                            <ArrowRightLeft className="w-3.5 h-3.5 mr-2" />
+                            Converter em transferência
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -309,6 +328,13 @@ export function AccountMovementsTable({ accountId, year, month }: Props) {
           </Table>
         )}
       </div>
+
+      <ConvertToTransferModal
+        open={!!convertTx}
+        onClose={() => setConvertTx(null)}
+        fromAccountId={accountId}
+        transaction={convertTx}
+      />
     </div>
   );
 }
