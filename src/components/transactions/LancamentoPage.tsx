@@ -390,7 +390,21 @@ export function LancamentoPage() {
         )}
       </div>
 
-      <NewTransactionWizard open={showWizard} onClose={() => setShowWizard(false)} />
+      {dedicatedModal === 'recurring' && (
+        <NewRecurringContractModal
+          open
+          onClose={() => setDedicatedModal(null)}
+          defaultYear={periodYear}
+        />
+      )}
+      {dedicatedModal === 'fixa' && (
+        <NewFixedExpenseModal
+          open
+          onClose={() => setDedicatedModal(null)}
+          defaultMonth={periodMonth}
+          defaultYear={periodYear}
+        />
+      )}
       <TransactionEditModal
         open={!!editTx}
         onClose={() => setEditTx(null)}
