@@ -24,6 +24,8 @@ import { useTransactionKPIs, useTransactions } from '@/hooks/useTransactions';
 import { useRecurringContracts } from '@/hooks/useRecurringContracts';
 import { useAccounts } from '@/hooks/useFinancialConfig';
 import { useOpenPaymentStats } from '@/hooks/useOpenPayments';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -79,6 +81,23 @@ export function Dashboard() {
   const { data: contracts } = useRecurringContracts();
   const { data: accounts } = useAccounts();
   const { data: openStats, isLoading: openStatsLoading } = useOpenPaymentStats();
+
+  // KPI Atrasados real: vencido (data_vencimento < hoje) e ainda não pago
+  const { data: overdueData } = useQuery({
+    queryKey: ['dashboard-overdue'],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('valor, tipo_movimento')
+        .neq('status', 'PAGO')
+        .lt('data_vencimento', today);
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60_000,
+  });
+  const overdueTotal = (overdueData || []).reduce((s: number, t: any) => s + Number(t.valor || 0), 0);
 
   const isLoading = entryLoading || exitLoading || transactionsLoading || openStatsLoading;
 
@@ -230,7 +249,7 @@ export function Dashboard() {
           value={totalBalance}
           icon={CreditCard}
           type="info"
-          subtitle="Consolidado"
+          subtitle="Atual (não muda c/ período)"
         />
       </div>
 
@@ -282,12 +301,12 @@ export function Dashboard() {
         />
         <KPICard
           title="% Despesas Variáveis"
-          value={100 - fixedExpensePercentage}
+          value={totalExpenses > 0 ? 100 - fixedExpensePercentage : 0}
           icon={Zap}
           type="warning"
           isPercentage={true}
           isCurrency={false}
-          subtitle="Das despesas totais"
+          subtitle={totalExpenses > 0 ? 'Das despesas totais' : 'Sem despesas no período'}
         />
         <KPICard
           title="Total Em Aberto"
@@ -297,11 +316,11 @@ export function Dashboard() {
           subtitle="Entradas + Saídas"
         />
         <KPICard
-          title="Atrasados"
-          value={entryKpis.totalAtrasado + exitKpis.totalAtrasado}
+          title="Atrasados (Geral)"
+          value={overdueTotal}
           icon={AlertCircle}
           type="expense"
-          subtitle="Vencidos"
+          subtitle="Vencidos não pagos"
         />
       </div>
 
