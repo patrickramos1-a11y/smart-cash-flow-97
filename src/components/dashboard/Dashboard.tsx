@@ -26,6 +26,8 @@ import { useAccounts } from '@/hooks/useFinancialConfig';
 import { useOpenPaymentStats } from '@/hooks/useOpenPayments';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { AnnualAnalysisTab } from './AnnualAnalysisTab';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
