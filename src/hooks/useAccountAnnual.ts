@@ -25,17 +25,24 @@ export interface AnnualCategoryMeta {
 export interface AccountAnnualData {
   months: AnnualMonthRow[];
   categories: AnnualCategoryMeta[];
+  openingBalance: number; // saldo real no início do ano
+  totals: {
+    in: number;
+    out: number;
+    transferIn: number;
+    transferOut: number;
+  };
 }
 
 export function useAccountAnnual(accountId: string | null, year: number) {
   return useQuery({
-    queryKey: ['account-annual', accountId, year],
+    queryKey: ['account-annual-v2', accountId, year],
     enabled: !!accountId,
     queryFn: async (): Promise<AccountAnnualData> => {
       const start = `${year}-01-01`;
       const end = `${year}-12-31`;
 
-      const [txs, transfersRes, catsRes, accRes] = await Promise.all([
+      const [txs, transfersRes, catsRes, accRes, priorTxs, priorTransfersRes] = await Promise.all([
         fetchAllPaginated<any>((q) =>
           q
             .select(
@@ -54,12 +61,37 @@ export function useAccountAnnual(accountId: string | null, year: number) {
           .lte('transfer_date', end),
         supabase.from('transaction_categories').select('id, name, color, type'),
         supabase.from('accounts').select('id, initial_balance').eq('id', accountId!).single(),
+        // Movimentos PAGOS antes do ano (para saldo de abertura real)
+        fetchAllPaginated<any>((q) =>
+          q
+            .select('tipo_movimento, valor, valor_pago')
+            .eq('account_id', accountId!)
+            .eq('status', 'PAGO')
+            .lt('data_pagamento', start),
+        ),
+        supabase
+          .from('account_transfers')
+          .select('from_account_id, to_account_id, amount')
+          .or(`from_account_id.eq.${accountId},to_account_id.eq.${accountId}`)
+          .lt('transfer_date', start),
       ]);
 
       const catMap = new Map<string, { name: string; color: string; type: 'ENTRADA' | 'SAIDA' }>();
       (catsRes.data || []).forEach((c: any) =>
         catMap.set(c.id, { name: c.name, color: c.color || '#94a3b8', type: c.type }),
       );
+
+      // Saldo de abertura do ano
+      let opening = Number((accRes.data as any)?.initial_balance) || 0;
+      for (const t of priorTxs) {
+        const v = Number(t.valor_pago ?? t.valor) || 0;
+        opening += t.tipo_movimento === 'ENTRADA' ? v : -v;
+      }
+      for (const tr of priorTransfersRes.data || []) {
+        const amt = Number(tr.amount) || 0;
+        if (tr.to_account_id === accountId) opening += amt;
+        if (tr.from_account_id === accountId) opening -= amt;
+      }
 
       const months: AnnualMonthRow[] = Array.from({ length: 12 }, (_, i) => ({
         month: i + 1,
@@ -100,9 +132,8 @@ export function useAccountAnnual(accountId: string | null, year: number) {
         if (tr.from_account_id === accountId) months[m - 1].transferOut += amt;
       }
 
-      // approximate balance evolution within the year (initial_balance + cumulative)
-      let running = Number((accRes.data as any)?.initial_balance) || 0;
-      // Note: this ignores prior-year movements; treat as relative trend.
+      // Evolução do saldo a partir do saldo de abertura real
+      let running = opening;
       months.forEach((m) => {
         running += m.totalIn - m.totalOut + m.transferIn - m.transferOut;
         m.endBalance = running;
@@ -121,7 +152,17 @@ export function useAccountAnnual(accountId: string | null, year: number) {
         })
         .sort((a, b) => b.total - a.total);
 
-      return { months, categories };
+      const totals = months.reduce(
+        (acc, m) => ({
+          in: acc.in + m.totalIn,
+          out: acc.out + m.totalOut,
+          transferIn: acc.transferIn + m.transferIn,
+          transferOut: acc.transferOut + m.transferOut,
+        }),
+        { in: 0, out: 0, transferIn: 0, transferOut: 0 },
+      );
+
+      return { months, categories, openingBalance: opening, totals };
     },
     staleTime: 30_000,
   });
