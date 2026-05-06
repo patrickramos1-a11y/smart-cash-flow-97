@@ -328,7 +328,7 @@ export function AccountAnnualAnalysis({ accountId, year }: Props) {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               );
             })}
           </tbody>
