@@ -24,6 +24,8 @@ import { useTransactionKPIs, useTransactions } from '@/hooks/useTransactions';
 import { useRecurringContracts } from '@/hooks/useRecurringContracts';
 import { useAccounts } from '@/hooks/useFinancialConfig';
 import { useOpenPaymentStats } from '@/hooks/useOpenPayments';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
