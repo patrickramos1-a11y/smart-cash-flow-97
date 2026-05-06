@@ -28,6 +28,12 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AnnualAnalysisTab } from './AnnualAnalysisTab';
+import { HeroKPIs } from './executive/HeroKPIs';
+import { SecondaryKPIs } from './executive/SecondaryKPIs';
+import { MasterEvolutionChart } from './executive/MasterEvolutionChart';
+import { AlertsBar } from './executive/AlertsBar';
+import { SplitDonut } from './executive/SplitDonut';
+import { useDashboardYTD, type Regime } from '@/hooks/useDashboardYTD';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
