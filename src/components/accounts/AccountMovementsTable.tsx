@@ -18,9 +18,16 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowDownLeft, ArrowUpRight, Download, Search, ArrowUpDown } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Download, Search, ArrowUpDown, ArrowRightLeft, MoreVertical } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useAccountDetail, type AccountTx } from '@/hooks/useAccountDetail';
+import { ConvertToTransferModal } from './ConvertToTransferModal';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -48,6 +55,7 @@ export function AccountMovementsTable({ accountId, year, month }: Props) {
   const [category, setCategory] = useState<string>('all');
   const [sortKey, setSortKey] = useState<SortKey>('date');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [convertTx, setConvertTx] = useState<AccountTx | null>(null);
 
   const all = useMemo<AccountTx[]>(
     () => [...(data?.paid || []), ...(data?.open || [])],
@@ -249,6 +257,7 @@ export function AccountMovementsTable({ accountId, year, month }: Props) {
                     Valor <ArrowUpDown className="w-3 h-3" />
                   </button>
                 </TableHead>
+                <TableHead className="w-[40px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -294,6 +303,24 @@ export function AccountMovementsTable({ accountId, year, month }: Props) {
                     >
                       {isIn ? '+' : '−'} {fmt(v)}
                     </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <MoreVertical className="w-3.5 h-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            disabled={t.tipo_movimento !== 'SAIDA'}
+                            onClick={() => setConvertTx(t)}
+                          >
+                            <ArrowRightLeft className="w-3.5 h-3.5 mr-2" />
+                            Converter em transferência
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -301,6 +328,13 @@ export function AccountMovementsTable({ accountId, year, month }: Props) {
           </Table>
         )}
       </div>
+
+      <ConvertToTransferModal
+        open={!!convertTx}
+        onClose={() => setConvertTx(null)}
+        fromAccountId={accountId}
+        transaction={convertTx}
+      />
     </div>
   );
 }
