@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useAccountAnnual } from '@/hooks/useAccountAnnual';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -9,9 +9,11 @@ import {
   TrendingUp,
   TrendingDown,
   Wallet,
+  ChevronRight,
 } from 'lucide-react';
 import { AccountAnnualChart } from './AccountAnnualChart';
 import { AccountBalanceEvolutionChart } from './AccountBalanceEvolutionChart';
+import { AccountMonthDrillDown } from './AccountMonthDrillDown';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
