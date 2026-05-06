@@ -208,9 +208,16 @@ export function Dashboard() {
     <Tabs defaultValue="executivo" className="space-y-3 lg:space-y-6">
       <TabsList className="w-full justify-start overflow-x-auto">
         <TabsTrigger value="executivo">Executivo</TabsTrigger>
+        <TabsTrigger value="receita">Receita</TabsTrigger>
+        <TabsTrigger value="despesas">Despesas</TabsTrigger>
+        <TabsTrigger value="clientes">Clientes</TabsTrigger>
         <TabsTrigger value="visao-geral">Visão Geral (Mensal)</TabsTrigger>
         <TabsTrigger value="anual">Análise Anual</TabsTrigger>
       </TabsList>
+
+      <TabsContent value="receita" className="mt-0"><RevenueTab /></TabsContent>
+      <TabsContent value="despesas" className="mt-0"><ExpensesTab /></TabsContent>
+      <TabsContent value="clientes" className="mt-0"><ClientsTab /></TabsContent>
 
       <TabsContent value="executivo" className="space-y-3 lg:space-y-6 mt-0">
         <ExecutiveTab
