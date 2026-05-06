@@ -88,7 +88,14 @@ export function AccountCategoryStackedChart({ accountId, year }: Props) {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chart} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+            <XAxis
+              dataKey="month"
+              stroke="hsl(var(--muted-foreground))"
+              fontSize={11}
+              interval={0}
+              ticks={MONTHS}
+              minTickGap={0}
+            />
             <YAxis
               stroke="hsl(var(--muted-foreground))"
               fontSize={11}
