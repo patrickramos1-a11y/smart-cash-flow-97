@@ -245,7 +245,28 @@ export function AccountAnnualAnalysis({ accountId, year }: Props) {
       </div>
 
       {/* Monthly summary table com drill-down */}
-      <div className="rounded-lg border border-border overflow-x-auto">
+      <div className="rounded-lg border border-border overflow-hidden">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30">
+          <h3 className="text-sm font-semibold">Resumo mensal · {year}</h3>
+          <div className="flex items-center gap-1 rounded-md border border-border bg-background p-0.5">
+            {(['competencia', 'caixa'] as AnnualPeriodMode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={cn(
+                  'px-2.5 py-1 text-[11px] rounded font-medium capitalize transition-colors',
+                  mode === m
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted',
+                )}
+                title={m === 'competencia' ? 'Por mês de competência (igual às páginas de despesas/entradas)' : 'Por data de pagamento real (caixa)'}
+              >
+                {m === 'competencia' ? 'Competência' : 'Caixa'}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead className="bg-muted/40">
             <tr className="text-left">
