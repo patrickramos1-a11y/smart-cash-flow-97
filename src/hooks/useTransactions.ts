@@ -82,6 +82,12 @@ export interface TransactionFilters {
   competencia_mes?: number;
   competencia_ano?: number;
   search?: string;
+  /** Filtra por approval_status (pendente/aprovado/rejeitado) */
+  approval_status?: 'pendente' | 'aprovado' | 'rejeitado';
+  /** Filtra transações criadas em ou após esta data (ISO yyyy-mm-dd) */
+  created_after?: string;
+  /** Restringe à criação do usuário informado (ex.: financeiro vendo apenas seus lançamentos) */
+  created_by?: string;
 }
 
 export interface TransactionKPIs {
