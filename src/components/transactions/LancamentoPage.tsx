@@ -175,31 +175,6 @@ export function LancamentoPage() {
         </p>
       )}
 
-  return (
-    <div className="space-y-6">
-      {/* Hero card */}
-      <Card className="border-2 border-dashed border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
-        <CardContent className="p-6 lg:p-8 flex flex-col items-center text-center gap-3">
-          <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shadow-lg">
-            <Plus className="w-7 h-7 text-white" />
-          </div>
-          <div>
-            <h2 className="text-xl lg:text-2xl font-bold">Novo Lançamento</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Registre uma entrada ou despesa. O sistema identifica o tipo pela categoria.
-            </p>
-          </div>
-          <Button size="lg" className="gap-2 mt-2" onClick={() => setShowWizard(true)}>
-            <Plus className="w-4 h-4" /> Criar lançamento
-          </Button>
-          {isFinanceiro && (
-            <p className="text-xs text-muted-foreground mt-1 max-w-md">
-              Lançamentos criados por você ficam <strong>pendentes de aprovação</strong> até serem revisados pelo administrador.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Rejected entries — relaunch + dismiss workflow */}
       {(rejectedMine?.length || 0) > 0 && (
         <Card className="border-red-200 bg-red-50/40">
