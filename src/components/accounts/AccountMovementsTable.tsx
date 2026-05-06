@@ -25,7 +25,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAccountDetail, type AccountTx } from '@/hooks/useAccountDetail';
 import { ConvertToTransferModal } from './ConvertToTransferModal';
