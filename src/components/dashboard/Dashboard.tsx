@@ -26,6 +26,8 @@ import { useAccounts } from '@/hooks/useFinancialConfig';
 import { useOpenPaymentStats } from '@/hooks/useOpenPayments';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { AnnualAnalysisTab } from './AnnualAnalysisTab';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -194,7 +196,13 @@ export function Dashboard() {
   const periodLabel = `${months.find(m => m.value === selectedMonth)?.label} ${selectedYear}`;
 
   return (
-    <div className="space-y-3 lg:space-y-6">
+    <Tabs defaultValue="visao-geral" className="space-y-3 lg:space-y-6">
+      <TabsList className="w-full justify-start overflow-x-auto">
+        <TabsTrigger value="visao-geral">Visão Geral (Mensal)</TabsTrigger>
+        <TabsTrigger value="anual">Análise Anual</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="visao-geral" className="space-y-3 lg:space-y-6 mt-0">
       {/* Period Selector */}
       <div className="flex flex-wrap gap-2 items-center bg-card border border-border rounded-xl px-3 py-2.5 lg:px-4 lg:py-3">
         <span className="text-xs lg:text-sm font-medium text-muted-foreground">Período:</span>
@@ -340,6 +348,11 @@ export function Dashboard() {
       <div className="grid grid-cols-1 gap-6">
         <ClientRankingChart data={clientRanking as any[]} />
       </div>
-    </div>
+      </TabsContent>
+
+      <TabsContent value="anual" className="mt-0">
+        <AnnualAnalysisTab />
+      </TabsContent>
+    </Tabs>
   );
 }
