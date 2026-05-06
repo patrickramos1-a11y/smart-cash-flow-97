@@ -2,15 +2,15 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllPaginated } from '@/lib/financial/aggregates';
 
+export type AnnualPeriodMode = 'competencia' | 'caixa';
+
 export interface AnnualMonthRow {
   month: number;
-  // Per category bucket
   byCategory: Record<string, { in: number; out: number }>;
   totalIn: number;
   totalOut: number;
   transferIn: number;
   transferOut: number;
-  // Approximate end-of-month balance (cumulative)
   endBalance: number;
 }
 
@@ -25,34 +25,52 @@ export interface AnnualCategoryMeta {
 export interface AccountAnnualData {
   months: AnnualMonthRow[];
   categories: AnnualCategoryMeta[];
-  openingBalance: number; // saldo real no início do ano
+  openingBalance: number;
   totals: {
     in: number;
     out: number;
     transferIn: number;
     transferOut: number;
   };
+  mode: AnnualPeriodMode;
 }
 
-export function useAccountAnnual(accountId: string | null, year: number) {
+export function useAccountAnnual(
+  accountId: string | null,
+  year: number,
+  mode: AnnualPeriodMode = 'competencia',
+) {
   return useQuery({
-    queryKey: ['account-annual-v2', accountId, year],
+    queryKey: ['account-annual-v3', accountId, year, mode],
     enabled: !!accountId,
     queryFn: async (): Promise<AccountAnnualData> => {
       const start = `${year}-01-01`;
       const end = `${year}-12-31`;
 
-      const [txs, transfersRes, catsRes, accRes, priorTxs, priorTransfersRes] = await Promise.all([
-        fetchAllPaginated<any>((q) =>
-          q
-            .select(
-              'id, tipo_movimento, valor, valor_pago, data_pagamento, transaction_category_id, status',
+      // === fetch transações do ano (competência ou caixa) ===
+      const txsPromise =
+        mode === 'competencia'
+          ? fetchAllPaginated<any>((q) =>
+              q
+                .select(
+                  'id, tipo_movimento, valor, valor_pago, data_pagamento, transaction_category_id, status, competencia_mes, competencia_ano',
+                )
+                .eq('account_id', accountId!)
+                .eq('competencia_ano', year),
             )
-            .eq('account_id', accountId!)
-            .eq('status', 'PAGO')
-            .gte('data_pagamento', start)
-            .lte('data_pagamento', end),
-        ),
+          : fetchAllPaginated<any>((q) =>
+              q
+                .select(
+                  'id, tipo_movimento, valor, valor_pago, data_pagamento, transaction_category_id, status, competencia_mes, competencia_ano',
+                )
+                .eq('account_id', accountId!)
+                .eq('status', 'PAGO')
+                .gte('data_pagamento', start)
+                .lte('data_pagamento', end),
+            );
+
+      const [txs, transfersRes, catsRes, accRes, priorTxs, priorTransfersRes] = await Promise.all([
+        txsPromise,
         supabase
           .from('account_transfers')
           .select('from_account_id, to_account_id, amount, transfer_date')
@@ -61,7 +79,7 @@ export function useAccountAnnual(accountId: string | null, year: number) {
           .lte('transfer_date', end),
         supabase.from('transaction_categories').select('id, name, color, type'),
         supabase.from('accounts').select('id, initial_balance').eq('id', accountId!).single(),
-        // Movimentos PAGOS antes do ano (para saldo de abertura real)
+        // saldo de abertura sempre por caixa real (movimentos pagos antes de 01/jan)
         fetchAllPaginated<any>((q) =>
           q
             .select('tipo_movimento, valor, valor_pago')
@@ -81,7 +99,6 @@ export function useAccountAnnual(accountId: string | null, year: number) {
         catMap.set(c.id, { name: c.name, color: c.color || '#94a3b8', type: c.type }),
       );
 
-      // Saldo de abertura do ano
       let opening = Number((accRes.data as any)?.initial_balance) || 0;
       for (const t of priorTxs) {
         const v = Number(t.valor_pago ?? t.valor) || 0;
@@ -106,9 +123,13 @@ export function useAccountAnnual(accountId: string | null, year: number) {
       const catTotals = new Map<string, number>();
 
       for (const t of txs) {
-        const dp = t.data_pagamento as string | null;
-        if (!dp) continue;
-        const m = Number(dp.slice(5, 7));
+        let m: number | null = null;
+        if (mode === 'competencia') {
+          m = Number(t.competencia_mes);
+        } else {
+          const dp = t.data_pagamento as string | null;
+          if (dp) m = Number(dp.slice(5, 7));
+        }
         if (!m) continue;
         const v = Number(t.valor_pago ?? t.valor) || 0;
         const cid = t.transaction_category_id || 'sem-categoria';
@@ -132,7 +153,6 @@ export function useAccountAnnual(accountId: string | null, year: number) {
         if (tr.from_account_id === accountId) months[m - 1].transferOut += amt;
       }
 
-      // Evolução do saldo a partir do saldo de abertura real
       let running = opening;
       months.forEach((m) => {
         running += m.totalIn - m.totalOut + m.transferIn - m.transferOut;
@@ -162,7 +182,7 @@ export function useAccountAnnual(accountId: string | null, year: number) {
         { in: 0, out: 0, transferIn: 0, transferOut: 0 },
       );
 
-      return { months, categories, openingBalance: opening, totals };
+      return { months, categories, openingBalance: opening, totals, mode };
     },
     staleTime: 30_000,
   });

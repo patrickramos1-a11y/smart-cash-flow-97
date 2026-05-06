@@ -2,10 +2,14 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllPaginated } from '@/lib/financial/aggregates';
 
+export type DetailPeriodMode = 'competencia' | 'caixa';
+
 export interface AccountTx {
   id: string;
   data_pagamento: string | null;
   data_vencimento: string;
+  competencia_mes: number;
+  competencia_ano: number;
   descricao: string | null;
   tipo_movimento: 'ENTRADA' | 'SAIDA';
   valor: number;
@@ -14,8 +18,10 @@ export interface AccountTx {
   natureza: string;
   origem: string;
   transaction_category_id: string | null;
+  cost_center_id: string | null;
   category_name?: string;
   category_color?: string;
+  cost_center_name?: string;
 }
 
 export interface AccountTransfer {
@@ -31,6 +37,7 @@ export interface AccountTransfer {
 export interface AccountDetailData {
   paid: AccountTx[];
   open: AccountTx[];
+  all: AccountTx[];
   transfers: AccountTransfer[];
   byCategory: { id: string; name: string; color: string; total: number }[];
 }
@@ -41,25 +48,43 @@ const lastDay = (y: number, m: number) => {
 };
 const firstDay = (y: number, m: number) => `${y}-${String(m).padStart(2, '0')}-01`;
 
-export function useAccountDetail(accountId: string | null, year: number, month: number) {
+export function useAccountDetail(
+  accountId: string | null,
+  year: number,
+  month: number,
+  mode: DetailPeriodMode = 'competencia',
+) {
   return useQuery({
-    queryKey: ['account-detail', accountId, year, month],
+    queryKey: ['account-detail-v2', accountId, year, month, mode],
     enabled: !!accountId,
     queryFn: async (): Promise<AccountDetailData> => {
       const start = firstDay(year, month);
       const end = lastDay(year, month);
 
-      const [txsRaw, transfersRaw, cats, accs] = await Promise.all([
-        fetchAllPaginated<any>((q) =>
-          q
-            .select(
-              'id, data_pagamento, data_vencimento, descricao, tipo_movimento, valor, valor_pago, status, natureza, origem, transaction_category_id',
+      const txsPromise =
+        mode === 'competencia'
+          ? fetchAllPaginated<any>((q) =>
+              q
+                .select(
+                  'id, data_pagamento, data_vencimento, descricao, tipo_movimento, valor, valor_pago, status, natureza, origem, transaction_category_id, cost_center_id, competencia_mes, competencia_ano',
+                )
+                .eq('account_id', accountId!)
+                .eq('competencia_ano', year)
+                .eq('competencia_mes', month),
             )
-            .eq('account_id', accountId!)
-            .or(
-              `and(status.eq.PAGO,data_pagamento.gte.${start},data_pagamento.lte.${end}),and(status.neq.PAGO,data_vencimento.gte.${start},data_vencimento.lte.${end})`,
-            ),
-        ),
+          : fetchAllPaginated<any>((q) =>
+              q
+                .select(
+                  'id, data_pagamento, data_vencimento, descricao, tipo_movimento, valor, valor_pago, status, natureza, origem, transaction_category_id, cost_center_id, competencia_mes, competencia_ano',
+                )
+                .eq('account_id', accountId!)
+                .eq('status', 'PAGO')
+                .gte('data_pagamento', start)
+                .lte('data_pagamento', end),
+            );
+
+      const [txsRaw, transfersRaw, cats, accs, ccs] = await Promise.all([
+        txsPromise,
         supabase
           .from('account_transfers')
           .select('id, transfer_date, amount, notes, from_account_id, to_account_id')
@@ -68,6 +93,7 @@ export function useAccountDetail(accountId: string | null, year: number, month: 
           .lte('transfer_date', end),
         supabase.from('transaction_categories').select('id, name, color'),
         supabase.from('accounts').select('id, name'),
+        supabase.from('cost_centers').select('id, name'),
       ]);
 
       const catMap = new Map<string, { name: string; color: string }>();
@@ -76,6 +102,8 @@ export function useAccountDetail(accountId: string | null, year: number, month: 
       );
       const accMap = new Map<string, string>();
       (accs.data || []).forEach((a: any) => accMap.set(a.id, a.name));
+      const ccMap = new Map<string, string>();
+      (ccs.data || []).forEach((c: any) => ccMap.set(c.id, c.name));
 
       const decorated: AccountTx[] = (txsRaw || []).map((t: any) => ({
         ...t,
@@ -87,6 +115,7 @@ export function useAccountDetail(accountId: string | null, year: number, month: 
         category_color: t.transaction_category_id
           ? catMap.get(t.transaction_category_id)?.color
           : undefined,
+        cost_center_name: t.cost_center_id ? ccMap.get(t.cost_center_id) : undefined,
       }));
 
       const paid = decorated
@@ -95,6 +124,9 @@ export function useAccountDetail(accountId: string | null, year: number, month: 
       const open = decorated
         .filter((t) => t.status !== 'PAGO')
         .sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento));
+      const all = [...decorated].sort((a, b) =>
+        (b.data_pagamento || b.data_vencimento).localeCompare(a.data_pagamento || a.data_vencimento),
+      );
 
       const transfers: AccountTransfer[] = (transfersRaw.data || []).map((t: any) => {
         const isOut = t.from_account_id === accountId;
@@ -110,9 +142,8 @@ export function useAccountDetail(accountId: string | null, year: number, month: 
         };
       });
 
-      // composition by category (paid in period)
       const compMap = new Map<string, { id: string; name: string; color: string; total: number }>();
-      paid.forEach((t) => {
+      (mode === 'competencia' ? all : paid).forEach((t) => {
         const id = t.transaction_category_id || 'sem-categoria';
         const name = t.category_name || 'Sem categoria';
         const color = t.category_color || '#94a3b8';
@@ -126,7 +157,7 @@ export function useAccountDetail(accountId: string | null, year: number, month: 
         (a, b) => Math.abs(b.total) - Math.abs(a.total),
       );
 
-      return { paid, open, transfers, byCategory };
+      return { paid, open, all, transfers, byCategory };
     },
     staleTime: 30_000,
   });

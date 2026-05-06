@@ -1,8 +1,12 @@
-import { useAccountDetail } from '@/hooks/useAccountDetail';
+import { useMemo, useState } from 'react';
+import { useAccountDetail, type DetailPeriodMode } from '@/hooks/useAccountDetail';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { ArrowLeftRight, Search, AlertTriangle } from 'lucide-react';
+import { TransactionEditModal } from '@/components/transactions/TransactionEditModal';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -12,11 +16,13 @@ const fmtDate = (s: string | null) => {
   return `${d}/${m}/${y.slice(-2)}`;
 };
 
+type FilterTab = 'todos' | 'entradas' | 'saidas' | 'transferencias';
+
 interface Props {
   accountId: string;
   year: number;
   month: number;
-  /** valores agregados que devem bater com a soma dos lançamentos */
+  mode?: DetailPeriodMode;
   expected: {
     totalIn: number;
     totalOut: number;
@@ -26,63 +32,39 @@ interface Props {
   };
 }
 
-function Section({
-  title,
-  icon: Icon,
-  tone,
-  total,
-  children,
-  emptyText,
-}: {
-  title: string;
-  icon: any;
-  tone: 'in' | 'out' | 'transfer-in' | 'transfer-out';
-  total: number;
-  emptyText: string;
-  children: React.ReactNode;
-}) {
-  const colorClass =
-    tone === 'in' || tone === 'transfer-in'
-      ? 'text-primary'
-      : tone === 'out' || tone === 'transfer-out'
-        ? 'text-destructive'
-        : 'text-foreground';
-  return (
-    <div className="rounded-md border border-border/60 bg-background">
-      <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-border/60 bg-muted/30">
-        <div className="flex items-center gap-1.5 text-xs font-semibold">
-          <Icon className={cn('w-3.5 h-3.5', colorClass)} /> {title}
-        </div>
-        <span className={cn('text-xs font-mono font-bold', colorClass)}>
-          {tone === 'out' || tone === 'transfer-out' ? '−' : '+'}
-          {fmt(total)}
-        </span>
-      </div>
-      <div className="divide-y divide-border/40">{children || (
-        <p className="text-[11px] text-muted-foreground px-2.5 py-2">{emptyText}</p>
-      )}</div>
-    </div>
-  );
-}
+export function AccountMonthDrillDown({ accountId, year, month, mode = 'competencia', expected }: Props) {
+  const { data, isLoading } = useAccountDetail(accountId, year, month, mode);
+  const [filter, setFilter] = useState<FilterTab>('todos');
+  const [search, setSearch] = useState('');
+  const [editingTx, setEditingTx] = useState<any | null>(null);
 
-export function AccountMonthDrillDown({ accountId, year, month, expected }: Props) {
-  const { data, isLoading } = useAccountDetail(accountId, year, month);
+  // Hooks must run unconditionally — compute even while loading
+  const txs = data?.all ?? [];
+  const transfers = data?.transfers ?? [];
 
-  if (isLoading || !data) return <Skeleton className="h-40 w-full" />;
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return txs.filter((t) => {
+      if (filter === 'entradas' && t.tipo_movimento !== 'ENTRADA') return false;
+      if (filter === 'saidas' && t.tipo_movimento !== 'SAIDA') return false;
+      if (filter === 'transferencias') return false;
+      if (q) {
+        const hay = `${t.descricao || ''} ${t.category_name || ''} ${t.cost_center_name || ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [txs, filter, search]);
 
-  const entradas = data.paid.filter((t) => t.tipo_movimento === 'ENTRADA');
-  const saidas = data.paid.filter((t) => t.tipo_movimento === 'SAIDA');
-  const trIn = data.transfers.filter((t) => t.direction === 'IN');
-  const trOut = data.transfers.filter((t) => t.direction === 'OUT');
+  const showTransfers = filter === 'todos' || filter === 'transferencias';
 
-  const sumIn = entradas.reduce((s, t) => s + (t.valor_pago ?? t.valor), 0);
-  const sumOut = saidas.reduce((s, t) => s + (t.valor_pago ?? t.valor), 0);
-  const sumTrIn = trIn.reduce((s, t) => s + t.amount, 0);
-  const sumTrOut = trOut.reduce((s, t) => s + t.amount, 0);
-  const transfNet = sumTrIn - sumTrOut;
-  const result = sumIn - sumOut + transfNet;
+  // sums from raw lists (auditoria)
+  const sumIn = txs.filter((t) => t.tipo_movimento === 'ENTRADA').reduce((s, t) => s + (t.valor_pago ?? t.valor), 0);
+  const sumOut = txs.filter((t) => t.tipo_movimento === 'SAIDA').reduce((s, t) => s + (t.valor_pago ?? t.valor), 0);
+  const sumTrIn = transfers.filter((t) => t.direction === 'IN').reduce((s, t) => s + t.amount, 0);
+  const sumTrOut = transfers.filter((t) => t.direction === 'OUT').reduce((s, t) => s + t.amount, 0);
+  const result = sumIn - sumOut + (sumTrIn - sumTrOut);
 
-  // Auditoria: cada total da seção deve bater com expected (vindo da tabela anual)
   const checks = [
     { label: 'Entradas', a: sumIn, b: expected.totalIn },
     { label: 'Saídas', a: sumOut, b: expected.totalOut },
@@ -91,138 +73,209 @@ export function AccountMonthDrillDown({ accountId, year, month, expected }: Prop
   ];
   const inconsistencies = checks.filter((c) => Math.abs(c.a - c.b) > 0.01);
 
+  if (isLoading || !data) return <Skeleton className="h-60 w-full" />;
+
+  const counts = {
+    todos: txs.length + transfers.length,
+    entradas: txs.filter((t) => t.tipo_movimento === 'ENTRADA').length,
+    saidas: txs.filter((t) => t.tipo_movimento === 'SAIDA').length,
+    transferencias: transfers.length,
+  };
+
   return (
     <div className="p-3 space-y-3 bg-muted/20">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-        <Section
-          title="Entradas"
-          icon={ArrowDownLeft}
-          tone="in"
-          total={sumIn}
-          emptyText="Sem recebimentos no mês."
-        >
-          {entradas.map((t) => (
-            <TxRow key={t.id} t={t} positive />
+      {/* Toolbar */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1 rounded-md border border-border bg-background p-0.5">
+          {(['todos', 'entradas', 'saidas', 'transferencias'] as FilterTab[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={cn(
+                'px-2.5 py-1 text-[11px] rounded font-medium capitalize transition-colors',
+                filter === f
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted',
+              )}
+            >
+              {f === 'transferencias' ? 'Transf.' : f}{' '}
+              <span className="opacity-70">({counts[f]})</span>
+            </button>
           ))}
-        </Section>
-        <Section
-          title="Saídas"
-          icon={ArrowUpRight}
-          tone="out"
-          total={sumOut}
-          emptyText="Sem despesas no mês."
-        >
-          {saidas.map((t) => (
-            <TxRow key={t.id} t={t} positive={false} />
-          ))}
-        </Section>
-        <Section
-          title="Transf. recebidas"
-          icon={ArrowLeftRight}
-          tone="transfer-in"
-          total={sumTrIn}
-          emptyText="Sem transferências recebidas."
-        >
-          {trIn.map((t) => (
-            <TransferRow key={t.id} t={t} />
-          ))}
-        </Section>
-        <Section
-          title="Transf. enviadas"
-          icon={ArrowLeftRight}
-          tone="transfer-out"
-          total={sumTrOut}
-          emptyText="Sem transferências enviadas."
-        >
-          {trOut.map((t) => (
-            <TransferRow key={t.id} t={t} />
-          ))}
-        </Section>
+        </div>
+        <div className="relative flex-1 min-w-[180px] max-w-[320px]">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar descrição, categoria, centro de custo…"
+            className="h-7 pl-7 text-xs"
+          />
+        </div>
+        <span className="text-[10px] text-muted-foreground ml-auto">
+          {mode === 'competencia' ? 'Regime: competência' : 'Regime: caixa (data de pagamento)'}
+        </span>
       </div>
 
-      {/* Resumo / conferência */}
-      <div className="rounded-md border border-border bg-card p-2.5 text-xs space-y-1">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <span className="font-semibold">Resumo do mês</span>
-          <span className="font-mono">
-            <span className="text-primary">+{fmt(sumIn)}</span> {' '}
-            <span className="text-destructive">−{fmt(sumOut)}</span> {' '}
-            <span className={transfNet >= 0 ? 'text-primary' : 'text-destructive'}>
-              {transfNet >= 0 ? '+' : ''}
-              {fmt(transfNet)}
-            </span> {' = '}
-            <strong className={result >= 0 ? 'text-primary' : 'text-destructive'}>
-              {result >= 0 ? '+' : ''}
-              {fmt(result)}
-            </strong>
-          </span>
-        </div>
-        <div className="flex items-center justify-between text-muted-foreground">
-          <span>Saldo final do mês</span>
-          <span className="font-mono font-semibold text-foreground">{fmt(expected.endBalance)}</span>
-        </div>
-        {inconsistencies.length > 0 && (
-          <div className="mt-1 pt-1 border-t border-destructive/30 text-destructive">
-            <p className="font-semibold">⚠ Divergências detectadas:</p>
-            {inconsistencies.map((c) => (
-              <p key={c.label} className="font-mono text-[11px]">
-                {c.label}: lançamentos {fmt(c.a)} ≠ tabela {fmt(c.b)} (Δ {fmt(c.a - c.b)})
-              </p>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+      {/* Tabela */}
+      <div className="rounded-md border border-border bg-background overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-muted/40">
+            <tr className="text-left">
+              <th className="px-2 py-1.5 font-medium w-[68px]">Data</th>
+              <th className="px-2 py-1.5 font-medium">Descrição</th>
+              <th className="px-2 py-1.5 font-medium">Categoria</th>
+              <th className="px-2 py-1.5 font-medium">Centro de custo</th>
+              <th className="px-2 py-1.5 font-medium w-[90px]">Status</th>
+              <th className="px-2 py-1.5 font-medium text-right w-[110px]">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 && !showTransfers && (
+              <tr>
+                <td colSpan={6} className="text-center py-6 text-muted-foreground text-[11px]">
+                  Sem lançamentos para este filtro.
+                </td>
+              </tr>
+            )}
+            {filtered.map((t) => {
+              const v = t.valor_pago ?? t.valor;
+              const positive = t.tipo_movimento === 'ENTRADA';
+              return (
+                <tr
+                  key={t.id}
+                  className="border-t border-border/50 hover:bg-muted/30 cursor-pointer"
+                  onClick={() => setEditingTx(t)}
+                >
+                  <td className="px-2 py-1.5 font-mono text-muted-foreground">
+                    {fmtDate(t.data_pagamento || t.data_vencimento)}
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <p className="font-medium">{t.descricao || '(sem descrição)'}</p>
+                    <p className="text-[10px] text-muted-foreground">{t.natureza}</p>
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <span className="inline-flex items-center gap-1.5">
+                      {t.category_color && (
+                        <span
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ background: t.category_color }}
+                        />
+                      )}
+                      <span className="truncate">{t.category_name || 'Sem categoria'}</span>
+                    </span>
+                  </td>
+                  <td className="px-2 py-1.5 text-muted-foreground truncate">
+                    {t.cost_center_name || '—'}
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <Badge variant="outline" className="h-5 text-[10px]">
+                      {t.status}
+                    </Badge>
+                  </td>
+                  <td
+                    className={cn(
+                      'px-2 py-1.5 text-right font-mono font-semibold',
+                      positive ? 'text-primary' : 'text-destructive',
+                    )}
+                  >
+                    {positive ? '+' : '−'}
+                    {fmt(v)}
+                  </td>
+                </tr>
+              );
+            })}
 
-function TxRow({ t, positive }: { t: any; positive: boolean }) {
-  const v = t.valor_pago ?? t.valor;
-  return (
-    <div className="px-2.5 py-1.5 flex items-center gap-2 text-[11px] hover:bg-muted/30">
-      <span className="text-muted-foreground font-mono w-12 flex-shrink-0">
-        {fmtDate(t.data_pagamento || t.data_vencimento)}
-      </span>
-      {t.category_color && (
-        <span
-          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-          style={{ background: t.category_color }}
+            {showTransfers && transfers.length > 0 && (
+              <>
+                <tr className="bg-muted/30">
+                  <td colSpan={6} className="px-2 py-1 text-[10px] uppercase font-semibold text-muted-foreground tracking-wide">
+                    Transferências internas
+                  </td>
+                </tr>
+                {transfers.map((t) => {
+                  const isIn = t.direction === 'IN';
+                  return (
+                    <tr key={t.id} className="border-t border-border/50 hover:bg-muted/30">
+                      <td className="px-2 py-1.5 font-mono text-muted-foreground">{fmtDate(t.transfer_date)}</td>
+                      <td className="px-2 py-1.5">
+                        <p className="font-medium flex items-center gap-1.5">
+                          <ArrowLeftRight className="w-3 h-3 text-muted-foreground" />
+                          {isIn ? 'De ' : 'Para '} {t.counterparty_name}
+                        </p>
+                        {t.notes && <p className="text-[10px] text-muted-foreground">{t.notes}</p>}
+                      </td>
+                      <td className="px-2 py-1.5 text-muted-foreground italic">Transferência</td>
+                      <td className="px-2 py-1.5 text-muted-foreground">—</td>
+                      <td className="px-2 py-1.5">
+                        <Badge variant="outline" className="h-5 text-[10px]">
+                          {isIn ? 'RECEBIDA' : 'ENVIADA'}
+                        </Badge>
+                      </td>
+                      <td
+                        className={cn(
+                          'px-2 py-1.5 text-right font-mono font-semibold',
+                          isIn ? 'text-primary' : 'text-destructive',
+                        )}
+                      >
+                        {isIn ? '+' : '−'}
+                        {fmt(t.amount)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </>
+            )}
+          </tbody>
+          <tfoot className="bg-muted/30 border-t border-border">
+            <tr className="text-[11px]">
+              <td colSpan={5} className="px-2 py-1.5 font-semibold text-right">
+                Resultado do mês
+              </td>
+              <td
+                className={cn(
+                  'px-2 py-1.5 text-right font-mono font-bold',
+                  result >= 0 ? 'text-primary' : 'text-destructive',
+                )}
+              >
+                {result >= 0 ? '+' : ''}
+                {fmt(result)}
+              </td>
+            </tr>
+            <tr className="text-[10px] text-muted-foreground">
+              <td colSpan={5} className="px-2 pb-1.5 text-right">
+                <span className="text-primary">+{fmt(sumIn)}</span>{' '}
+                <span className="text-destructive">−{fmt(sumOut)}</span>{' '}
+                <span>(transf. líq. {sumTrIn - sumTrOut >= 0 ? '+' : ''}{fmt(sumTrIn - sumTrOut)})</span>
+              </td>
+              <td className="px-2 pb-1.5 text-right">
+                Saldo final: <span className="font-mono text-foreground">{fmt(expected.endBalance)}</span>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {inconsistencies.length > 0 && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-[11px]">
+          <p className="font-semibold text-destructive flex items-center gap-1">
+            <AlertTriangle className="w-3.5 h-3.5" /> Divergências entre lançamentos e tabela anual:
+          </p>
+          {inconsistencies.map((c) => (
+            <p key={c.label} className="font-mono text-destructive">
+              {c.label}: lançamentos {fmt(c.a)} ≠ resumo {fmt(c.b)} (Δ {fmt(c.a - c.b)})
+            </p>
+          ))}
+        </div>
+      )}
+
+      {editingTx && (
+        <TransactionEditModal
+          open
+          onClose={() => setEditingTx(null)}
+          transaction={editingTx}
         />
       )}
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">{t.descricao || '(sem descrição)'}</p>
-        <p className="text-[10px] text-muted-foreground truncate">
-          {t.category_name || 'Sem categoria'} · {t.natureza}
-        </p>
-      </div>
-      <Badge variant="outline" className="h-4 text-[9px] px-1 flex-shrink-0">
-        {t.status}
-      </Badge>
-      <span className={cn('font-mono font-semibold flex-shrink-0', positive ? 'text-primary' : 'text-destructive')}>
-        {positive ? '+' : '−'}
-        {fmt(v)}
-      </span>
-    </div>
-  );
-}
-
-function TransferRow({ t }: { t: any }) {
-  const isIn = t.direction === 'IN';
-  return (
-    <div className="px-2.5 py-1.5 flex items-center gap-2 text-[11px] hover:bg-muted/30">
-      <span className="text-muted-foreground font-mono w-12 flex-shrink-0">
-        {fmtDate(t.transfer_date)}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">
-          {isIn ? 'De ' : 'Para '} {t.counterparty_name}
-        </p>
-        {t.notes && <p className="text-[10px] text-muted-foreground truncate">{t.notes}</p>}
-      </div>
-      <span className={cn('font-mono font-semibold flex-shrink-0', isIn ? 'text-primary' : 'text-destructive')}>
-        {isIn ? '+' : '−'}
-        {fmt(t.amount)}
-      </span>
     </div>
   );
 }

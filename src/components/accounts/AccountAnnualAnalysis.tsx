@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react';
-import { useAccountAnnual } from '@/hooks/useAccountAnnual';
+import { useAccountAnnual, type AnnualPeriodMode } from '@/hooks/useAccountAnnual';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
@@ -58,7 +58,8 @@ function KPI({
 }
 
 export function AccountAnnualAnalysis({ accountId, year }: Props) {
-  const { data, isLoading } = useAccountAnnual(accountId, year);
+  const [mode, setMode] = useState<AnnualPeriodMode>('competencia');
+  const { data, isLoading } = useAccountAnnual(accountId, year, mode);
   const [expanded, setExpanded] = useState<number | null>(null);
 
   const insights = useMemo(() => {
@@ -244,7 +245,28 @@ export function AccountAnnualAnalysis({ accountId, year }: Props) {
       </div>
 
       {/* Monthly summary table com drill-down */}
-      <div className="rounded-lg border border-border overflow-x-auto">
+      <div className="rounded-lg border border-border overflow-hidden">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30">
+          <h3 className="text-sm font-semibold">Resumo mensal · {year}</h3>
+          <div className="flex items-center gap-1 rounded-md border border-border bg-background p-0.5">
+            {(['competencia', 'caixa'] as AnnualPeriodMode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={cn(
+                  'px-2.5 py-1 text-[11px] rounded font-medium capitalize transition-colors',
+                  mode === m
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted',
+                )}
+                title={m === 'competencia' ? 'Por mês de competência (igual às páginas de despesas/entradas)' : 'Por data de pagamento real (caixa)'}
+              >
+                {m === 'competencia' ? 'Competência' : 'Caixa'}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead className="bg-muted/40">
             <tr className="text-left">
@@ -317,6 +339,7 @@ export function AccountAnnualAnalysis({ accountId, year }: Props) {
                           accountId={accountId}
                           year={year}
                           month={m.month}
+                          mode={mode}
                           expected={{
                             totalIn: m.totalIn,
                             totalOut: m.totalOut,
@@ -333,6 +356,7 @@ export function AccountAnnualAnalysis({ accountId, year }: Props) {
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
