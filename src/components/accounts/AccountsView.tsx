@@ -18,7 +18,7 @@ interface AccountsViewProps {
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-export function AccountsView() {
+export function AccountsView({ onOpenDetail }: AccountsViewProps = {}) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -26,7 +26,6 @@ export function AccountsView() {
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
-  const [detailAccount, setDetailAccount] = useState<Account | null>(null);
 
   const { data: accounts, isLoading } = useAccounts();
   const { data: snapshots, isLoading: snapLoading } = useAccountsSnapshot(year, month);
