@@ -1,0 +1,1 @@
+SELECT public.recalculate_account_balance(id) FROM public.accounts WHERE active = true;
