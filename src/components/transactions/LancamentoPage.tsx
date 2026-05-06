@@ -42,7 +42,10 @@ function fmtDateTime(s: string) {
 export function LancamentoPage() {
   const { isFinanceiro, user } = useAuth();
   const queryClient = useQueryClient();
-  const [showWizard, setShowWizard] = useState(false);
+  const now = new Date();
+  const [periodMonth, setPeriodMonth] = useState(now.getMonth() + 1);
+  const [periodYear, setPeriodYear] = useState(now.getFullYear());
+  const [dedicatedModal, setDedicatedModal] = useState<null | 'recurring' | 'fixa'>(null);
   const [filter, setFilter] = useState<QuickFilter>('all');
   const [editTx, setEditTx] = useState<TransactionWithClient | null>(null);
   const [limit, setLimit] = useState(50);
