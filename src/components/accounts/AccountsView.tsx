@@ -8,9 +8,12 @@ import { TransferModal } from './TransferModal';
 import { AccountsEvolutionChart } from './AccountsEvolutionChart';
 import { AccountsDistributionPanel } from './AccountsDistributionPanel';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AccountDetailDrawer } from './AccountDetailDrawer';
 import { Card, CardContent } from '@/components/ui/card';
 import { Wallet } from 'lucide-react';
+
+interface AccountsViewProps {
+  onOpenDetail?: (accountId: string) => void;
+}
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
