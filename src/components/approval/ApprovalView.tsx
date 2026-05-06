@@ -15,7 +15,7 @@ import {
   CheckCircle, XCircle, Clock, Search, AlertTriangle,
   ArrowDownCircle, ArrowUpCircle, Loader2, Eye, Filter,
   CheckCheck, ArrowUpDown, ChevronUp, ChevronDown, Pencil,
-  Layers, Wand2, RotateCcw,
+  Layers, Wand2, RotateCcw, Trash2,
 } from 'lucide-react';
 import { formatCurrency } from '@/data/mockData';
 import { cn } from '@/lib/utils';
@@ -108,6 +108,8 @@ export function ApprovalView() {
   const [rejectReason, setRejectReason] = useState('');
   const [rejectReasonsSelected, setRejectReasonsSelected] = useState<string[]>([]);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [selectedRejectedIds, setSelectedRejectedIds] = useState<Set<string>>(new Set());
+  const [confirmDeleteRejected, setConfirmDeleteRejected] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -296,6 +298,21 @@ export function ApprovalView() {
       }
       return data || [];
     },
+  });
+
+  // Permanently delete rejected_transactions records (admin only)
+  const deleteRejectedMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('rejected_transactions').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ['rejected-transactions'] });
+      setSelectedRejectedIds(new Set());
+      setConfirmDeleteRejected(false);
+      toast.success(`${ids.length} registro(s) excluído(s) definitivamente.`);
+    },
+    onError: (e: any) => toast.error('Erro ao excluir: ' + (e?.message || '')),
   });
 
   // Bulk edit mutation
@@ -855,18 +872,54 @@ export function ApprovalView() {
       {filterStatus === 'rejeitado' ? (
         <Card>
           <CardContent className="p-0">
-            <div className="p-4 border-b bg-red-50/40">
-              <p className="text-sm font-semibold text-red-800 flex items-center gap-2">
-                <XCircle className="w-4 h-4" /> Histórico de Rejeições
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Lançamentos rejeitados são removidos das transações ativas e arquivados aqui para auditoria.
-              </p>
+            <div className="p-4 border-b bg-red-50/40 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-red-800 flex items-center gap-2">
+                  <XCircle className="w-4 h-4" /> Histórico de Rejeições
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Lançamentos rejeitados são removidos das transações ativas e arquivados aqui para auditoria.
+                </p>
+              </div>
+              {isAdmin && (rejectedLog?.length || 0) > 0 && (
+                <div className="flex items-center gap-2">
+                  {selectedRejectedIds.size > 0 && (
+                    <>
+                      <span className="text-xs font-medium text-red-700">
+                        {selectedRejectedIds.size} selecionado{selectedRejectedIds.size > 1 ? 's' : ''}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setConfirmDeleteRejected(true)}
+                        disabled={deleteRejectedMutation.isPending}
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Excluir definitivamente
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setSelectedRejectedIds(new Set())}>
+                        Limpar
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-muted/50">
                   <tr>
+                    {isAdmin && (
+                      <th className="p-3 w-10">
+                        <Checkbox
+                          checked={(rejectedLog?.length || 0) > 0 && selectedRejectedIds.size === rejectedLog?.length}
+                          onCheckedChange={(v) => {
+                            if (v) setSelectedRejectedIds(new Set((rejectedLog || []).map((r: any) => r.id)));
+                            else setSelectedRejectedIds(new Set());
+                          }}
+                        />
+                      </th>
+                    )}
                     <th className="text-left p-3 text-xs font-medium">Tipo</th>
                     <th className="text-left p-3 text-xs font-medium">Descrição</th>
                     <th className="text-left p-3 text-xs font-medium">Cliente</th>
@@ -880,9 +933,23 @@ export function ApprovalView() {
                 </thead>
                 <tbody className="divide-y">
                   {(!rejectedLog || rejectedLog.length === 0) ? (
-                    <tr><td colSpan={9} className="text-center py-8 text-muted-foreground text-sm">Nenhum lançamento rejeitado.</td></tr>
+                    <tr><td colSpan={isAdmin ? 10 : 9} className="text-center py-8 text-muted-foreground text-sm">Nenhum lançamento rejeitado.</td></tr>
                   ) : rejectedLog.map((r: any) => (
                     <tr key={r.id} className="hover:bg-muted/30">
+                      {isAdmin && (
+                        <td className="p-3">
+                          <Checkbox
+                            checked={selectedRejectedIds.has(r.id)}
+                            onCheckedChange={(v) => {
+                              setSelectedRejectedIds(prev => {
+                                const next = new Set(prev);
+                                if (v) next.add(r.id); else next.delete(r.id);
+                                return next;
+                              });
+                            }}
+                          />
+                        </td>
+                      )}
                       <td className="p-3">
                         {r.tipo_movimento === 'ENTRADA'
                           ? <ArrowDownCircle className="w-5 h-5 text-income" />
@@ -1573,6 +1640,40 @@ export function ApprovalView() {
         onClose={() => setEditingTx(null)}
         transaction={editingTx}
       />
+
+      {/* Confirm permanent deletion of rejected records */}
+      <Dialog open={confirmDeleteRejected} onOpenChange={setConfirmDeleteRejected}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <AlertTriangle className="w-5 h-5" />
+              Excluir definitivamente?
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p>
+              Você está prestes a excluir <strong>{selectedRejectedIds.size}</strong> registro(s) do
+              histórico de rejeições. Esta ação <strong>não pode ser desfeita</strong>.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Os lançamentos originais já foram removidos das transações ativas. Excluir aqui apaga
+              também o registro de auditoria.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteRejected(false)}>Cancelar</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteRejectedMutation.mutate(Array.from(selectedRejectedIds))}
+              disabled={deleteRejectedMutation.isPending}
+            >
+              {deleteRejectedMutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+              <Trash2 className="w-4 h-4 mr-1" />
+              Excluir definitivamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
