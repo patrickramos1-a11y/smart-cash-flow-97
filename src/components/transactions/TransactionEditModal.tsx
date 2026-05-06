@@ -773,7 +773,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
             {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             Salvar Alterações
           </Button>
-          {role === 'admin' && transaction.approval_status === 'pendente' && (
+          {role === 'admin' && (transaction as any).approval_status === 'pendente' && (
             <Button
               onClick={() => handleSubmit(true)}
               disabled={isSubmitting || !entityId}
