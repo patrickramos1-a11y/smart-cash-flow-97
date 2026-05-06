@@ -300,6 +300,21 @@ export function ApprovalView() {
     },
   });
 
+  // Permanently delete rejected_transactions records (admin only)
+  const deleteRejectedMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('rejected_transactions').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ['rejected-transactions'] });
+      setSelectedRejectedIds(new Set());
+      setConfirmDeleteRejected(false);
+      toast.success(`${ids.length} registro(s) excluído(s) definitivamente.`);
+    },
+    onError: (e: any) => toast.error('Erro ao excluir: ' + (e?.message || '')),
+  });
+
   // Bulk edit mutation
   const bulkEditMutation = useMutation({
     mutationFn: async ({ ids, updates }: { ids: string[]; updates: Record<string, any> }) => {
