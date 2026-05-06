@@ -184,6 +184,24 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
 
       await supabase.from('transactions').update(updates).eq('id', transaction.id);
 
+      // Keep the fixed_expense master name in sync with the edited description
+      // (the approval grouping uses fixed_expenses.nome as the group title).
+      if (transaction.fixed_expense_id && descricao && descricao !== transaction.descricao) {
+        await supabase
+          .from('fixed_expenses')
+          .update({ nome: descricao })
+          .eq('id', transaction.fixed_expense_id);
+
+        // Propagate the new name to sibling pending transactions of the same fixed expense
+        // so the snapshot in the approval list reflects it immediately.
+        await supabase
+          .from('transactions')
+          .update({ descricao })
+          .eq('fixed_expense_id', transaction.fixed_expense_id)
+          .neq('id', transaction.id)
+          .neq('status', 'PAGO');
+      }
+
       // Handle recurring scope (future or all)
       if ((scope === 'future' || scope === 'all') && isRecurring) {
         const propagateUpdates: any = { valor: parsedValor };
