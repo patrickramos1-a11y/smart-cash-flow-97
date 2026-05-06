@@ -102,7 +102,7 @@ export function AccountsView({ onOpenDetail }: AccountsViewProps = {}) {
               key={a.id}
               account={a}
               snapshot={snapshots?.[a.id]}
-              onClick={() => setDetailAccount(a)}
+              onClick={() => onOpenDetail?.(a.id)}
               onEdit={() => { setEditingAccount(a); setAccountModalOpen(true); }}
             />
           ))}
@@ -111,13 +111,6 @@ export function AccountsView({ onOpenDetail }: AccountsViewProps = {}) {
 
       <AccountModal open={accountModalOpen} onClose={() => setAccountModalOpen(false)} account={editingAccount} />
       <TransferModal open={transferOpen} onClose={() => setTransferOpen(false)} />
-      <AccountDetailDrawer
-        open={!!detailAccount}
-        onClose={() => setDetailAccount(null)}
-        account={detailAccount}
-        year={year}
-        month={month}
-      />
     </div>
   );
 }
