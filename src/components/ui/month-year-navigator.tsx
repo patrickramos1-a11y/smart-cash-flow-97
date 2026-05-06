@@ -29,7 +29,10 @@ interface MonthYearNavigatorProps {
 export function MonthYearNavigator({ month, year, onMonthChange, onYearChange, className }: MonthYearNavigatorProps) {
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+  // Histórico desde 2021 + 2 anos no futuro
+  const startYear = 2021;
+  const endYear = currentYear + 2;
+  const years = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
 
   const goBack = () => {
     if (month === 1) {
