@@ -18,6 +18,9 @@ export function AccountCard({ account, snapshot, onClick, onEdit }: Props) {
   const variacao = snapshot?.variacao ?? 0;
   const entradas = snapshot?.entradas_mes ?? 0;
   const saidas = snapshot?.saidas_mes ?? 0;
+  const trIn = snapshot?.transferencias_in ?? 0;
+  const trOut = snapshot?.transferencias_out ?? 0;
+  const trNet = trIn - trOut;
   const Trend = variacao > 0 ? TrendingUp : variacao < 0 ? TrendingDown : Wallet;
   const trendColor =
     variacao > 0 ? 'text-primary' : variacao < 0 ? 'text-destructive' : 'text-muted-foreground';
