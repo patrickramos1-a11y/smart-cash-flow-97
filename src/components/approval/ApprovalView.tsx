@@ -872,18 +872,54 @@ export function ApprovalView() {
       {filterStatus === 'rejeitado' ? (
         <Card>
           <CardContent className="p-0">
-            <div className="p-4 border-b bg-red-50/40">
-              <p className="text-sm font-semibold text-red-800 flex items-center gap-2">
-                <XCircle className="w-4 h-4" /> Histórico de Rejeições
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Lançamentos rejeitados são removidos das transações ativas e arquivados aqui para auditoria.
-              </p>
+            <div className="p-4 border-b bg-red-50/40 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-red-800 flex items-center gap-2">
+                  <XCircle className="w-4 h-4" /> Histórico de Rejeições
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Lançamentos rejeitados são removidos das transações ativas e arquivados aqui para auditoria.
+                </p>
+              </div>
+              {isAdmin && (rejectedLog?.length || 0) > 0 && (
+                <div className="flex items-center gap-2">
+                  {selectedRejectedIds.size > 0 && (
+                    <>
+                      <span className="text-xs font-medium text-red-700">
+                        {selectedRejectedIds.size} selecionado{selectedRejectedIds.size > 1 ? 's' : ''}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setConfirmDeleteRejected(true)}
+                        disabled={deleteRejectedMutation.isPending}
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Excluir definitivamente
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setSelectedRejectedIds(new Set())}>
+                        Limpar
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-muted/50">
                   <tr>
+                    {isAdmin && (
+                      <th className="p-3 w-10">
+                        <Checkbox
+                          checked={(rejectedLog?.length || 0) > 0 && selectedRejectedIds.size === rejectedLog?.length}
+                          onCheckedChange={(v) => {
+                            if (v) setSelectedRejectedIds(new Set((rejectedLog || []).map((r: any) => r.id)));
+                            else setSelectedRejectedIds(new Set());
+                          }}
+                        />
+                      </th>
+                    )}
                     <th className="text-left p-3 text-xs font-medium">Tipo</th>
                     <th className="text-left p-3 text-xs font-medium">Descrição</th>
                     <th className="text-left p-3 text-xs font-medium">Cliente</th>
@@ -897,9 +933,23 @@ export function ApprovalView() {
                 </thead>
                 <tbody className="divide-y">
                   {(!rejectedLog || rejectedLog.length === 0) ? (
-                    <tr><td colSpan={9} className="text-center py-8 text-muted-foreground text-sm">Nenhum lançamento rejeitado.</td></tr>
+                    <tr><td colSpan={isAdmin ? 10 : 9} className="text-center py-8 text-muted-foreground text-sm">Nenhum lançamento rejeitado.</td></tr>
                   ) : rejectedLog.map((r: any) => (
                     <tr key={r.id} className="hover:bg-muted/30">
+                      {isAdmin && (
+                        <td className="p-3">
+                          <Checkbox
+                            checked={selectedRejectedIds.has(r.id)}
+                            onCheckedChange={(v) => {
+                              setSelectedRejectedIds(prev => {
+                                const next = new Set(prev);
+                                if (v) next.add(r.id); else next.delete(r.id);
+                                return next;
+                              });
+                            }}
+                          />
+                        </td>
+                      )}
                       <td className="p-3">
                         {r.tipo_movimento === 'ENTRADA'
                           ? <ArrowDownCircle className="w-5 h-5 text-income" />
