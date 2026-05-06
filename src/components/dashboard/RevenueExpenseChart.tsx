@@ -90,7 +90,7 @@ export function RevenueExpenseChart({ year }: RevenueExpenseChartProps) {
 
   return (
     <div className="chart-container">
-      <h3 className="text-lg font-semibold text-foreground mb-4">Receita x Despesa por Mês</h3>
+      <h3 className="text-lg font-semibold text-foreground mb-4">Receita x Despesa — {currentYear}</h3>
       <div className="h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
