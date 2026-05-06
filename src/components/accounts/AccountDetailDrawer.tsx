@@ -74,6 +74,12 @@ export function AccountDetailDrawer({ open, onClose, account, snapshot, year, mo
           </div>
         </div>
 
+        <div className="mt-3">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => setAdjustOpen(true)}>
+            <SlidersHorizontal className="w-3.5 h-3.5" /> Ajustar saldo
+          </Button>
+        </div>
+
         <Tabs defaultValue="movimentos" className="mt-5">
           <TabsList className="grid grid-cols-4 w-full">
             <TabsTrigger value="movimentos">Movimentos</TabsTrigger>
