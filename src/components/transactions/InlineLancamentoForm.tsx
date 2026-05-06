@@ -400,6 +400,8 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
             </div>
           </>
         )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
