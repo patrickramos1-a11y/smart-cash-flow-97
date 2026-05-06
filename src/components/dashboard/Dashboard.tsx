@@ -348,6 +348,11 @@ export function Dashboard() {
       <div className="grid grid-cols-1 gap-6">
         <ClientRankingChart data={clientRanking as any[]} />
       </div>
-    </div>
+      </TabsContent>
+
+      <TabsContent value="anual" className="mt-0">
+        <AnnualAnalysisTab />
+      </TabsContent>
+    </Tabs>
   );
 }
