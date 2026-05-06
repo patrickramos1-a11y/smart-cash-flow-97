@@ -178,6 +178,15 @@ export function useTransactions(filters: TransactionFilters = {}) {
       if (filters.competencia_ano) {
         query = query.eq('competencia_ano', filters.competencia_ano);
       }
+      if (filters.approval_status) {
+        query = query.eq('approval_status', filters.approval_status);
+      }
+      if (filters.created_after) {
+        query = query.gte('created_at', filters.created_after);
+      }
+      if (filters.created_by) {
+        query = query.eq('created_by', filters.created_by);
+      }
 
       const { data, error } = await query;
 
