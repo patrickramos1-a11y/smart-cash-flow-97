@@ -203,10 +203,10 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
           </Button>
         </div>
 
-        {!collapsed && (<></>)}
-
-        {/* Linha 1: Categoria com busca */}
-        <div className="space-y-2">
+        {!collapsed && (
+          <div className="space-y-4">
+            {/* Linha 1: Categoria com busca */}
+            <div className="space-y-2">
           <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             1. Categoria *
           </Label>
