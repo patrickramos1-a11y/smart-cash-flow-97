@@ -30,10 +30,12 @@ import { AccountCategoryAnalysis } from './AccountCategoryAnalysis';
 import { AccountInsights } from './AccountInsights';
 import { AccountMovementsTable } from './AccountMovementsTable';
 import { AccountAnnualAnalysis } from './AccountAnnualAnalysis';
+import { AccountSwitcher } from './AccountSwitcher';
 
 interface Props {
   accountId: string;
   onBack: () => void;
+  onSelectAccount?: (id: string) => void;
 }
 
 const fmt = (v: number) =>
@@ -77,7 +79,7 @@ function KPI({
   );
 }
 
-export function AccountDetailPage({ accountId, onBack }: Props) {
+export function AccountDetailPage({ accountId, onBack, onSelectAccount }: Props) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -119,15 +121,24 @@ export function AccountDetailPage({ accountId, onBack }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Breadcrumb + back */}
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Button variant="ghost" size="sm" onClick={onBack} className="gap-1 -ml-2 h-7">
-          <ChevronLeft className="w-4 h-4" /> Voltar para Contas
-        </Button>
-        <span className="text-muted-foreground/50">/</span>
-        <span>Contas</span>
-        <span className="text-muted-foreground/50">/</span>
-        <span className="text-foreground font-medium truncate">{account.name}</span>
+      {/* Breadcrumb + back + switcher */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Button variant="ghost" size="sm" onClick={onBack} className="gap-1 -ml-2 h-7">
+            <ChevronLeft className="w-4 h-4" /> Voltar para Contas
+          </Button>
+          <span className="text-muted-foreground/50">/</span>
+          <span>Contas</span>
+          <span className="text-muted-foreground/50">/</span>
+          <span className="text-foreground font-medium truncate">{account.name}</span>
+        </div>
+        {accounts && accounts.filter((a) => a.active).length > 1 && onSelectAccount && (
+          <AccountSwitcher
+            accounts={accounts.filter((a) => a.active)}
+            currentId={accountId}
+            onChange={onSelectAccount}
+          />
+        )}
       </div>
 
       {/* Header */}
