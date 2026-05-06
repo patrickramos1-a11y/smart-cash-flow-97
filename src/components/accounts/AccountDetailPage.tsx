@@ -23,7 +23,7 @@ import { useAccountDetail } from '@/hooks/useAccountDetail';
 import { AccountAdjustmentModal } from './AccountAdjustmentModal';
 import { TransferModal } from './TransferModal';
 import { MonthYearNavigator } from '@/components/ui/month-year-navigator';
-import { AccountAnnualChart } from './AccountAnnualChart';
+
 import { AccountBalanceEvolutionChart } from './AccountBalanceEvolutionChart';
 import { AccountCategoryStackedChart } from './AccountCategoryStackedChart';
 import { AccountCategoryAnalysis } from './AccountCategoryAnalysis';
