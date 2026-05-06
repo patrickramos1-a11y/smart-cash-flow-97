@@ -38,6 +38,7 @@ import { RevenueTab } from './revenue/RevenueTab';
 import { ExpensesTab } from './expenses/ExpensesTab';
 import { ClientsTab } from './clients/ClientsTab';
 import { ProjectionsTab } from './projections/ProjectionsTab';
+import { InsightsTab } from './insights/InsightsTab';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -213,6 +214,7 @@ export function Dashboard() {
         <TabsTrigger value="despesas">Despesas</TabsTrigger>
         <TabsTrigger value="clientes">Clientes</TabsTrigger>
         <TabsTrigger value="projecoes">Projeções</TabsTrigger>
+        <TabsTrigger value="insights">Insights</TabsTrigger>
         <TabsTrigger value="visao-geral">Visão Geral (Mensal)</TabsTrigger>
         <TabsTrigger value="anual">Análise Anual</TabsTrigger>
       </TabsList>
@@ -221,6 +223,7 @@ export function Dashboard() {
       <TabsContent value="despesas" className="mt-0"><ExpensesTab /></TabsContent>
       <TabsContent value="clientes" className="mt-0"><ClientsTab /></TabsContent>
       <TabsContent value="projecoes" className="mt-0"><ProjectionsTab /></TabsContent>
+      <TabsContent value="insights" className="mt-0"><InsightsTab /></TabsContent>
 
       <TabsContent value="executivo" className="space-y-3 lg:space-y-6 mt-0">
         <ExecutiveTab
