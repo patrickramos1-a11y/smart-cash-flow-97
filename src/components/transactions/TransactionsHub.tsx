@@ -14,6 +14,8 @@ import { NewTransactionWizard } from './NewTransactionWizard';
 import { TransactionAnalytics } from './TransactionAnalytics';
 import { TransactionsAnnualChart } from './TransactionsAnnualChart';
 import { useTransactionKPIs, useTransactions } from '@/hooks/useTransactions';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/data/mockData';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/hooks/useAuth';
@@ -99,15 +101,27 @@ export function TransactionsHub() {
     natureza: 'AVULSA'
   });
 
-  // Only show years that have transactions
-  const { data: allTxForYears } = useTransactions({});
+  // Only show years that have transactions (lightweight query — full useTransactions
+  // is capped at 1000 rows and would hide older years like 2024).
+  const { data: availableYears } = useQuery({
+    queryKey: ['transaction-years'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('competencia_ano')
+        .order('competencia_ano', { ascending: true });
+      if (error) throw error;
+      const set = new Set<number>();
+      (data || []).forEach((r: any) => set.add(r.competencia_ano));
+      return Array.from(set).sort();
+    },
+    staleTime: 60_000,
+  });
   const years = useMemo(() => {
-    const yearSet = new Set<number>();
-    allTxForYears?.forEach(t => yearSet.add(t.competencia_ano));
-    // Always include current year
+    const yearSet = new Set<number>(availableYears || []);
     yearSet.add(currentYear);
     return Array.from(yearSet).sort();
-  }, [allTxForYears, currentYear]);
+  }, [availableYears, currentYear]);
 
   // Auto-update chart filter based on tab
   const effectiveChartFilter = mainTab === 'entradas' ? 'ENTRADA' : mainTab === 'saidas' ? 'SAIDA' : chartFilter;
