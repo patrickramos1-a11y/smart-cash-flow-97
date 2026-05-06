@@ -1,100 +1,126 @@
-# Melhorias no módulo de Contas
+# Reestruturação da Página de Detalhamento de Conta
 
-## 1. Modal de Transferência — Visual + Origem padrão Bancária
+A página hoje abre como drawer lateral, com poucos KPIs e gráficos. Vamos transformá-la em **painel analítico completo (página inteira)**, dividido em **3 fases** para garantir estabilidade e entregar valor a cada etapa.
 
-Arquivo: `src/components/accounts/TransferModal.tsx`
+---
 
-- Reescrever layout em 2 cards visuais (Origem / Destino) lado a lado, com seta animada `ArrowRightLeft` ao centro.
-- Cada card mostra: ícone colorido (cor da categoria da conta), nome da conta, banco, **saldo atual** e **saldo estimado após** (verde/vermelho conforme positivo/negativo).
-- Campo de **Valor** em destaque (input grande, formato BRL) usando `CurrencyInput`.
-- Aviso visual quando saldo estimado da origem ficar negativo (badge âmbar, não bloqueia).
-- Origem padrão: ao abrir o modal, pré-selecionar a conta cujo `name ILIKE 'BANC%'` (fallback: primeira ativa). Permanece editável.
-- Manter campos: data e observações; rodapé com botão primário "Confirmar transferência".
+## Fase 1 — Fundação: Página completa + cálculos corretos + KPIs
 
-## 2. Saldos considerando transferências (auditoria + correção)
+**Objetivo:** trocar o drawer por uma rota navegacional, garantir que todos os números (saldo, transferências, entradas, saídas) batem matematicamente.
 
-A lógica de saldo já considera transferências em três pontos:
-- SQL: `recalculate_account_balance` (soma `transfer_in` − `transfer_out`).
-- Frontend snapshot mensal: `useAccountsSnapshot`.
-- Cálculo unificado: `src/lib/financial/balances.ts`.
+### Mudanças
+1. **Nova "rota" interna `account-detail`** controlada por estado em `pages/Index.tsx` (mantém padrão atual de tabs, sem React Router novo).
+   - `AccountsView` passa a chamar `onOpenDetail(account)` em vez de abrir drawer.
+   - `Index` adiciona estado `selectedAccountId` e renderiza `<AccountDetailPage>` em tela cheia quando setado.
+   - Header com botão **"← Voltar para Contas"** + breadcrumb `Contas > {nome}`.
 
-Ações:
-- Forçar recálculo de todos os saldos (`recalculate_account_balance` para cada conta ativa) via migration de manutenção, garantindo consistência atual.
-- Em `AccountCard`, exibir uma linha extra "Transferências" (in/out do mês) abaixo de Entradas/Saídas para evidenciar o impacto.
-- Confirmar (sem mudança de código necessária) que `dre.ts` e `useDREReport.ts` não somam `account_transfers` — transferências continuam fora do DRE/faturamento.
+2. **Novo componente `AccountDetailPage.tsx`** (substitui `AccountDetailView` no contexto de página).
+   - Reaproveita lógica do `AccountDetailView` atual mas em layout de página (largura total, sem padding de drawer).
+   - Aposenta `AccountDetailDrawer.tsx` (mantemos arquivo até confirmar, depois removemos).
 
-## 3. Página de Detalhamento da Conta (gerencial)
+3. **Auditoria de cálculos** no hook `useAccountsSnapshot` e `useAccountDetail`:
+   - Validar que `saldo_inicio_mes`, `entradas_mes`, `saidas_mes`, `transferencias_in/out`, `saldo_fim_mes` cobrem todas as fontes (transações PAGO + account_transfers).
+   - Validar identidade: `saldo_fim = saldo_ini + entradas + trIn − saidas − trOut`. Se houver divergência, corrigir o hook.
+   - Rodar `recalculate_account_balance` para todas as contas via migração (já existe a função).
 
-Hoje: `AccountDetailDrawer` (Sheet lateral, 4 abas básicas).
-Novo: substituir por `AccountDetailView` em rota interna `/?view=account&id=...` (ou manter Sheet em telas grandes). Para simplificar e respeitar o padrão atual, **manteremos um Sheet em largura máxima (`sm:max-w-5xl`)** com layout de página completa.
+4. **Bloco de validação visual** no topo da página: mini-linha mostrando a equação acima com os valores reais, em vermelho se inconsistente.
 
-### 3.1 Cabeçalho
-- Ícone + cor da categoria, nome da conta, banco, badge de status.
-- Seletor mês/ano (reuso `MonthYearNavigator`).
-- Saldo atual em destaque (grande).
-- Botões: **Transferir** (abre `TransferModal` pré-preenchido com esta conta como origem) e **Ajustar saldo**.
+**Entrega:** página dedicada funcionando, números corretos, KPIs confiáveis. Tudo o que já existe continua funcionando.
 
-### 3.2 KPIs (6 cards)
-1. Saldo inicial do período
-2. Entradas por recebimentos
-3. Entradas por transferências
-4. Saídas por despesas
-5. Saídas por transferências
-6. Saldo final + variação (chip colorido)
+---
 
-Já calculados em `useAccountsSnapshot` (`entradas_mes`, `saidas_mes`, `transferencias_in/out`, `saldo_inicio_mes`, `saldo_fim_mes`, `variacao`).
+## Fase 2 — Análises por categoria + gráficos estratégicos
 
-### 3.3 Abas
-- **Visão Geral** — KPIs + gráfico de evolução de saldo (linha 12 meses) + top 5 categorias.
-- **Movimentos** — lista de transações pagas (atual conteúdo da aba "Movimentos").
-- **Transferências** — atual aba de transferências, com totais IN/OUT no topo.
-- **Categorias** — composição por categoria (atual) + barra empilhada por mês.
-- **Análise Anual** — gráfico anual por categoria (ver 3.4).
+**Objetivo:** entregar os relatórios e insights por categoria que hoje não existem.
 
-### 3.4 Gráfico anual por categoria (novo)
+### Mudanças
+1. **Gráfico anual de saldo melhorado** (`AccountBalanceEvolutionChart`):
+   - Linha contínua de saldo + barras opcionais de entradas/saídas no mesmo eixo (ComposedChart).
+   - Toggle "Mostrar entradas/saídas".
+   - Corrigir base: usar saldo de abertura real do ano (não `initial_balance` da conta) — calcular a partir de movimentos anteriores ao ano selecionado.
 
-Componente: `src/components/accounts/AccountAnnualChart.tsx`
-- BarChart empilhado (recharts), eixo X = meses Jan→Dez, séries = top N categorias da conta no ano + bucket "Outras".
-- Toggle Entradas / Saídas / Ambos.
-- Tooltip mostra valor por categoria e total mensal.
+2. **Gráfico de barras empilhadas por categoria** (componente novo `AccountCategoryStackedChart.tsx`):
+   - Eixo X: meses Jan–Dez do ano ativo.
+   - Eixo Y: valor.
+   - Cada barra empilhada por categoria (cores da própria categoria).
+   - Toggle Entradas / Saídas (separados, pois somar não faz sentido).
+   - Tooltip com top 5 categorias do mês.
+   - Dados via `useAccountAnnual` (já estrutura `byCategory`).
 
-Hook: `src/hooks/useAccountAnnual.ts`
-- Query: transações pagas da conta no ano agrupadas por `(competencia_mes, transaction_category_id, tipo_movimento)`.
-- Inclui também série de transferências mensais (linha sobreposta opcional).
+3. **Aba "Categorias" reforçada** (`AccountCategoryAnalysis.tsx`):
+   - Lista por categoria com: total, % da conta, mini-sparkline 12 meses, tendência (subindo/descendo via regressão linear simples).
+   - Clique na categoria → abre modal/drawer com lista de movimentos filtrados.
 
-### 3.5 Filtros
-- Ano, Mês (cabeçalho)
-- Categoria (multi-select dentro das abas Movimentos / Análise Anual)
-- Tipo: Entrada / Saída / Transferência (chips)
+4. **Bloco "Insights da conta"** (`AccountInsights.tsx`) — regras simples:
+   - "Categoria X representa Y% das despesas"
+   - "Mês com maior saída: {mês} ({valor})"
+   - "Transferências representam X% das entradas"
+   - "Saldo cresceu/caiu Y% nos últimos 6 meses"
+   - "N% das entradas vêm de transferências internas (atenção)"
 
-## 4. Detalhes técnicos
+**Entrega:** análise estratégica por categoria + insights automáticos. A pergunta "para onde foi o dinheiro?" passa a ter resposta visual.
 
-Arquivos a criar:
-- `src/components/accounts/AccountDetailView.tsx` (substitui o conteúdo do drawer)
-- `src/components/accounts/AccountAnnualChart.tsx`
-- `src/components/accounts/AccountBalanceEvolutionChart.tsx`
-- `src/hooks/useAccountAnnual.ts`
+---
 
-Arquivos a editar:
-- `src/components/accounts/TransferModal.tsx` (novo layout + origem padrão + prop opcional `defaultFromAccountId`)
-- `src/components/accounts/AccountDetailDrawer.tsx` (passa a renderizar `AccountDetailView` dentro do Sheet largo)
-- `src/components/accounts/AccountsView.tsx` (passar `defaultFromAccountId` para `TransferModal` quando aberto a partir de uma conta)
-- `src/components/accounts/AccountCard.tsx` (mini linha de transferências do mês)
+## Fase 3 — Movimentos avançados + Aba Análise Anual completa
 
-Migration de manutenção (SQL):
-```sql
-SELECT public.recalculate_account_balance(id) FROM public.accounts WHERE active;
-```
+**Objetivo:** entregar tabela de movimentos no nível das transações + visão anual consolidada.
 
-Confirmações:
-- DRE/faturamento não somam `account_transfers` — nenhuma alteração necessária.
-- RLS já é pública nas tabelas envolvidas.
+### Mudanças
+1. **Aba "Movimentos" reforçada** (`AccountMovementsTable.tsx`):
+   - Tabela tipo planilha (similar à Lançamentos): data, tipo (entrada/saída/transferência), descrição, categoria, contraparte, valor, status.
+   - Filtros: período (hoje/semana/15d/mês/customizado), categoria (multi), tipo (multi).
+   - Busca textual (cmdk-style).
+   - Ordenação por coluna.
+   - Inclui transferências (linhas adicionais com ícone próprio).
+   - Export CSV.
 
-## 5. Checklist final
-1. Modal de transferência reformulado + Bancária padrão.
-2. Recalcular saldos (job único).
-3. Card da conta mostra transferências do mês.
-4. Drawer expandido para AccountDetailView com 5 abas.
-5. Gráfico anual por categoria funcional.
-6. Botões Transferir/Ajustar saldo no cabeçalho da conta.
-7. Smoke test: transferência R$ 100 BANCÁRIA→outra → ambos saldos atualizam, DRE inalterado.
+2. **Aba "Transferências" separada in/out** com totais e contrapartes mais frequentes.
+
+3. **Aba "Análise Anual" nova** (`AccountAnnualAnalysisTab.tsx`):
+   - KPIs anuais: total movimentado, recebido, gasto, transferido, crescimento %.
+   - Gráfico comparativo mês a mês (entradas vs saídas).
+   - Top 10 categorias do ano.
+   - Evolução de saldo ano completo (com início real).
+   - Comparativo com ano anterior (se houver dados).
+
+**Entrega:** painel analítico completo, leitura estratégica e operacional da conta.
+
+---
+
+## Detalhes técnicos
+
+### Arquivos novos
+- `src/components/accounts/AccountDetailPage.tsx` (Fase 1)
+- `src/components/accounts/AccountCategoryStackedChart.tsx` (Fase 2)
+- `src/components/accounts/AccountCategoryAnalysis.tsx` (Fase 2)
+- `src/components/accounts/AccountInsights.tsx` (Fase 2)
+- `src/components/accounts/AccountMovementsTable.tsx` (Fase 3)
+- `src/components/accounts/AccountAnnualAnalysisTab.tsx` (Fase 3)
+- `src/hooks/useAccountInsights.ts` (Fase 2)
+- `src/hooks/useAccountMovements.ts` (Fase 3, com paginação/filtros)
+
+### Arquivos editados
+- `src/pages/Index.tsx` — adicionar estado e roteamento para a página de detalhe.
+- `src/components/accounts/AccountsView.tsx` — `onClick` da `AccountCard` chama `onOpenDetail` em vez de drawer.
+- `src/hooks/useAccountAnnual.ts` — corrigir `endBalance` usando saldo de abertura do ano real.
+- `src/hooks/useAccountsSnapshot.ts` / `useAccountDetail.ts` — validar e ajustar cálculos.
+- `src/components/accounts/AccountBalanceEvolutionChart.tsx` — adicionar barras opcionais.
+
+### Arquivos depreciados
+- `src/components/accounts/AccountDetailDrawer.tsx` — manter por enquanto, remover após Fase 1 estabilizar.
+
+### Migrações
+- 1 migração na Fase 1: `SELECT recalculate_account_balance(id) FROM accounts WHERE active`. Sem alteração de schema.
+
+---
+
+## Resultado por fase
+
+| Fase | Tempo de UI | Ganho |
+|------|-------------|-------|
+| 1 | Página completa funcional, números corretos | Confiabilidade + UX |
+| 2 | Gráficos por categoria + insights automáticos | Estratégia |
+| 3 | Tabela detalhada + análise anual | Operação + decisão |
+
+Aprove para começar pela **Fase 1**.
