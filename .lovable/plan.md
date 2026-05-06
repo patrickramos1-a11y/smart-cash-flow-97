@@ -1,75 +1,157 @@
-# Auditoria do Drill-down Mensal da Conta
+## Dashboard Estratégico SISRamos — Plano de Implantação em Fases
 
-## Problema
+Transformar o Dashboard atual (resumo mensal + análise anual) em um **centro de decisão financeira** com 3 níveis: Visão Geral (executivo) → Análise (exploração) → Detalhamento (drill-down).
 
-Quando você abre **Despesas Variáveis › Fevereiro**, aparecem lançamentos como "Cabify R$ 158,18" vinculados a uma conta. Porém, ao abrir essa mesma conta na página **Contas › [conta] › Fevereiro**, esses valores não aparecem (ou aparecem diferentes).
-
-Investigando, encontrei **duas causas reais** e **um problema de UX** no recorte do mês.
-
-### Causa 1 — Critério de período diferente
-
-| Página | Como filtra o mês |
-|---|---|
-| Despesas Variáveis | `competencia_mes` + `competencia_ano` (regime de competência), considera **todos os status** e usa `valor` |
-| Resumo anual da conta (`useAccountAnnual`) | Apenas `status = 'PAGO'` filtrado por `data_pagamento` (regime de caixa) |
-| Drill-down do mês (`useAccountDetail`) | PAGO por `data_pagamento` **OU** demais status por `data_vencimento` — competência é ignorada |
-
-Resultado: uma despesa Cabify lançada em fev (competência) mas paga em mar (ou ainda em aberto com vencimento em mar) **some** do "Fevereiro" da conta.
-
-### Causa 2 — Lançamentos sem `account_id`
-
-A query da conta filtra `account_id = ?`. Se a despesa foi cadastrada sem conta vinculada (acontece em importações antigas), ela aparece em "Despesas Variáveis" mas não em conta nenhuma.
-
-### Causa 3 — Drill-down apertado
-
-O drill-down atual usa 4 colunas (Entradas / Saídas / Transf. recebidas / Transf. enviadas) lado a lado, o que comprime tudo. Você pediu um **recorte real da lista de transações**, filtrado por conta + mês, com a **descrição como coluna**.
+A implantação segue 4 fases, começando pelo que tem **maior valor e menor custo** (já temos hooks/dados prontos), evoluindo para inteligência e exploração.
 
 ---
 
-## O que vou fazer
-
-### 1. Unificar critério de período (regime de competência)
-
-Tornar o resumo anual e o drill-down da conta consistentes com as páginas de Despesas/Entradas:
-
-- `useAccountAnnual.ts`: passar a agrupar por **`competencia_ano`/`competencia_mes`** em vez de `data_pagamento`. Continuar somando `valor_pago ?? valor` (PAGO usa pago, demais usam previsto). Manter o cálculo de saldo de abertura por caixa (movimentos pagos antes de 01/jan), mas a coluna "Resultado/Saldo final" da tabela mensal vira **resultado de competência** com nota explicativa.
-- `useAccountDetail.ts`: filtrar transações do mês por **`competencia`** (1 critério único) e ainda separar internamente Pago / Em Aberto / Atrasado para badges.
-- Adicionar um **toggle "Competência ↔ Caixa"** acima da tabela anual da conta para quem quiser ver pelo regime de caixa (data de pagamento).
-
-### 2. Detectar lançamentos órfãos
-
-Em `useAccountAnnual` e nos KPIs da página de conta, adicionar um aviso se existirem transações no ano com `account_id IS NULL` que apareçam nas outras telas. Mostro um chip clicável "X lançamentos sem conta" que leva para a tela de reclassificação.
-
-### 3. Redesenhar o drill-down como lista filtrada real
-
-Substituir os 4 cards apertados de `AccountMonthDrillDown.tsx` por **uma tabela única** no padrão da `TransactionsList`, filtrada por aquela conta + aquele mês:
+### Estrutura final proposta
 
 ```text
-Data    Descrição                Categoria        C.Custo    Status   Tipo   Valor
-04/02   UBER - Cabify aeroporto  TRANSPORTE       Operacional PAGO    Saída  −R$ 158,18
-07/02   ...                       ...              ...         ...     ...    ...
+Dashboard
+├── [Aba] Executivo            ← Nível 1 (Fase 1)
+├── [Aba] Receita              ← Nível 2 (Fase 2)
+├── [Aba] Despesas             ← Nível 2 (Fase 2)
+├── [Aba] Clientes             ← Nível 2 (Fase 2)
+├── [Aba] Caixa & Contas       ← Nível 2 (Fase 2)
+├── [Aba] Projeção & Tendência ← Nível 3 (Fase 3)
+└── [Aba] Insights             ← Nível 4 (Fase 4)
 ```
 
-Características:
-- Colunas reais com `<table>`: Data, **Descrição (coluna larga, sem truncar agressivo)**, Categoria (com cor), Centro de custo, Status (badge), Tipo (Entrada/Saída/Transf), Valor.
-- Cabeçalho fixo com filtros rápidos: chips "Entradas | Saídas | Transferências | Todas", busca por descrição, e seletor de regime (Competência/Caixa).
-- Subtotais no rodapé: `Σ Entradas`, `Σ Saídas`, `Σ Transferências líq.`, `= Resultado do mês`.
-- Bloco de auditoria abaixo: compara a soma da lista com o total exibido na linha do mês da tabela anual; se divergir, mostra delta e link "ver lançamentos divergentes".
-- Botão "Abrir em Transações" que navega para a Hub de Transações já com filtros conta+mês aplicados.
-
-### 4. Garantir consistência visual
-
-- Mesmas cores semânticas (verde/vermelho) e mesmas badges de status já usadas em `TransactionsList`.
-- Linhas clicáveis abrindo o `TransactionEditModal` existente, igual à página de transações.
+Cada bloco usa o mesmo **Year Context** ativo do app (memória `Year-Based Operational Context`) e respeita as regras já consolidadas (DRE exclui Transferências/Investimentos, regime competência por padrão, semântica verde/vermelho).
 
 ---
 
-## Arquivos
+## FASE 1 — CORE EXECUTIVO (alto valor, baixo custo)
 
-**Modificados**
-- `src/hooks/useAccountAnnual.ts` — filtrar por `competencia` + suporte a modo `caixa`; expor lançamentos órfãos do ano.
-- `src/hooks/useAccountDetail.ts` — filtrar por competência, retornar transações com todos os campos necessários (cost_center, entity).
-- `src/components/accounts/AccountMonthDrillDown.tsx` — reescrever como tabela única com colunas reais e filtros.
-- `src/components/accounts/AccountAnnualAnalysis.tsx` — adicionar toggle Competência/Caixa, passar o modo para o hook e drill-down.
+**Objetivo:** painel de leitura rápida do negócio em uma tela.
 
-**Sem mudanças de banco.** Apenas leitura/agregação no frontend.
+Aba **"Executivo"** (substitui a "Visão Geral" atual, mantendo a "Análise Anual" como aba separada):
+
+1. **Hero KPIs (linha única, 4 cards grandes)** — ano corrente acumulado:
+   - Receita YTD · Despesa YTD · **Resultado Operacional YTD** · Saldo Total em Caixa
+   - Cada card mostra: valor, variação % vs mesmo período do ano anterior, mini-sparkline 12 meses.
+
+2. **Tira de KPIs secundários (8 mini-cards)**: Receita Recorrente %, MRR estimado (Σ contratos × SM ativo), Ticket Médio, Margem Operacional %, A Receber, A Pagar, Atrasados, Burn Rate mensal médio.
+
+3. **Gráfico mestre — Evolução Mensal (12 meses)**:
+   - Linhas: Receita, Despesa, Resultado.
+   - Sempre ano completo (jan→dez), sem pular meses (já corrigido).
+   - Toggle Competência/Caixa.
+   - Click no mês → navega para detalhamento mensal (reusa `AccountMonthDrillDown` patterns).
+
+4. **Split lado-a-lado**:
+   - Receita Recorrente vs Avulsa (donut + valor).
+   - Despesa Fixa vs Variável (donut + valor).
+
+5. **Alertas operacionais** (chips no topo):
+   - Contas negativas, atrasados >30d, queda de receita >20% MoM, contratos vencendo nos próximos 30d.
+
+**Custo técnico:** baixo. Reaproveita `useTransactionKPIs`, `useTransactions`, `useRecurringContracts`, `useAccounts`, `useDREReport`, `RevenueExpenseChart`, `RecurringVsPontualChart`.
+
+**Arquivos:**
+- `src/components/dashboard/Dashboard.tsx` (reorganizar abas)
+- `src/components/dashboard/executive/HeroKPIs.tsx` (novo)
+- `src/components/dashboard/executive/SecondaryKPIs.tsx` (novo)
+- `src/components/dashboard/executive/MasterEvolutionChart.tsx` (novo, baseado em `RevenueExpenseChart`)
+- `src/components/dashboard/executive/AlertsBar.tsx` (novo)
+- `src/hooks/useDashboardYTD.ts` (novo — agregador YTD + YoY)
+
+---
+
+## FASE 2 — CONTROLE (médio custo, alto valor)
+
+Quatro abas exploratórias. Cada uma tem KPIs próprios + gráficos + tabela com drill-down.
+
+### 2.1 Aba **Receita**
+- Receita por mês (barras empilhadas: Recorrente / Avulsa).
+- Top 10 clientes (já temos `ClientRankingChart`).
+- Ranking por categoria de entrada.
+- Concentração: % do faturamento dos top 3 clientes (risco de dependência).
+- Tabela: contratos ativos × SM × valor mensal × próximo vencimento.
+
+### 2.2 Aba **Despesas**
+- Despesa por mês (barras empilhadas por **Centro de Custo** ou **Categoria** — toggle).
+- Top categorias (Pareto 80/20).
+- Fixa vs Variável ao longo do ano.
+- Heatmap categoria × mês (identifica picos).
+- Tabela drill-down clicável → abre transações filtradas.
+
+### 2.3 Aba **Clientes**
+- Ranking por lucratividade (já existe, expandir).
+- Receita por cliente ao longo do ano (linhas múltiplas).
+- Clientes novos vs perdidos (entradas/saídas no período).
+- Curva ABC.
+
+### 2.4 Aba **Caixa & Contas**
+- Saldo total ao longo do ano (reusa `AccountsEvolutionChart`).
+- Distribuição por conta (já existe `AccountsDistributionPanel`).
+- Transferências planejadas vs executadas.
+- Projeção de saldo final do ano (reusa `useAccountForecast`).
+
+**Custo técnico:** médio. Maioria reaproveita componentes existentes; precisamos de novos hooks de agregação por categoria/centro de custo ao longo do ano.
+
+**Arquivos novos:**
+- `src/components/dashboard/revenue/RevenueTab.tsx`
+- `src/components/dashboard/expenses/ExpensesTab.tsx` (+ `CategoryHeatmap.tsx`, `ParetoChart.tsx`)
+- `src/components/dashboard/clients/ClientsTab.tsx`
+- `src/components/dashboard/cash/CashTab.tsx`
+- `src/hooks/useCategoryAnnualBreakdown.ts`
+- `src/hooks/useCostCenterAnnualBreakdown.ts`
+
+---
+
+## FASE 3 — INTELIGÊNCIA (médio/alto custo)
+
+Aba **"Projeção & Tendência"**:
+
+1. **Projeção vs Realizado** (mês a mês do ano corrente):
+   - Realizado (PAGO) · Previsto (EM_ABERTO + recorrências futuras) · Meta (opcional).
+2. **Comparativo YoY**: ano corrente vs ano anterior (linhas sobrepostas) para Receita, Despesa, Resultado.
+3. **Tendência (média móvel 3m)** com indicador de aceleração/desaceleração.
+4. **Cenários simples**: "se cortar X% das variáveis", "se perder cliente Y".
+5. **Forecast de saldo de caixa** até final do ano por conta + total.
+
+**Custo técnico:** médio-alto. Requer agregadores que cruzam transações realizadas + parcelas futuras de `recurring_installments` + `fixed_expenses` projetados.
+
+**Arquivos:**
+- `src/components/dashboard/forecast/ForecastTab.tsx`
+- `src/components/dashboard/forecast/YoYComparison.tsx`
+- `src/components/dashboard/forecast/ScenarioSimulator.tsx`
+- `src/hooks/useAnnualProjection.ts`
+
+---
+
+## FASE 4 — EXPLORAÇÃO & INSIGHTS (alto custo)
+
+Aba **"Insights"**:
+
+1. **Drill-down universal**: qualquer KPI/gráfico clicável navega para a lista de transações filtrada (descrição, categoria, conta, período).
+2. **Insights automáticos** (regras simples no client, sem IA):
+   - "Despesas com X cresceram 40% vs mês anterior."
+   - "Cliente Y representa 35% da receita — risco alto."
+   - "Conta Z ficará negativa em 18 dias no ritmo atual."
+3. **Comparativos multi-ano** (3 anos lado a lado).
+4. **Exportação** (CSV/PDF) de cada bloco.
+
+**Custo técnico:** alto. Requer engine de regras de insight + sistema de navegação cruzada padronizada entre módulos.
+
+**Arquivos:**
+- `src/components/dashboard/insights/InsightsTab.tsx`
+- `src/lib/dashboard/insightRules.ts`
+- `src/lib/dashboard/drillDownNavigator.ts`
+
+---
+
+## Decisões a confirmar antes da Fase 1
+
+1. **Indicadores Fiscais** (`FiscalIndicators`): manter na aba Executivo como tira reduzida, ou mover para subpágina dedicada (consistente com a recomendação de baixa prioridade)?
+2. **MRR / SM contratado**: exibir em R$ (multiplicado pelo SM ativo do ano) ou em "X SM"?
+3. **Aba "Análise Anual" atual**: absorvida pelo novo "Executivo" + "Receita/Despesas", ou mantida como compatibilidade?
+
+---
+
+## Entregável Fase 1 (próxima execução, após aprovação)
+
+Apenas a Fase 1 (Executivo) — entrega visível e funcional em uma única iteração. As Fases 2–4 serão planejadas e aprovadas individualmente conforme avançarmos.
