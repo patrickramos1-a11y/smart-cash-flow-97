@@ -75,6 +75,14 @@ export function AccountCard({ account, snapshot, onClick, onEdit }: Props) {
           <p className="text-sm font-semibold text-destructive">{fmt(saidas)}</p>
         </div>
       </div>
+      {(trIn > 0 || trOut > 0) && (
+        <div className="flex items-center justify-between text-[11px] text-muted-foreground -mt-1">
+          <span>Transferências</span>
+          <span className={cn('font-medium', trNet >= 0 ? 'text-primary' : 'text-destructive')}>
+            {trNet >= 0 ? '+' : ''}{fmt(trNet)}
+          </span>
+        </div>
+      )}
     </button>
   );
 }
