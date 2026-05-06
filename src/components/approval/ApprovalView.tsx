@@ -1640,6 +1640,40 @@ export function ApprovalView() {
         onClose={() => setEditingTx(null)}
         transaction={editingTx}
       />
+
+      {/* Confirm permanent deletion of rejected records */}
+      <Dialog open={confirmDeleteRejected} onOpenChange={setConfirmDeleteRejected}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <AlertTriangle className="w-5 h-5" />
+              Excluir definitivamente?
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p>
+              Você está prestes a excluir <strong>{selectedRejectedIds.size}</strong> registro(s) do
+              histórico de rejeições. Esta ação <strong>não pode ser desfeita</strong>.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Os lançamentos originais já foram removidos das transações ativas. Excluir aqui apaga
+              também o registro de auditoria.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteRejected(false)}>Cancelar</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteRejectedMutation.mutate(Array.from(selectedRejectedIds))}
+              disabled={deleteRejectedMutation.isPending}
+            >
+              {deleteRejectedMutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+              <Trash2 className="w-4 h-4 mr-1" />
+              Excluir definitivamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
