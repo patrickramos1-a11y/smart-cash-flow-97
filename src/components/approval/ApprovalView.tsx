@@ -108,6 +108,8 @@ export function ApprovalView() {
   const [rejectReason, setRejectReason] = useState('');
   const [rejectReasonsSelected, setRejectReasonsSelected] = useState<string[]>([]);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [selectedRejectedIds, setSelectedRejectedIds] = useState<Set<string>>(new Set());
+  const [confirmDeleteRejected, setConfirmDeleteRejected] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
