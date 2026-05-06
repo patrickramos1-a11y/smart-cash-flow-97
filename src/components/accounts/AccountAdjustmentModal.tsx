@@ -54,12 +54,12 @@ export function AccountAdjustmentModal({ open, onClose, account, currentBalance 
     try {
       const isEntrada = computedDelta > 0;
       const catName = isEntrada ? 'AJUSTE DE SALDO (+)' : 'AJUSTE DE SALDO (-)';
-      const { data: cat, error: catErr } = await supabase
-        .from('transaction_categories')
-        .select('id, cost_center_id')
-        .eq('name', catName)
-        .maybeSingle();
+      const [{ data: cat, error: catErr }, { data: ent, error: entErr }] = await Promise.all([
+        supabase.from('transaction_categories').select('id, cost_center_id').eq('name', catName).maybeSingle(),
+        supabase.from('financial_entities').select('id').eq('name', 'SISTEMA - AJUSTE').maybeSingle(),
+      ]);
       if (catErr || !cat) throw catErr || new Error('Categoria de ajuste não encontrada.');
+      if (entErr || !ent) throw entErr || new Error('Entidade SISTEMA - AJUSTE não encontrada.');
 
       const today = new Date();
       const ymd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -74,6 +74,7 @@ export function AccountAdjustmentModal({ open, onClose, account, currentBalance 
         account_id: account.id,
         transaction_category_id: cat.id,
         cost_center_id: cat.cost_center_id,
+        entity_id: ent.id,
         valor,
         valor_pago: valor,
         data_vencimento: ymd,
