@@ -1,108 +1,75 @@
-# Refatoração da Página de Contas
+# Auditoria do Drill-down Mensal da Conta
 
-Plano dividido em 5 frentes, podendo ser executadas numa única passagem.
+## Problema
 
-## 1. Cards de Conta Compactos (`AccountCard.tsx` + `AccountsView.tsx`)
+Quando você abre **Despesas Variáveis › Fevereiro**, aparecem lançamentos como "Cabify R$ 158,18" vinculados a uma conta. Porém, ao abrir essa mesma conta na página **Contas › [conta] › Fevereiro**, esses valores não aparecem (ou aparecem diferentes).
 
-Reduzir altura e aumentar densidade:
-- Header reduzido (ícone 7x7, fonte menor, banco como subtítulo discreto)
-- Saldo em destaque (text-xl em vez de 2xl)
-- Linha única de Entradas / Saídas (ícones + valor compacto)
-- Linha única de Transferências e Variação (badges pequenos)
-- Padding `p-3` em vez de `p-4`, gap reduzido
+Investigando, encontrei **duas causas reais** e **um problema de UX** no recorte do mês.
 
-Grid responsivo novo:
-```
-grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5
-```
+### Causa 1 — Critério de período diferente
 
-## 2. Barra de Controle (novo componente `AccountsToolbar.tsx`)
+| Página | Como filtra o mês |
+|---|---|
+| Despesas Variáveis | `competencia_mes` + `competencia_ano` (regime de competência), considera **todos os status** e usa `valor` |
+| Resumo anual da conta (`useAccountAnnual`) | Apenas `status = 'PAGO'` filtrado por `data_pagamento` (regime de caixa) |
+| Drill-down do mês (`useAccountDetail`) | PAGO por `data_pagamento` **OU** demais status por `data_vencimento` — competência é ignorada |
 
-Acima do grid, com:
-- **Busca**: input com filtro por nome/banco
-- **Ordenação** (Select): Saldo desc/asc, Nome A-Z, Maior movimentação
-- **Filtros** (chips toggle): Positivo / Negativo / Zerada / Com movimento / Sem movimento
-- **Agrupamento** (Select): Nenhum / Banco / Categoria
-- Quando agrupado, render por seções com header e subtotal
+Resultado: uma despesa Cabify lançada em fev (competência) mas paga em mar (ou ainda em aberto com vencimento em mar) **some** do "Fevereiro" da conta.
 
-Estado mantido em `AccountsView.tsx` (useState local), aplicado antes do render do grid.
+### Causa 2 — Lançamentos sem `account_id`
 
-## 3. Navegação Entre Contas (`AccountDetailPage.tsx`)
+A query da conta filtra `account_id = ?`. Se a despesa foi cadastrada sem conta vinculada (acontece em importações antigas), ela aparece em "Despesas Variáveis" mas não em conta nenhuma.
 
-No header da página adicionar:
-- Botão `← Anterior`
-- Dropdown central com lista de todas contas (busca incluída via `Command`)
-- Botão `Próxima →`
+### Causa 3 — Drill-down apertado
 
-Ordem definida pela mesma lista filtrada/ordenada da view principal (passar via prop ou recomputar).
+O drill-down atual usa 4 colunas (Entradas / Saídas / Transf. recebidas / Transf. enviadas) lado a lado, o que comprime tudo. Você pediu um **recorte real da lista de transações**, filtrado por conta + mês, com a **descrição como coluna**.
 
-## 4. Correção de Meses Faltantes (Jan/Fev)
+---
 
-Investigar e corrigir em:
-- `useAccountAnnual.ts`: garantir loop `for (let m = 1; m <= 12; m++)` populando array completo, mesmo sem dados
-- `AccountAnnualChart.tsx` / `AccountBalanceEvolutionChart.tsx`: usar array fixo de 12 meses como base
-- `AccountMovementsTable.tsx` (mensal): renderizar linha para todos os 12 meses do ano ativo
-- Verificar parse de datas (`YYYY-MM-DD` manual, conforme regra de memória) — `new Date(str)` causa drift de fuso
+## O que vou fazer
 
-Causa provável: filtro `>= startDate` usando primeiro dia do ano com timezone UTC empurrando jan p/ dez do ano anterior. Trocar por comparação string `competencia_ano = ano && competencia_mes = m`.
+### 1. Unificar critério de período (regime de competência)
 
-## 5. Validação de Saldo (`AccountInsights.tsx` ou novo `AccountBalanceAudit.tsx`)
+Tornar o resumo anual e o drill-down da conta consistentes com as páginas de Despesas/Entradas:
 
-Adicionar bloco de conferência:
-```
-Saldo Inicial         R$ X
-+ Entradas reais      R$ X
-− Saídas reais        R$ X
-+ Transferências IN   R$ X
-− Transferências OUT  R$ X
-─────────────────────
-= Saldo calculado     R$ X
-  Saldo registrado    R$ X   [✓ ou ⚠ divergência]
+- `useAccountAnnual.ts`: passar a agrupar por **`competencia_ano`/`competencia_mes`** em vez de `data_pagamento`. Continuar somando `valor_pago ?? valor` (PAGO usa pago, demais usam previsto). Manter o cálculo de saldo de abertura por caixa (movimentos pagos antes de 01/jan), mas a coluna "Resultado/Saldo final" da tabela mensal vira **resultado de competência** com nota explicativa.
+- `useAccountDetail.ts`: filtrar transações do mês por **`competencia`** (1 critério único) e ainda separar internamente Pago / Em Aberto / Atrasado para badges.
+- Adicionar um **toggle "Competência ↔ Caixa"** acima da tabela anual da conta para quem quiser ver pelo regime de caixa (data de pagamento).
+
+### 2. Detectar lançamentos órfãos
+
+Em `useAccountAnnual` e nos KPIs da página de conta, adicionar um aviso se existirem transações no ano com `account_id IS NULL` que apareçam nas outras telas. Mostro um chip clicável "X lançamentos sem conta" que leva para a tela de reclassificação.
+
+### 3. Redesenhar o drill-down como lista filtrada real
+
+Substituir os 4 cards apertados de `AccountMonthDrillDown.tsx` por **uma tabela única** no padrão da `TransactionsList`, filtrada por aquela conta + aquele mês:
+
+```text
+Data    Descrição                Categoria        C.Custo    Status   Tipo   Valor
+04/02   UBER - Cabify aeroporto  TRANSPORTE       Operacional PAGO    Saída  −R$ 158,18
+07/02   ...                       ...              ...         ...     ...    ...
 ```
 
-Garantir em todos os hooks que transferências NÃO entram em "entradas/saídas operacionais" — separar campos distintos (`entradas`, `saidas`, `transfIn`, `transfOut`).
+Características:
+- Colunas reais com `<table>`: Data, **Descrição (coluna larga, sem truncar agressivo)**, Categoria (com cor), Centro de custo, Status (badge), Tipo (Entrada/Saída/Transf), Valor.
+- Cabeçalho fixo com filtros rápidos: chips "Entradas | Saídas | Transferências | Todas", busca por descrição, e seletor de regime (Competência/Caixa).
+- Subtotais no rodapé: `Σ Entradas`, `Σ Saídas`, `Σ Transferências líq.`, `= Resultado do mês`.
+- Bloco de auditoria abaixo: compara a soma da lista com o total exibido na linha do mês da tabela anual; se divergir, mostra delta e link "ver lançamentos divergentes".
+- Botão "Abrir em Transações" que navega para a Hub de Transações já com filtros conta+mês aplicados.
 
-## 6. Tabela Mensal Melhorada (`AccountMovementsTable.tsx` modo mensal)
+### 4. Garantir consistência visual
 
-Colunas: Mês | Entradas | Saídas | Transf. Líq. | Resultado | Saldo Final
-- Verde/vermelho semântico
-- Destaque (badge) para maior entrada e maior saída do ano
-- Linha clicável → expande/filtra movimentos daquele mês
+- Mesmas cores semânticas (verde/vermelho) e mesmas badges de status já usadas em `TransactionsList`.
+- Linhas clicáveis abrindo o `TransactionEditModal` existente, igual à página de transações.
 
-## 7. Gráficos (`AccountAnnualChart.tsx`, `AccountCategoryStackedChart.tsx`)
+---
 
-- Eixo X sempre Jan→Dez fixo
-- Toggle Entradas/Saídas no chart de categorias (já parcialmente existe — revisar)
-- Stacked bars por categoria
+## Arquivos
 
-## 8. UX Geral
+**Modificados**
+- `src/hooks/useAccountAnnual.ts` — filtrar por `competencia` + suporte a modo `caixa`; expor lançamentos órfãos do ano.
+- `src/hooks/useAccountDetail.ts` — filtrar por competência, retornar transações com todos os campos necessários (cost_center, entity).
+- `src/components/accounts/AccountMonthDrillDown.tsx` — reescrever como tabela única com colunas reais e filtros.
+- `src/components/accounts/AccountAnnualAnalysis.tsx` — adicionar toggle Competência/Caixa, passar o modo para o hook e drill-down.
 
-- Cores das contas vindas de `account.category.color` consistente em card, header detail e chart
-- Ícone por tipo (banco vs reserva vs operacional) usando `category.name` ou novo campo
-- Contraste: saldo negativo sempre `text-destructive font-bold`
-
-## Arquivos Afetados
-
-Editar:
-- `src/components/accounts/AccountCard.tsx` (compactar)
-- `src/components/accounts/AccountsView.tsx` (toolbar + filtros + grid novo)
-- `src/components/accounts/AccountDetailPage.tsx` (navegação)
-- `src/components/accounts/AccountMovementsTable.tsx` (12 meses + colunas)
-- `src/components/accounts/AccountAnnualChart.tsx` (eixo fixo)
-- `src/components/accounts/AccountBalanceEvolutionChart.tsx` (eixo fixo)
-- `src/components/accounts/AccountInsights.tsx` (auditoria de saldo)
-- `src/hooks/useAccountAnnual.ts` (12 meses garantidos + parse seguro)
-- `src/hooks/useAccountsSnapshot.ts` (separar transferências de entradas/saídas)
-
-Criar:
-- `src/components/accounts/AccountsToolbar.tsx`
-- `src/components/accounts/AccountSwitcher.tsx` (dropdown de navegação)
-
-## Critérios de Aceite
-
-1. Em desktop 1208px aparecem 4 cards por linha
-2. Toolbar permite ordenar/filtrar/agrupar/buscar com resposta instantânea
-3. Em qualquer conta, gráfico anual mostra Jan a Dez sem buracos
-4. Bloco de auditoria mostra saldo calculado = saldo registrado (ou marca divergência)
-5. Transferências nunca somam em entradas/saídas operacionais
-6. Navegação ←/→ e dropdown funcionam na página de detalhe
+**Sem mudanças de banco.** Apenas leitura/agregação no frontend.
