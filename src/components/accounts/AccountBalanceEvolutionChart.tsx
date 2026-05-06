@@ -80,7 +80,14 @@ export function AccountBalanceEvolutionChart({ accountId, year }: Props) {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+            <XAxis
+              dataKey="month"
+              stroke="hsl(var(--muted-foreground))"
+              fontSize={11}
+              interval={0}
+              ticks={MONTHS}
+              minTickGap={0}
+            />
             <YAxis
               stroke="hsl(var(--muted-foreground))"
               fontSize={11}
