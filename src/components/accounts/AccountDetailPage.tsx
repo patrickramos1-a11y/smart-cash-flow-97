@@ -25,6 +25,9 @@ import { TransferModal } from './TransferModal';
 import { MonthYearNavigator } from '@/components/ui/month-year-navigator';
 import { AccountAnnualChart } from './AccountAnnualChart';
 import { AccountBalanceEvolutionChart } from './AccountBalanceEvolutionChart';
+import { AccountCategoryStackedChart } from './AccountCategoryStackedChart';
+import { AccountCategoryAnalysis } from './AccountCategoryAnalysis';
+import { AccountInsights } from './AccountInsights';
 
 interface Props {
   accountId: string;
@@ -246,29 +249,15 @@ export function AccountDetailPage({ accountId, onBack }: Props) {
             <h3 className="text-sm font-semibold mb-2">Evolução do saldo · {year}</h3>
             <AccountBalanceEvolutionChart accountId={accountId} year={year} />
             <p className="text-[10px] text-muted-foreground mt-1">
-              Estimativa relativa ao saldo inicial da conta + movimentações pagas e transferências do ano.
+              Saldo do início do ano + movimentações pagas e transferências, mês a mês.
             </p>
           </div>
-          <div className="rounded-lg border border-border p-3 space-y-2">
-            <h3 className="text-sm font-semibold">Top categorias do período</h3>
-            {isLoading ? (
-              <Skeleton className="h-24 w-full" />
-            ) : data?.byCategory.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">Sem dados.</p>
-            ) : (
-              data?.byCategory.slice(0, 5).map((c) => (
-                <div key={c.id} className="flex items-center gap-2 text-sm">
-                  <span className="w-2.5 h-2.5 rounded-sm" style={{ background: c.color }} />
-                  <span className="flex-1 truncate">{c.name}</span>
-                  <span
-                    className={cn('font-semibold', c.total >= 0 ? 'text-primary' : 'text-destructive')}
-                  >
-                    {c.total >= 0 ? '+' : '−'} {fmt(Math.abs(c.total))}
-                  </span>
-                </div>
-              ))
-            )}
+
+          <div className="rounded-lg border border-border p-3">
+            <AccountCategoryStackedChart accountId={accountId} year={year} />
           </div>
+
+          <AccountInsights accountId={accountId} year={year} />
         </TabsContent>
 
         {/* MOVIMENTOS */}
@@ -358,24 +347,11 @@ export function AccountDetailPage({ accountId, onBack }: Props) {
         </TabsContent>
 
         {/* CATEGORIAS */}
-        <TabsContent value="categorias" className="mt-3 space-y-2">
-          {isLoading ? (
-            <Skeleton className="h-40 w-full" />
-          ) : data?.byCategory.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">Sem dados no período.</p>
-          ) : (
-            data?.byCategory.map((c) => (
-              <div key={c.id} className="flex items-center gap-2 text-sm">
-                <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: c.color }} />
-                <span className="flex-1 truncate">{c.name}</span>
-                <span
-                  className={cn('font-semibold', c.total >= 0 ? 'text-primary' : 'text-destructive')}
-                >
-                  {c.total >= 0 ? '+' : '−'} {fmt(Math.abs(c.total))}
-                </span>
-              </div>
-            ))
-          )}
+        <TabsContent value="categorias" className="mt-3 space-y-3">
+          <div className="rounded-lg border border-border p-3">
+            <h3 className="text-sm font-semibold mb-2">Análise por categoria · {year}</h3>
+            <AccountCategoryAnalysis accountId={accountId} year={year} />
+          </div>
         </TabsContent>
 
         {/* ANUAL */}
