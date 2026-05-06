@@ -120,7 +120,7 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
     }
   }, [transaction, open]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (approveAfter: boolean = false) => {
     if (!transaction) return;
     
     const parsedValor = parseBRLToNumber(valor) ?? 0;
