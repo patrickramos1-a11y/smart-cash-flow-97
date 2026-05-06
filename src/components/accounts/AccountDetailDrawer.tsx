@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, AlertTriangle, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Account } from '@/hooks/useFinancialConfig';
 import type { AccountSnapshot } from '@/hooks/useAccountsSnapshot';
 import { useAccountDetail } from '@/hooks/useAccountDetail';
+import { AccountAdjustmentModal } from './AccountAdjustmentModal';
 
 interface Props {
   open: boolean;
@@ -30,6 +33,7 @@ const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', '
 export function AccountDetailDrawer({ open, onClose, account, snapshot, year, month }: Props) {
   const { data, isLoading } = useAccountDetail(account?.id || null, year, month);
 
+  const [adjustOpen, setAdjustOpen] = useState(false);
   if (!account) return null;
   const periodLabel = `${MONTHS[month - 1]}/${year}`;
   const saldoFim = snapshot?.saldo_fim_mes ?? Number(account.current_balance) ?? 0;
