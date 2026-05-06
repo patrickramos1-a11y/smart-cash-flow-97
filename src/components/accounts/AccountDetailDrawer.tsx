@@ -222,6 +222,12 @@ export function AccountDetailDrawer({ open, onClose, account, snapshot, year, mo
           </TabsContent>
         </Tabs>
       </SheetContent>
+      <AccountAdjustmentModal
+        open={adjustOpen}
+        onClose={() => setAdjustOpen(false)}
+        account={account}
+        currentBalance={saldoFim}
+      />
     </Sheet>
   );
 }
