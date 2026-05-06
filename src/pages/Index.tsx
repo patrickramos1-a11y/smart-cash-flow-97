@@ -108,7 +108,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Sidebar 
         activeTab={activeTab} 
-        onTabChange={setActiveTab} 
+        onTabChange={handleTabChange} 
         mobileOpen={mobileMenuOpen}
         setMobileOpen={setMobileMenuOpen}
       />
@@ -128,7 +128,7 @@ const Index = () => {
 
       <MobileBottomNav 
         activeTab={activeTab} 
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         onMenuOpen={() => setMobileMenuOpen(true)}
       />
     </div>
