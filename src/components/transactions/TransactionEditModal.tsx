@@ -276,12 +276,12 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
       await queryClient.refetchQueries({ queryKey: ['approval-transactions'], type: 'active' });
       await queryClient.refetchQueries({ queryKey: ['transactions'], type: 'active' });
 
-      const msg = scope === 'all' && isRecurring
+      const baseMsg = scope === 'all' && isRecurring
         ? 'Lançamento atualizado em TODAS as parcelas (passadas e futuras).'
         : scope === 'future' && isRecurring
         ? 'Lançamento atualizado neste e em todos os próximos.'
         : 'Lançamento atualizado com sucesso.';
-      toast.success(msg);
+      toast.success(approveAfter && role === 'admin' ? `${baseMsg} Aprovado.` : baseMsg);
       onClose();
     } catch (error: any) {
       console.error('Error updating transaction:', error);
