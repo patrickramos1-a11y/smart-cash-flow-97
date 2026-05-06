@@ -190,7 +190,7 @@ export function useGenerateFixedExpenseTransactions() {
             valor: e.valor,
             data_vencimento: dueDate.toISOString().split('T')[0],
             status: 'EM_ABERTO' as const,
-            descricao: `${e.nome} - ${month.toString().padStart(2, '0')}/${year}`,
+            descricao: e.nome,
             transaction_category_id: e.transaction_category_id,
             cost_center_id: resolvedCostCenterId,
             account_id: resolvedAccountId,
