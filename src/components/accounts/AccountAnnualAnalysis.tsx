@@ -265,7 +265,7 @@ export function AccountAnnualAnalysis({ accountId, year }: Props) {
               const hasMovement =
                 m.totalIn || m.totalOut || m.transferIn || m.transferOut;
               return (
-                <>
+                <Fragment key={m.month}>
                   <tr
                     key={m.month}
                     className={cn(
