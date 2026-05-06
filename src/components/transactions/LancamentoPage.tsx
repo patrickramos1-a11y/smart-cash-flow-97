@@ -6,46 +6,27 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
-  Plus, Loader2, ArrowDownCircle, ArrowUpCircle,
+  Loader2, ArrowDownCircle, ArrowUpCircle,
   Clock, CheckCircle2, XCircle, FileText, Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/data/mockData';
-import { NewTransactionWizard } from './NewTransactionWizard';
+import { NewFixedExpenseModal } from './NewFixedExpenseModal';
+import { NewRecurringContractModal } from '@/components/contracts/NewRecurringContractModal';
 import { TransactionEditModal } from './TransactionEditModal';
+import { MonthYearNavigator } from '@/components/ui/month-year-navigator';
+import { InlineLancamentoForm } from './InlineLancamentoForm';
 import type { TransactionWithClient } from '@/hooks/useTransactions';
 
-type QuickFilter =
-  | 'all'
-  | 'today'
-  | 'week'
-  | 'month'
-  | 'pending'
-  | 'approved'
-  | 'rejected';
+type QuickFilter = 'all' | 'pending' | 'approved' | 'rejected';
 
 const FILTER_LABELS: Record<QuickFilter, string> = {
   all: 'Tudo',
-  today: 'Hoje',
-  week: 'Esta semana',
-  month: 'Este mês',
   pending: 'Pendentes',
   approved: 'Aprovadas',
   rejected: 'Não aprovadas',
 };
-
-function startOfToday() {
-  const d = new Date(); d.setHours(0, 0, 0, 0); return d;
-}
-function startOfWeek() {
-  const d = startOfToday();
-  d.setDate(d.getDate() - d.getDay());
-  return d;
-}
-function startOfMonth() {
-  const d = startOfToday(); d.setDate(1); return d;
-}
 
 function fmtDate(s: string | null) {
   if (!s) return '—';
@@ -61,7 +42,10 @@ function fmtDateTime(s: string) {
 export function LancamentoPage() {
   const { isFinanceiro, user } = useAuth();
   const queryClient = useQueryClient();
-  const [showWizard, setShowWizard] = useState(false);
+  const now = new Date();
+  const [periodMonth, setPeriodMonth] = useState(now.getMonth() + 1);
+  const [periodYear, setPeriodYear] = useState(now.getFullYear());
+  const [dedicatedModal, setDedicatedModal] = useState<null | 'recurring' | 'fixa'>(null);
   const [filter, setFilter] = useState<QuickFilter>('all');
   const [editTx, setEditTx] = useState<TransactionWithClient | null>(null);
   const [limit, setLimit] = useState(50);
@@ -103,7 +87,7 @@ export function LancamentoPage() {
   });
 
   const { data: items, isLoading } = useQuery({
-    queryKey: ['recent-launches', isFinanceiro ? user?.id : 'all', limit],
+    queryKey: ['recent-launches', isFinanceiro ? user?.id : 'all', limit, periodMonth, periodYear],
     queryFn: async () => {
       let q = supabase
         .from('transactions')
@@ -114,6 +98,8 @@ export function LancamentoPage() {
           accounts!transactions_account_id_fkey ( id, name ),
           cost_centers!transactions_cost_center_id_fkey ( id, name )
         `)
+        .eq('competencia_mes', periodMonth)
+        .eq('competencia_ano', periodYear)
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -152,14 +138,7 @@ export function LancamentoPage() {
 
   const filtered = useMemo(() => {
     const list = items || [];
-    const today = startOfToday();
-    const week = startOfWeek();
-    const month = startOfMonth();
     return list.filter((t: any) => {
-      const created = new Date(t.created_at);
-      if (filter === 'today' && created < today) return false;
-      if (filter === 'week' && created < week) return false;
-      if (filter === 'month' && created < month) return false;
       if (filter === 'pending' && t.approval_status !== 'pendente') return false;
       if (filter === 'approved' && t.approval_status !== 'aprovado') return false;
       if (filter === 'rejected' && t.approval_status !== 'rejeitado') return false;
@@ -169,28 +148,32 @@ export function LancamentoPage() {
 
   return (
     <div className="space-y-6">
-      {/* Hero card */}
-      <Card className="border-2 border-dashed border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
-        <CardContent className="p-6 lg:p-8 flex flex-col items-center text-center gap-3">
-          <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shadow-lg">
-            <Plus className="w-7 h-7 text-white" />
-          </div>
-          <div>
-            <h2 className="text-xl lg:text-2xl font-bold">Novo Lançamento</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Registre uma entrada ou despesa. O sistema identifica o tipo pela categoria.
-            </p>
-          </div>
-          <Button size="lg" className="gap-2 mt-2" onClick={() => setShowWizard(true)}>
-            <Plus className="w-4 h-4" /> Criar lançamento
-          </Button>
-          {isFinanceiro && (
-            <p className="text-xs text-muted-foreground mt-1 max-w-md">
-              Lançamentos criados por você ficam <strong>pendentes de aprovação</strong> até serem revisados pelo administrador.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {/* Period selector */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold">Lançamentos</h1>
+          <p className="text-xs text-muted-foreground">Caixa de lançamento financeiro — rápido e direto.</p>
+        </div>
+        <MonthYearNavigator
+          month={periodMonth}
+          year={periodYear}
+          onMonthChange={setPeriodMonth}
+          onYearChange={setPeriodYear}
+        />
+      </div>
+
+      {/* Inline form (replaces the modal-based hero) */}
+      <InlineLancamentoForm
+        defaultMonth={periodMonth}
+        defaultYear={periodYear}
+        onNeedsDedicatedFlow={(k) => setDedicatedModal(k)}
+        onCreated={() => queryClient.invalidateQueries({ queryKey: ['recent-launches'] })}
+      />
+      {isFinanceiro && (
+        <p className="text-xs text-muted-foreground -mt-3 px-1">
+          Lançamentos criados por você ficam <strong>pendentes de aprovação</strong> até serem revisados pelo administrador.
+        </p>
+      )}
 
       {/* Rejected entries — relaunch + dismiss workflow */}
       {(rejectedMine?.length || 0) > 0 && (
@@ -407,7 +390,21 @@ export function LancamentoPage() {
         )}
       </div>
 
-      <NewTransactionWizard open={showWizard} onClose={() => setShowWizard(false)} />
+      {dedicatedModal === 'recurring' && (
+        <NewRecurringContractModal
+          open
+          onClose={() => setDedicatedModal(null)}
+          defaultYear={periodYear}
+        />
+      )}
+      {dedicatedModal === 'fixa' && (
+        <NewFixedExpenseModal
+          open
+          onClose={() => setDedicatedModal(null)}
+          defaultMonth={periodMonth}
+          defaultYear={periodYear}
+        />
+      )}
       <TransactionEditModal
         open={!!editTx}
         onClose={() => setEditTx(null)}
