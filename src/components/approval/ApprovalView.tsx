@@ -15,7 +15,7 @@ import {
   CheckCircle, XCircle, Clock, Search, AlertTriangle,
   ArrowDownCircle, ArrowUpCircle, Loader2, Eye, Filter,
   CheckCheck, ArrowUpDown, ChevronUp, ChevronDown, Pencil,
-  Layers, Wand2, RotateCcw,
+  Layers, Wand2, RotateCcw, Trash2,
 } from 'lucide-react';
 import { formatCurrency } from '@/data/mockData';
 import { cn } from '@/lib/utils';
