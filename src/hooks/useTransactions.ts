@@ -82,6 +82,12 @@ export interface TransactionFilters {
   competencia_mes?: number;
   competencia_ano?: number;
   search?: string;
+  /** Filtra por approval_status (pendente/aprovado/rejeitado) */
+  approval_status?: 'pendente' | 'aprovado' | 'rejeitado';
+  /** Filtra transações criadas em ou após esta data (ISO yyyy-mm-dd) */
+  created_after?: string;
+  /** Restringe à criação do usuário informado (ex.: financeiro vendo apenas seus lançamentos) */
+  created_by?: string;
 }
 
 export interface TransactionKPIs {
@@ -171,6 +177,15 @@ export function useTransactions(filters: TransactionFilters = {}) {
       }
       if (filters.competencia_ano) {
         query = query.eq('competencia_ano', filters.competencia_ano);
+      }
+      if (filters.approval_status) {
+        query = query.eq('approval_status', filters.approval_status);
+      }
+      if (filters.created_after) {
+        query = query.gte('created_at', filters.created_after);
+      }
+      if (filters.created_by) {
+        query = query.eq('created_by', filters.created_by);
       }
 
       const { data, error } = await query;
