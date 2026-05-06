@@ -55,6 +55,7 @@ export function AccountMovementsTable({ accountId, year, month }: Props) {
   const [category, setCategory] = useState<string>('all');
   const [sortKey, setSortKey] = useState<SortKey>('date');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [convertTx, setConvertTx] = useState<AccountTx | null>(null);
 
   const all = useMemo<AccountTx[]>(
     () => [...(data?.paid || []), ...(data?.open || [])],
