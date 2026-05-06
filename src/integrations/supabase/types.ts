@@ -63,6 +63,7 @@ export type Database = {
           from_account_id: string
           id: string
           notes: string | null
+          planned_occurrence_id: string | null
           to_account_id: string
           transfer_date: string
           updated_at: string
@@ -74,6 +75,7 @@ export type Database = {
           from_account_id: string
           id?: string
           notes?: string | null
+          planned_occurrence_id?: string | null
           to_account_id: string
           transfer_date?: string
           updated_at?: string
@@ -85,6 +87,7 @@ export type Database = {
           from_account_id?: string
           id?: string
           notes?: string | null
+          planned_occurrence_id?: string | null
           to_account_id?: string
           transfer_date?: string
           updated_at?: string
@@ -102,6 +105,13 @@ export type Database = {
             columns: ["from_account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_transfers_planned_occurrence_id_fkey"
+            columns: ["planned_occurrence_id"]
+            isOneToOne: false
+            referencedRelation: "planned_transfer_occurrences"
             referencedColumns: ["id"]
           },
           {
@@ -968,6 +978,110 @@ export type Database = {
           },
         ]
       }
+      planned_transfer_occurrences: {
+        Row: {
+          created_at: string
+          executed_at: string | null
+          executed_by: string | null
+          executed_transfer_id: string | null
+          expected_amount: number
+          id: string
+          notes: string | null
+          planned_transfer_id: string
+          scheduled_date: string
+          status: Database["public"]["Enums"]["planned_occurrence_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          executed_at?: string | null
+          executed_by?: string | null
+          executed_transfer_id?: string | null
+          expected_amount: number
+          id?: string
+          notes?: string | null
+          planned_transfer_id: string
+          scheduled_date: string
+          status?: Database["public"]["Enums"]["planned_occurrence_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          executed_at?: string | null
+          executed_by?: string | null
+          executed_transfer_id?: string | null
+          expected_amount?: number
+          id?: string
+          notes?: string | null
+          planned_transfer_id?: string
+          scheduled_date?: string
+          status?: Database["public"]["Enums"]["planned_occurrence_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planned_transfer_occurrences_planned_transfer_id_fkey"
+            columns: ["planned_transfer_id"]
+            isOneToOne: false
+            referencedRelation: "planned_transfers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      planned_transfers: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_day: number | null
+          end_date: string | null
+          frequency: Database["public"]["Enums"]["planned_transfer_frequency"]
+          from_account_id: string
+          id: string
+          interval_days: number | null
+          notes: string | null
+          start_date: string
+          status: Database["public"]["Enums"]["planned_transfer_status"]
+          to_account_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_day?: number | null
+          end_date?: string | null
+          frequency?: Database["public"]["Enums"]["planned_transfer_frequency"]
+          from_account_id: string
+          id?: string
+          interval_days?: number | null
+          notes?: string | null
+          start_date?: string
+          status?: Database["public"]["Enums"]["planned_transfer_status"]
+          to_account_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_day?: number | null
+          end_date?: string | null
+          frequency?: Database["public"]["Enums"]["planned_transfer_frequency"]
+          from_account_id?: string
+          id?: string
+          interval_days?: number | null
+          notes?: string | null
+          start_date?: string
+          status?: Database["public"]["Enums"]["planned_transfer_status"]
+          to_account_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1531,6 +1645,7 @@ export type Database = {
           notes: string | null
           origem: Database["public"]["Enums"]["transaction_origem"]
           origem_receita: string | null
+          planned_transfer_occurrence_id: string | null
           rejection_reason: string | null
           responsavel_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
@@ -1570,6 +1685,7 @@ export type Database = {
           notes?: string | null
           origem: Database["public"]["Enums"]["transaction_origem"]
           origem_receita?: string | null
+          planned_transfer_occurrence_id?: string | null
           rejection_reason?: string | null
           responsavel_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
@@ -1609,6 +1725,7 @@ export type Database = {
           notes?: string | null
           origem?: Database["public"]["Enums"]["transaction_origem"]
           origem_receita?: string | null
+          planned_transfer_occurrence_id?: string | null
           rejection_reason?: string | null
           responsavel_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
@@ -1675,6 +1792,13 @@ export type Database = {
             columns: ["installment_id"]
             isOneToOne: false
             referencedRelation: "recurring_installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_planned_transfer_occurrence_id_fkey"
+            columns: ["planned_transfer_occurrence_id"]
+            isOneToOne: false
+            referencedRelation: "planned_transfer_occurrences"
             referencedColumns: ["id"]
           },
           {
@@ -1871,6 +1995,19 @@ export type Database = {
         }
         Returns: number
       }
+      execute_planned_occurrence: {
+        Args: {
+          p_amount?: number
+          p_occurrence_id: string
+          p_real_date?: string
+          p_user?: string
+        }
+        Returns: string
+      }
+      generate_planned_transfer_occurrences: {
+        Args: { p_planned_id: string }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1929,6 +2066,20 @@ export type Database = {
       documento_tipo: "NF" | "RECIBO" | "NOTA_DEBITO" | "SEM_DOCUMENTO"
       expense_category_type: "FIXA" | "VARIAVEL" | "IMPOSTO"
       history_evento: "CRIADO" | "MARCADO_PAGO" | "ESTORNADO" | "ALTERADO"
+      planned_occurrence_status:
+        | "PLANEJADA"
+        | "EXECUTADA"
+        | "ATRASADA"
+        | "CANCELADA"
+      planned_transfer_frequency:
+        | "AVULSA"
+        | "SEMANAL"
+        | "QUINZENAL"
+        | "MENSAL"
+        | "TRIMESTRAL"
+        | "ANUAL"
+        | "CUSTOM"
+      planned_transfer_status: "ATIVO" | "PAUSADO" | "ENCERRADO"
       transaction_natureza: "RECORRENTE" | "AVULSA"
       transaction_origem:
         | "CONTRATO_RECORRENTE"
@@ -2113,6 +2264,22 @@ export const Constants = {
       documento_tipo: ["NF", "RECIBO", "NOTA_DEBITO", "SEM_DOCUMENTO"],
       expense_category_type: ["FIXA", "VARIAVEL", "IMPOSTO"],
       history_evento: ["CRIADO", "MARCADO_PAGO", "ESTORNADO", "ALTERADO"],
+      planned_occurrence_status: [
+        "PLANEJADA",
+        "EXECUTADA",
+        "ATRASADA",
+        "CANCELADA",
+      ],
+      planned_transfer_frequency: [
+        "AVULSA",
+        "SEMANAL",
+        "QUINZENAL",
+        "MENSAL",
+        "TRIMESTRAL",
+        "ANUAL",
+        "CUSTOM",
+      ],
+      planned_transfer_status: ["ATIVO", "PAUSADO", "ENCERRADO"],
       transaction_natureza: ["RECORRENTE", "AVULSA"],
       transaction_origem: [
         "CONTRATO_RECORRENTE",
