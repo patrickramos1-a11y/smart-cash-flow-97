@@ -14,6 +14,8 @@ import { NewTransactionWizard } from './NewTransactionWizard';
 import { TransactionAnalytics } from './TransactionAnalytics';
 import { TransactionsAnnualChart } from './TransactionsAnnualChart';
 import { useTransactionKPIs, useTransactions } from '@/hooks/useTransactions';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/data/mockData';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/hooks/useAuth';
