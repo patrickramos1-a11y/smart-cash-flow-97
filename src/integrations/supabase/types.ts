@@ -1862,6 +1862,15 @@ export type Database = {
         Args: { p_ids: string[]; p_reason: string; p_rejected_by: string }
         Returns: number
       }
+      bulk_quitar_periodo: {
+        Args: {
+          p_month_from: number
+          p_month_to: number
+          p_year_from: number
+          p_year_to: number
+        }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
