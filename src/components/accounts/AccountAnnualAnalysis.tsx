@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useAccountAnnual } from '@/hooks/useAccountAnnual';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -9,9 +9,11 @@ import {
   TrendingUp,
   TrendingDown,
   Wallet,
+  ChevronRight,
 } from 'lucide-react';
 import { AccountAnnualChart } from './AccountAnnualChart';
 import { AccountBalanceEvolutionChart } from './AccountBalanceEvolutionChart';
+import { AccountMonthDrillDown } from './AccountMonthDrillDown';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -57,6 +59,7 @@ function KPI({
 
 export function AccountAnnualAnalysis({ accountId, year }: Props) {
   const { data, isLoading } = useAccountAnnual(accountId, year);
+  const [expanded, setExpanded] = useState<number | null>(null);
 
   const insights = useMemo(() => {
     if (!data) return null;
@@ -240,11 +243,12 @@ export function AccountAnnualAnalysis({ accountId, year }: Props) {
         </div>
       </div>
 
-      {/* Monthly summary table */}
+      {/* Monthly summary table com drill-down */}
       <div className="rounded-lg border border-border overflow-x-auto">
         <table className="w-full text-xs">
           <thead className="bg-muted/40">
             <tr className="text-left">
+              <th className="p-2 font-medium w-8"></th>
               <th className="p-2 font-medium">Mês</th>
               <th className="p-2 font-medium text-right">Entradas</th>
               <th className="p-2 font-medium text-right">Saídas</th>
@@ -257,35 +261,74 @@ export function AccountAnnualAnalysis({ accountId, year }: Props) {
             {data.months.map((m) => {
               const transfNet = m.transferIn - m.transferOut;
               const result = m.totalIn - m.totalOut + transfNet;
+              const isOpen = expanded === m.month;
+              const hasMovement =
+                m.totalIn || m.totalOut || m.transferIn || m.transferOut;
               return (
-                <tr key={m.month} className="border-t border-border/50">
-                  <td className="p-2 font-medium">{MONTHS[m.month - 1]}</td>
-                  <td className="p-2 text-right text-primary">{fmt(m.totalIn)}</td>
-                  <td className="p-2 text-right text-destructive">−{fmt(m.totalOut)}</td>
-                  <td
+                <Fragment key={m.month}>
+                  <tr
+                    key={m.month}
                     className={cn(
-                      'p-2 text-right',
-                      transfNet > 0
-                        ? 'text-primary'
-                        : transfNet < 0
-                          ? 'text-destructive'
-                          : 'text-muted-foreground',
+                      'border-t border-border/50 cursor-pointer hover:bg-muted/30 transition-colors',
+                      isOpen && 'bg-muted/40',
                     )}
+                    onClick={() => setExpanded(isOpen ? null : m.month)}
                   >
-                    {transfNet >= 0 ? '+' : ''}
-                    {fmt(transfNet)}
-                  </td>
-                  <td
-                    className={cn(
-                      'p-2 text-right font-semibold',
-                      result >= 0 ? 'text-primary' : 'text-destructive',
-                    )}
-                  >
-                    {result >= 0 ? '+' : ''}
-                    {fmt(result)}
-                  </td>
-                  <td className="p-2 text-right font-mono">{fmt(m.endBalance)}</td>
-                </tr>
+                    <td className="p-2 text-muted-foreground">
+                      <ChevronRight
+                        className={cn(
+                          'w-3.5 h-3.5 transition-transform',
+                          isOpen && 'rotate-90',
+                          !hasMovement && 'opacity-30',
+                        )}
+                      />
+                    </td>
+                    <td className="p-2 font-medium">{MONTHS[m.month - 1]}</td>
+                    <td className="p-2 text-right text-primary">{fmt(m.totalIn)}</td>
+                    <td className="p-2 text-right text-destructive">−{fmt(m.totalOut)}</td>
+                    <td
+                      className={cn(
+                        'p-2 text-right',
+                        transfNet > 0
+                          ? 'text-primary'
+                          : transfNet < 0
+                            ? 'text-destructive'
+                            : 'text-muted-foreground',
+                      )}
+                    >
+                      {transfNet >= 0 ? '+' : ''}
+                      {fmt(transfNet)}
+                    </td>
+                    <td
+                      className={cn(
+                        'p-2 text-right font-semibold',
+                        result >= 0 ? 'text-primary' : 'text-destructive',
+                      )}
+                    >
+                      {result >= 0 ? '+' : ''}
+                      {fmt(result)}
+                    </td>
+                    <td className="p-2 text-right font-mono">{fmt(m.endBalance)}</td>
+                  </tr>
+                  {isOpen && (
+                    <tr key={`${m.month}-detail`} className="border-t border-border/30">
+                      <td colSpan={7} className="p-0">
+                        <AccountMonthDrillDown
+                          accountId={accountId}
+                          year={year}
+                          month={m.month}
+                          expected={{
+                            totalIn: m.totalIn,
+                            totalOut: m.totalOut,
+                            transferIn: m.transferIn,
+                            transferOut: m.transferOut,
+                            endBalance: m.endBalance,
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               );
             })}
           </tbody>
