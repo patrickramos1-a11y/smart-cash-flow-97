@@ -18,9 +18,17 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowDownLeft, ArrowUpRight, Download, Search, ArrowUpDown } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Download, Search, ArrowUpDown, ArrowRightLeft, MoreVertical } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAccountDetail, type AccountTx } from '@/hooks/useAccountDetail';
+import { ConvertToTransferModal } from './ConvertToTransferModal';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
