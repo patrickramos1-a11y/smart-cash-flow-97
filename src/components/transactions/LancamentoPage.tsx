@@ -192,6 +192,74 @@ export function LancamentoPage() {
         </CardContent>
       </Card>
 
+      {/* Rejected entries — relaunch + dismiss workflow */}
+      {(rejectedMine?.length || 0) > 0 && (
+        <Card className="border-red-200 bg-red-50/40">
+          <CardContent className="p-4 lg:p-5 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-red-800 flex items-center gap-2">
+                  <XCircle className="w-4 h-4" /> Lançamentos rejeitados
+                </h3>
+                <p className="text-xs text-red-700/80 mt-0.5">
+                  Após relançar o item corretamente, descarte aqui para limpar o histórico.
+                </p>
+              </div>
+              <Badge variant="outline" className="border-red-300 text-red-700">
+                {rejectedMine!.length}
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              {rejectedMine!.map((r: any) => {
+                const isIn = r.tipo_movimento === 'ENTRADA';
+                return (
+                  <div
+                    key={r.id}
+                    className="flex items-start gap-3 bg-card border border-red-200 rounded-lg p-3"
+                  >
+                    <div className={cn(
+                      'w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
+                      isIn ? 'bg-income/10 text-income' : 'bg-expense/10 text-expense'
+                    )}>
+                      {isIn ? <ArrowDownCircle className="w-4 h-4" /> : <ArrowUpCircle className="w-4 h-4" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{r.descricao || r.transaction_categories?.name || 'Lançamento'}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {r.transaction_categories?.name || 'Sem categoria'}
+                        {r.recurring_clients?.name && ` • ${r.recurring_clients.name}`}
+                        {' • '}
+                        {String(r.competencia_mes).padStart(2, '0')}/{r.competencia_ano}
+                      </p>
+                      {r.rejection_reason && (
+                        <p className="text-[11px] text-red-700 mt-1 line-clamp-2">
+                          <strong>Motivo:</strong> {r.rejection_reason}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <p className={cn('text-sm font-bold', isIn ? 'text-income' : 'text-expense')}>
+                        {isIn ? '+' : '-'} {formatCurrency(Number(r.valor) || 0)}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs border-red-300 text-red-700 hover:bg-red-100"
+                        onClick={() => dismissRejected.mutate(r.id)}
+                        disabled={dismissRejected.isPending}
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" />
+                        Descartar
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Recent list */}
       <div>
         <div className="flex items-center justify-between mb-3">
