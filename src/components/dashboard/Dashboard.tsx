@@ -249,7 +249,7 @@ export function Dashboard() {
           value={totalBalance}
           icon={CreditCard}
           type="info"
-          subtitle="Consolidado"
+          subtitle="Atual (não muda c/ período)"
         />
       </div>
 
