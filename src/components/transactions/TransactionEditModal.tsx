@@ -762,12 +762,27 @@ export function TransactionEditModal({ open, onClose, transaction }: Transaction
           </div>
         </div>
 
-        <div className="flex gap-2 pt-2 border-t">
+        <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t">
           <Button variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting || !entityId} className="flex-1">
+          <Button
+            variant="outline"
+            onClick={() => handleSubmit(false)}
+            disabled={isSubmitting || !entityId}
+            className="flex-1"
+          >
             {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             Salvar Alterações
           </Button>
+          {role === 'admin' && transaction.approval_status === 'pendente' && (
+            <Button
+              onClick={() => handleSubmit(true)}
+              disabled={isSubmitting || !entityId}
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              Salvar e Aprovar
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
