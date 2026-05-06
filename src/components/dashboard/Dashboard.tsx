@@ -82,6 +82,23 @@ export function Dashboard() {
   const { data: accounts } = useAccounts();
   const { data: openStats, isLoading: openStatsLoading } = useOpenPaymentStats();
 
+  // KPI Atrasados real: vencido (data_vencimento < hoje) e ainda não pago
+  const { data: overdueData } = useQuery({
+    queryKey: ['dashboard-overdue'],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('valor, tipo_movimento')
+        .neq('status', 'PAGO')
+        .lt('data_vencimento', today);
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 60_000,
+  });
+  const overdueTotal = (overdueData || []).reduce((s: number, t: any) => s + Number(t.valor || 0), 0);
+
   const isLoading = entryLoading || exitLoading || transactionsLoading || openStatsLoading;
 
   // Calculate KPIs
