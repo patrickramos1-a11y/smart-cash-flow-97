@@ -6,46 +6,27 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
-  Plus, Loader2, ArrowDownCircle, ArrowUpCircle,
+  Loader2, ArrowDownCircle, ArrowUpCircle,
   Clock, CheckCircle2, XCircle, FileText, Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/data/mockData';
-import { NewTransactionWizard } from './NewTransactionWizard';
+import { NewFixedExpenseModal } from './NewFixedExpenseModal';
+import { NewRecurringContractModal } from '@/components/contracts/NewRecurringContractModal';
 import { TransactionEditModal } from './TransactionEditModal';
+import { MonthYearNavigator } from '@/components/ui/month-year-navigator';
+import { InlineLancamentoForm } from './InlineLancamentoForm';
 import type { TransactionWithClient } from '@/hooks/useTransactions';
 
-type QuickFilter =
-  | 'all'
-  | 'today'
-  | 'week'
-  | 'month'
-  | 'pending'
-  | 'approved'
-  | 'rejected';
+type QuickFilter = 'all' | 'pending' | 'approved' | 'rejected';
 
 const FILTER_LABELS: Record<QuickFilter, string> = {
   all: 'Tudo',
-  today: 'Hoje',
-  week: 'Esta semana',
-  month: 'Este mês',
   pending: 'Pendentes',
   approved: 'Aprovadas',
   rejected: 'Não aprovadas',
 };
-
-function startOfToday() {
-  const d = new Date(); d.setHours(0, 0, 0, 0); return d;
-}
-function startOfWeek() {
-  const d = startOfToday();
-  d.setDate(d.getDate() - d.getDay());
-  return d;
-}
-function startOfMonth() {
-  const d = startOfToday(); d.setDate(1); return d;
-}
 
 function fmtDate(s: string | null) {
   if (!s) return '—';
