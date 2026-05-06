@@ -87,7 +87,7 @@ export function LancamentoPage() {
   });
 
   const { data: items, isLoading } = useQuery({
-    queryKey: ['recent-launches', isFinanceiro ? user?.id : 'all', limit],
+    queryKey: ['recent-launches', isFinanceiro ? user?.id : 'all', limit, periodMonth, periodYear],
     queryFn: async () => {
       let q = supabase
         .from('transactions')
@@ -98,6 +98,8 @@ export function LancamentoPage() {
           accounts!transactions_account_id_fkey ( id, name ),
           cost_centers!transactions_cost_center_id_fkey ( id, name )
         `)
+        .eq('competencia_mes', periodMonth)
+        .eq('competencia_ano', periodYear)
         .order('created_at', { ascending: false })
         .limit(limit);
 
