@@ -3,6 +3,7 @@ import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Respons
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
+import { fetchAllPaginated } from '@/lib/financial/aggregates';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
