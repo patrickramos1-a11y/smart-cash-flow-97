@@ -134,9 +134,16 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
 
   const valorNum = parseFloat(valor.replace(/\./g, '').replace(',', '.')) || 0;
 
+  const fiscalRequired = isAvulsaEntrada;
+  const paidRequired = status === 'PAGO';
+
   const canSubmit =
     !!selected && !needsDedicated && valorNum > 0 && !!dataVenc &&
-    !!resolution.accountId && (!isEntrada || !!clienteId);
+    !!resolution.accountId &&
+    (!isEntrada || !!clienteId) &&
+    (!fiscalRequired || (!!origemReceita && !!documentoRecebimento)) &&
+    (!paidRequired || (!!dataPagamento && !!paymentMethodId)) &&
+    !!descricao.trim();
 
   const handleSubmit = async () => {
     if (!selected) return;
@@ -152,8 +159,8 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
         ? Math.round((valorNum / repCount) * 100) / 100
         : valorNum;
 
-      let m = defaultMonth;
-      let y = defaultYear;
+      let m = competenciaMes;
+      let y = competenciaAno;
       const baseDay = new Date(dataVenc + 'T00:00:00').getDate();
 
       for (let i = 0; i < reps; i++) {
@@ -161,6 +168,7 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
         const suffix = reps > 1
           ? (repMode === 'parcelamento' ? ` - Parcela ${i + 1}/${reps}` : ` - Repetição ${i + 1}/${reps}`)
           : '';
+        const isPaidThis = paidRequired && i === 0; // paga só a primeira ao parcelar
         const result = await createTransaction.mutateAsync({
           tipo_movimento: selected.type,
           natureza: selected.subtype === 'AVULSA' ? 'AVULSA' : 'AVULSA',
@@ -177,6 +185,12 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
           notes: notes || null,
           entity_id: entityIds[0] || null,
           created_by_user_id: user?.id,
+          status: isPaidThis ? 'PAGO' : 'EM_ABERTO',
+          valor_pago: isPaidThis ? valorParcela : null,
+          data_pagamento: isPaidThis ? dataPagamento : null,
+          // Fiscal (entrada avulsa)
+          origem_receita: isAvulsaEntrada ? origemReceita : null,
+          documento_recebimento: isAvulsaEntrada ? documentoRecebimento : null,
         } as any);
         if (entityIds.length > 0 && result?.id) {
           await saveEntities.mutateAsync({ transactionId: result.id, entityIds });
