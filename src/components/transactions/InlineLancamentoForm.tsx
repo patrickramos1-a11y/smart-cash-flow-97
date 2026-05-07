@@ -20,6 +20,8 @@ import { normalizeForSearch } from './CategorySearchInput';
 import { MultiEntitySelector } from './MultiEntitySelector';
 import { CategoryCombobox } from './CategoryCombobox';
 import { CategoryChip } from './lancamento/CategoryChip';
+import { QuickClientCombobox } from './lancamento/QuickClientCombobox';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { resolveAccountAndCostCenter } from '@/lib/financial/categoryResolution';
 import { Switch } from '@/components/ui/switch';
 import { useQueryClient } from '@tanstack/react-query';
@@ -46,7 +48,7 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
 
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [valor, setValor] = useState('');
+  const [valorNum, setValorNum] = useState<number>(0);
   const [dataVenc, setDataVenc] = useState(today);
   const [descricao, setDescricao] = useState('');
   const [descricaoTouched, setDescricaoTouched] = useState(false);
@@ -122,7 +124,7 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
   }, [selected, ramosClient, clienteId]);
 
   const reset = () => {
-    setSearch(''); setCategoryId(''); setValor(''); setDataVenc(today);
+    setSearch(''); setCategoryId(''); setValorNum(0); setDataVenc(today);
     setDescricao(''); setDescricaoTouched(false);
     setClienteId(''); setEntityIds([]); setAccountOverride('');
     setPaymentMethodId(''); setNotes('');
@@ -131,8 +133,6 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
     setCompetenciaMes(defaultMonth); setCompetenciaAno(defaultYear);
     setOrigemReceita(''); setDocumentoRecebimento('');
   };
-
-  const valorNum = parseFloat(valor.replace(/\./g, '').replace(',', '.')) || 0;
 
   const fiscalRequired = isAvulsaEntrada;
   const paidRequired = status === 'PAGO';
@@ -302,12 +302,11 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
             {/* Linha 2: valor + data + entidade */}
             <div className="grid sm:grid-cols-3 gap-3">
               <div>
-                <Label className="text-xs">Valor (R$) *</Label>
-                <Input
-                  inputMode="decimal"
-                  value={valor}
-                  onChange={(e) => setValor(e.target.value)}
-                  placeholder="0,00"
+                <Label className="text-xs">Valor *</Label>
+                <CurrencyInput
+                  value={valorNum}
+                  onValueChange={(n) => setValorNum(n ?? 0)}
+                  className={valorNum <= 0 ? 'border-destructive' : ''}
                 />
               </div>
               <div>
@@ -316,16 +315,12 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
               </div>
               <div>
                 <Label className="text-xs">{isEntrada ? 'Cliente *' : 'Cliente (opcional)'}</Label>
-                <Select value={clienteId} onValueChange={setClienteId}>
-                  <SelectTrigger className={isEntrada && !clienteId ? 'border-destructive' : ''}>
-                    <SelectValue placeholder="Selecionar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients?.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <QuickClientCombobox
+                  clients={(clients || []) as any}
+                  value={clienteId}
+                  onChange={setClienteId}
+                  required={isEntrada}
+                />
               </div>
             </div>
 
