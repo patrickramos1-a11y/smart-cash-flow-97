@@ -250,16 +250,7 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
 
         {selected && !needsDedicated && (
           <>
-            <div className="flex flex-wrap gap-2">
-              {subtypeBadge && (
-                <Badge variant="outline" className={subtypeBadge.cls}>
-                  {selected.type === 'ENTRADA' ? <ArrowDownCircle className="w-3 h-3 mr-1" /> : <ArrowUpCircle className="w-3 h-3 mr-1" />}
-                  {subtypeBadge.label}
-                </Badge>
-              )}
-              {accObj && <Badge variant="outline">Conta: {accObj.name}</Badge>}
-              {selected.cost_center?.name && <Badge variant="outline">C. Custo: {selected.cost_center.name}</Badge>}
-            </div>
+            {/* Badges removidos — agora exibidos no CategoryChip */}
 
             {/* Linha 2: valor + data + entidade */}
             <div className="grid sm:grid-cols-3 gap-3">
