@@ -354,12 +354,121 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
                 )}
               </div>
               <div>
-                <Label className="text-xs">Descrição</Label>
+                <Label className="text-xs">Descrição *</Label>
                 <Input
                   value={descricao}
-                  onChange={(e) => setDescricao(e.target.value)}
+                  onChange={(e) => { setDescricao(e.target.value); setDescricaoTouched(true); }}
                   placeholder={selected.name}
+                  className={!descricao.trim() ? 'border-destructive' : ''}
                 />
+              </div>
+            </div>
+
+            {/* Bloco contextual: Dados Fiscais (apenas Entrada Avulsa) */}
+            {isAvulsaEntrada && (
+              <div className="border border-income/30 bg-income/5 rounded-lg p-3 space-y-3">
+                <div className="text-[11px] font-bold uppercase tracking-wide text-income flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3" /> Dados Fiscais (obrigatório)
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Origem da Receita *</Label>
+                    <Select value={origemReceita} onValueChange={setOrigemReceita}>
+                      <SelectTrigger className={!origemReceita ? 'border-destructive' : ''}>
+                        <SelectValue placeholder="Selecionar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="SERVICO">Serviço</SelectItem>
+                        <SelectItem value="PRODUTO">Produto</SelectItem>
+                        <SelectItem value="OUTROS">Outros</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Documento de Recebimento *</Label>
+                    <Select value={documentoRecebimento} onValueChange={setDocumentoRecebimento}>
+                      <SelectTrigger className={!documentoRecebimento ? 'border-destructive' : ''}>
+                        <SelectValue placeholder="Selecionar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="NOTA_FISCAL">Nota Fiscal (9% imposto)</SelectItem>
+                        <SelectItem value="RECIBO">Recibo</SelectItem>
+                        <SelectItem value="SEM_DOCUMENTO">Sem Documento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Status financeiro + competência */}
+            <div className="border rounded-lg p-3 space-y-3 bg-muted/20">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <Label className="text-xs font-semibold">Situação financeira</Label>
+                <div className="inline-flex rounded-md border bg-background p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setStatus('EM_ABERTO')}
+                    className={cn(
+                      'px-3 py-1 text-xs rounded transition-colors',
+                      status === 'EM_ABERTO' ? 'bg-amber-500/15 text-amber-700 font-semibold' : 'text-muted-foreground'
+                    )}
+                  >Em aberto</button>
+                  <button
+                    type="button"
+                    onClick={() => setStatus('PAGO')}
+                    className={cn(
+                      'px-3 py-1 text-xs rounded transition-colors',
+                      status === 'PAGO' ? 'bg-income/15 text-income font-semibold' : 'text-muted-foreground'
+                    )}
+                  >Pago</button>
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs">Competência</Label>
+                  <div className="flex gap-1.5">
+                    <Select value={String(competenciaMes)} onValueChange={(v) => setCompetenciaMes(Number(v))}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'].map((m, i) => (
+                          <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={String(competenciaAno)} onValueChange={(v) => setCompetenciaAno(Number(v))}>
+                      <SelectTrigger className="h-9 text-xs w-24"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[defaultYear - 1, defaultYear, defaultYear + 1].map(y => (
+                          <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {status === 'PAGO' && (
+                  <>
+                    <div>
+                      <Label className="text-xs">Data de Pagamento *</Label>
+                      <Input type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Forma de Pagamento *</Label>
+                      <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
+                        <SelectTrigger className={!paymentMethodId ? 'border-destructive' : ''}>
+                          <SelectValue placeholder="Selecionar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {paymentMethods?.filter(p => p.active).map(p => (
+                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -368,7 +477,7 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
               <MultiEntitySelector
                 selectedIds={entityIds}
                 onChange={setEntityIds}
-                label="Entidade vinculada (opcional)"
+                label={isEntrada ? 'Vinculado a (Entidade)' : 'Entidade vinculada (opcional)'}
               />
             </div>
 
