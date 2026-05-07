@@ -49,6 +49,7 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
   const [valor, setValor] = useState('');
   const [dataVenc, setDataVenc] = useState(today);
   const [descricao, setDescricao] = useState('');
+  const [descricaoTouched, setDescricaoTouched] = useState(false);
   const [clienteId, setClienteId] = useState('');
   const [entityIds, setEntityIds] = useState<string[]>([]);
   const [accountOverride, setAccountOverride] = useState('');
@@ -56,6 +57,16 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+
+  // Status/competência/pagamento (contexto rico)
+  const [status, setStatus] = useState<'EM_ABERTO' | 'PAGO'>('EM_ABERTO');
+  const [dataPagamento, setDataPagamento] = useState(today);
+  const [competenciaMes, setCompetenciaMes] = useState(defaultMonth);
+  const [competenciaAno, setCompetenciaAno] = useState(defaultYear);
+
+  // Dados fiscais (Entrada Avulsa)
+  const [origemReceita, setOrigemReceita] = useState('');
+  const [documentoRecebimento, setDocumentoRecebimento] = useState('');
 
   // Parcelamento (despesa variável)
   const [enableRep, setEnableRep] = useState(false);
@@ -88,15 +99,37 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
   );
 
   const isEntrada = selected?.type === 'ENTRADA';
+  const isAvulsaEntrada = selected?.type === 'ENTRADA' && selected?.subtype === 'AVULSA';
+  const isVariavel = selected?.subtype === 'VARIAVEL';
   const needsDedicated = selected?.subtype === 'RECORRENTE' || selected?.subtype === 'FIXA';
 
   const accObj = accounts?.find(a => a.id === resolution.accountId);
 
+  // Default Ramos Engenharia client for fixed expenses (rule from memory)
+  const ramosClient = useMemo(
+    () => (clients || []).find((c: any) => /ramos/i.test(c.name)),
+    [clients]
+  );
+
+  // Auto-fill description when category changes (unless user typed)
+  useEffect(() => {
+    if (selected && !descricaoTouched) setDescricao(selected.name);
+  }, [selected, descricaoTouched]);
+
+  // Auto-set Ramos for despesa fixa selection (não se aplica aqui pois fixa redireciona, mas mantém para futuro)
+  useEffect(() => {
+    if (selected?.subtype === 'FIXA' && ramosClient && !clienteId) setClienteId(ramosClient.id);
+  }, [selected, ramosClient, clienteId]);
+
   const reset = () => {
     setSearch(''); setCategoryId(''); setValor(''); setDataVenc(today);
-    setDescricao(''); setClienteId(''); setEntityIds([]); setAccountOverride('');
+    setDescricao(''); setDescricaoTouched(false);
+    setClienteId(''); setEntityIds([]); setAccountOverride('');
     setPaymentMethodId(''); setNotes('');
     setEnableRep(false); setRepMode('parcelamento'); setRepCount(2);
+    setStatus('EM_ABERTO'); setDataPagamento(today);
+    setCompetenciaMes(defaultMonth); setCompetenciaAno(defaultYear);
+    setOrigemReceita(''); setDocumentoRecebimento('');
   };
 
   const valorNum = parseFloat(valor.replace(/\./g, '').replace(',', '.')) || 0;
