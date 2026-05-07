@@ -16,8 +16,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTransactionCategories, useAccounts, usePaymentMethods } from '@/hooks/useFinancialConfig';
 import { useCreateTransaction, useClients } from '@/hooks/useTransactions';
 import { useSaveTransactionEntities } from '@/hooks/useTransactionEntities';
-import { CategorySearchInput, normalizeForSearch } from './CategorySearchInput';
+import { normalizeForSearch } from './CategorySearchInput';
 import { MultiEntitySelector } from './MultiEntitySelector';
+import { CategoryCombobox } from './CategoryCombobox';
+import { CategoryChip } from './lancamento/CategoryChip';
 import { resolveAccountAndCostCenter } from '@/lib/financial/categoryResolution';
 import { Switch } from '@/components/ui/switch';
 import { useQueryClient } from '@tanstack/react-query';
@@ -205,52 +207,29 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
 
         {!collapsed && (
           <div className="space-y-4">
-            {/* Linha 1: Categoria com busca */}
-            <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            1. Categoria *
-          </Label>
-          <Input
-            placeholder="Buscar categoria por nome..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <div className="grid sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-1">
-            {Object.entries(grouped).map(([key, items]) => {
-              if (!items.length) return null;
-              const h = SUBTYPE_HEADERS[key];
-              const Icon = h.icon;
-              return (
-                <div key={key} className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground sticky top-0 bg-card/95 backdrop-blur py-1">
-                    <Icon className={cn('w-3 h-3', h.color)} />
-                    {h.label}
-                  </div>
-                  {items.map(c => (
-                    <button
-                      key={c.id}
-                      onClick={() => { setCategoryId(c.id); setAccountOverride(''); }}
-                      className={cn(
-                        'w-full text-left px-2.5 py-1.5 rounded-md text-xs border transition-colors flex items-center gap-2',
-                        categoryId === c.id
-                          ? 'border-primary bg-primary/10 text-foreground'
-                          : 'border-border hover:bg-muted/50'
-                      )}
-                    >
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color || '#6366f1' }} />
-                      <span className="truncate">{c.name}</span>
-                    </button>
-                  ))}
-                </div>
-              );
-            })}
-            {filtered.length === 0 && (
-              <div className="col-span-full text-center text-xs text-muted-foreground py-6">
-                Nenhuma categoria encontrada.
+            {/* Linha 1: Categoria — combobox compacto OU chip pós-seleção */}
+            {!selected ? (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  1. Categoria *
+                </Label>
+                <CategoryCombobox
+                  categories={activeCategories as any}
+                  accounts={accounts as any}
+                  value={categoryId}
+                  onChange={(id) => { setCategoryId(id); setAccountOverride(''); }}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  A categoria define automaticamente tipo, conta e centro de custo.
+                </p>
               </div>
+            ) : (
+              <CategoryChip
+                category={selected as any}
+                accountName={accObj?.name}
+                onChange={() => { setCategoryId(''); setAccountOverride(''); }}
+              />
             )}
-          </div>
-        </div>
 
         {selected && needsDedicated && (
           <Card className="border-amber-300 bg-amber-50/40">
@@ -271,16 +250,7 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
 
         {selected && !needsDedicated && (
           <>
-            <div className="flex flex-wrap gap-2">
-              {subtypeBadge && (
-                <Badge variant="outline" className={subtypeBadge.cls}>
-                  {selected.type === 'ENTRADA' ? <ArrowDownCircle className="w-3 h-3 mr-1" /> : <ArrowUpCircle className="w-3 h-3 mr-1" />}
-                  {subtypeBadge.label}
-                </Badge>
-              )}
-              {accObj && <Badge variant="outline">Conta: {accObj.name}</Badge>}
-              {selected.cost_center?.name && <Badge variant="outline">C. Custo: {selected.cost_center.name}</Badge>}
-            </div>
+            {/* Badges removidos — agora exibidos no CategoryChip */}
 
             {/* Linha 2: valor + data + entidade */}
             <div className="grid sm:grid-cols-3 gap-3">
