@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -49,6 +49,7 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
   const [valor, setValor] = useState('');
   const [dataVenc, setDataVenc] = useState(today);
   const [descricao, setDescricao] = useState('');
+  const [descricaoTouched, setDescricaoTouched] = useState(false);
   const [clienteId, setClienteId] = useState('');
   const [entityIds, setEntityIds] = useState<string[]>([]);
   const [accountOverride, setAccountOverride] = useState('');
@@ -56,6 +57,16 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+
+  // Status/competência/pagamento (contexto rico)
+  const [status, setStatus] = useState<'EM_ABERTO' | 'PAGO'>('EM_ABERTO');
+  const [dataPagamento, setDataPagamento] = useState(today);
+  const [competenciaMes, setCompetenciaMes] = useState(defaultMonth);
+  const [competenciaAno, setCompetenciaAno] = useState(defaultYear);
+
+  // Dados fiscais (Entrada Avulsa)
+  const [origemReceita, setOrigemReceita] = useState('');
+  const [documentoRecebimento, setDocumentoRecebimento] = useState('');
 
   // Parcelamento (despesa variável)
   const [enableRep, setEnableRep] = useState(false);
@@ -88,22 +99,51 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
   );
 
   const isEntrada = selected?.type === 'ENTRADA';
+  const isAvulsaEntrada = selected?.type === 'ENTRADA' && selected?.subtype === 'AVULSA';
+  const isVariavel = selected?.subtype === 'VARIAVEL';
   const needsDedicated = selected?.subtype === 'RECORRENTE' || selected?.subtype === 'FIXA';
 
   const accObj = accounts?.find(a => a.id === resolution.accountId);
 
+  // Default Ramos Engenharia client for fixed expenses (rule from memory)
+  const ramosClient = useMemo(
+    () => (clients || []).find((c: any) => /ramos/i.test(c.name)),
+    [clients]
+  );
+
+  // Auto-fill description when category changes (unless user typed)
+  useEffect(() => {
+    if (selected && !descricaoTouched) setDescricao(selected.name);
+  }, [selected, descricaoTouched]);
+
+  // Auto-set Ramos for despesa fixa selection (não se aplica aqui pois fixa redireciona, mas mantém para futuro)
+  useEffect(() => {
+    if (selected?.subtype === 'FIXA' && ramosClient && !clienteId) setClienteId(ramosClient.id);
+  }, [selected, ramosClient, clienteId]);
+
   const reset = () => {
     setSearch(''); setCategoryId(''); setValor(''); setDataVenc(today);
-    setDescricao(''); setClienteId(''); setEntityIds([]); setAccountOverride('');
+    setDescricao(''); setDescricaoTouched(false);
+    setClienteId(''); setEntityIds([]); setAccountOverride('');
     setPaymentMethodId(''); setNotes('');
     setEnableRep(false); setRepMode('parcelamento'); setRepCount(2);
+    setStatus('EM_ABERTO'); setDataPagamento(today);
+    setCompetenciaMes(defaultMonth); setCompetenciaAno(defaultYear);
+    setOrigemReceita(''); setDocumentoRecebimento('');
   };
 
   const valorNum = parseFloat(valor.replace(/\./g, '').replace(',', '.')) || 0;
 
+  const fiscalRequired = isAvulsaEntrada;
+  const paidRequired = status === 'PAGO';
+
   const canSubmit =
     !!selected && !needsDedicated && valorNum > 0 && !!dataVenc &&
-    !!resolution.accountId && (!isEntrada || !!clienteId);
+    !!resolution.accountId &&
+    (!isEntrada || !!clienteId) &&
+    (!fiscalRequired || (!!origemReceita && !!documentoRecebimento)) &&
+    (!paidRequired || (!!dataPagamento && !!paymentMethodId)) &&
+    !!descricao.trim();
 
   const handleSubmit = async () => {
     if (!selected) return;
@@ -119,8 +159,8 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
         ? Math.round((valorNum / repCount) * 100) / 100
         : valorNum;
 
-      let m = defaultMonth;
-      let y = defaultYear;
+      let m = competenciaMes;
+      let y = competenciaAno;
       const baseDay = new Date(dataVenc + 'T00:00:00').getDate();
 
       for (let i = 0; i < reps; i++) {
@@ -128,6 +168,7 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
         const suffix = reps > 1
           ? (repMode === 'parcelamento' ? ` - Parcela ${i + 1}/${reps}` : ` - Repetição ${i + 1}/${reps}`)
           : '';
+        const isPaidThis = paidRequired && i === 0; // paga só a primeira ao parcelar
         const result = await createTransaction.mutateAsync({
           tipo_movimento: selected.type,
           natureza: selected.subtype === 'AVULSA' ? 'AVULSA' : 'AVULSA',
@@ -144,6 +185,12 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
           notes: notes || null,
           entity_id: entityIds[0] || null,
           created_by_user_id: user?.id,
+          status: isPaidThis ? 'PAGO' : 'EM_ABERTO',
+          valor_pago: isPaidThis ? valorParcela : null,
+          data_pagamento: isPaidThis ? dataPagamento : null,
+          // Fiscal (entrada avulsa)
+          origem_receita: isAvulsaEntrada ? origemReceita : null,
+          documento_recebimento: isAvulsaEntrada ? documentoRecebimento : null,
         } as any);
         if (entityIds.length > 0 && result?.id) {
           await saveEntities.mutateAsync({ transactionId: result.id, entityIds });
@@ -307,12 +354,121 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
                 )}
               </div>
               <div>
-                <Label className="text-xs">Descrição</Label>
+                <Label className="text-xs">Descrição *</Label>
                 <Input
                   value={descricao}
-                  onChange={(e) => setDescricao(e.target.value)}
+                  onChange={(e) => { setDescricao(e.target.value); setDescricaoTouched(true); }}
                   placeholder={selected.name}
+                  className={!descricao.trim() ? 'border-destructive' : ''}
                 />
+              </div>
+            </div>
+
+            {/* Bloco contextual: Dados Fiscais (apenas Entrada Avulsa) */}
+            {isAvulsaEntrada && (
+              <div className="border border-income/30 bg-income/5 rounded-lg p-3 space-y-3">
+                <div className="text-[11px] font-bold uppercase tracking-wide text-income flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3" /> Dados Fiscais (obrigatório)
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Origem da Receita *</Label>
+                    <Select value={origemReceita} onValueChange={setOrigemReceita}>
+                      <SelectTrigger className={!origemReceita ? 'border-destructive' : ''}>
+                        <SelectValue placeholder="Selecionar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="SERVICO">Serviço</SelectItem>
+                        <SelectItem value="PRODUTO">Produto</SelectItem>
+                        <SelectItem value="OUTROS">Outros</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Documento de Recebimento *</Label>
+                    <Select value={documentoRecebimento} onValueChange={setDocumentoRecebimento}>
+                      <SelectTrigger className={!documentoRecebimento ? 'border-destructive' : ''}>
+                        <SelectValue placeholder="Selecionar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="NOTA_FISCAL">Nota Fiscal (9% imposto)</SelectItem>
+                        <SelectItem value="RECIBO">Recibo</SelectItem>
+                        <SelectItem value="SEM_DOCUMENTO">Sem Documento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Status financeiro + competência */}
+            <div className="border rounded-lg p-3 space-y-3 bg-muted/20">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <Label className="text-xs font-semibold">Situação financeira</Label>
+                <div className="inline-flex rounded-md border bg-background p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setStatus('EM_ABERTO')}
+                    className={cn(
+                      'px-3 py-1 text-xs rounded transition-colors',
+                      status === 'EM_ABERTO' ? 'bg-amber-500/15 text-amber-700 font-semibold' : 'text-muted-foreground'
+                    )}
+                  >Em aberto</button>
+                  <button
+                    type="button"
+                    onClick={() => setStatus('PAGO')}
+                    className={cn(
+                      'px-3 py-1 text-xs rounded transition-colors',
+                      status === 'PAGO' ? 'bg-income/15 text-income font-semibold' : 'text-muted-foreground'
+                    )}
+                  >Pago</button>
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs">Competência</Label>
+                  <div className="flex gap-1.5">
+                    <Select value={String(competenciaMes)} onValueChange={(v) => setCompetenciaMes(Number(v))}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'].map((m, i) => (
+                          <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={String(competenciaAno)} onValueChange={(v) => setCompetenciaAno(Number(v))}>
+                      <SelectTrigger className="h-9 text-xs w-24"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[defaultYear - 1, defaultYear, defaultYear + 1].map(y => (
+                          <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {status === 'PAGO' && (
+                  <>
+                    <div>
+                      <Label className="text-xs">Data de Pagamento *</Label>
+                      <Input type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Forma de Pagamento *</Label>
+                      <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
+                        <SelectTrigger className={!paymentMethodId ? 'border-destructive' : ''}>
+                          <SelectValue placeholder="Selecionar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {paymentMethods?.filter(p => p.active).map(p => (
+                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -321,7 +477,7 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
               <MultiEntitySelector
                 selectedIds={entityIds}
                 onChange={setEntityIds}
-                label="Entidade vinculada (opcional)"
+                label={isEntrada ? 'Vinculado a (Entidade)' : 'Entidade vinculada (opcional)'}
               />
             </div>
 
