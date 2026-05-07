@@ -1,157 +1,121 @@
-## Dashboard Estratégico SISRamos — Plano de Implantação em Fases
+# Plano: Central Operacional de Lançamento (Smart Form)
 
-Transformar o Dashboard atual (resumo mensal + análise anual) em um **centro de decisão financeira** com 3 níveis: Visão Geral (executivo) → Análise (exploração) → Detalhamento (drill-down).
+## Visão geral
 
-A implantação segue 4 fases, começando pelo que tem **maior valor e menor custo** (já temos hooks/dados prontos), evoluindo para inteligência e exploração.
+Hoje `InlineLancamentoForm` é um único formulário estático com todos os campos sempre visíveis. Vamos transformá-lo em um **fluxo contextual de 3 etapas** que **compacta** após escolhas e **adapta** os campos ao tipo de lançamento (Entrada Avulsa, Entrada Recorrente, Despesa Fixa, Despesa Variável).
+
+Princípio: **Categoria escolhida → tela se adapta + colapsa**. Cada lançamento tem seu próprio conjunto de regras herdadas dos módulos especializados (NewFixedExpenseModal, NewRecurringContractModal, EntradasAvulsasPage etc.).
 
 ---
 
-### Estrutura final proposta
+## Fase 1 — Compactação da Categoria + Smart Picker
+
+**Objetivo:** o seletor de categoria deixa de ocupar metade da tela após escolha.
+
+- Substituir o grid de categorias por um **CategoryCombobox** (cmdk popover) com:
+  - Busca dinâmica
+  - Agrupamento por subtipo (Entrada Recorrente / Avulsa / Despesa Fixa / Variável)
+  - Cada item mostra: cor, nome, conta default, centro de custo
+- **Após seleção** o picker vira um **chip compacto**:
+  ```text
+  [● SERVIÇO AMBIENTAL]  Entrada Avulsa · Bancária · Receita Bruta   [trocar]
+  ```
+- Header do card mostra o resumo contextual (badge de tipo + valor sendo digitado em tempo real).
+- Remover o "1. Categoria" gigante quando categoria estiver definida.
+
+**Arquivos:** novo `src/components/transactions/CategoryCombobox.tsx`, edita `InlineLancamentoForm.tsx`.
+
+---
+
+## Fase 2 — Formulário Contextual por Subtipo
+
+**Objetivo:** após escolher a categoria, mostrar **somente** os campos pertinentes àquele subtipo, herdando a inteligência dos modais dedicados.
+
+Roteamento interno (sem abrir outro modal):
+
+| Subtipo | Campos exibidos | Herda de |
+|---|---|---|
+| **Entrada Avulsa** | valor, vencimento, cliente*, entidade*, dados fiscais (origem da receita, doc), forma pgto, competência, status pago/aberto | `EntradasAvulsasPage` + `QuickTransactionModal` |
+| **Entrada Recorrente** | plano, cliente*, dia vencimento, fator SM/valor fixo, data início, fiscal | `NewRecurringContractModal` (inline) |
+| **Despesa Fixa** | valor, dia vencimento, cliente padrão (Ramos), entidade, conta, recorrência mensal | `NewFixedExpenseModal` (inline) |
+| **Despesa Variável** | valor, vencimento, entidade, conta, parcelar/repetir, status pago | já existe |
+
+Cada subtipo é um sub-componente:
+- `EntradaAvulsaFields.tsx`
+- `EntradaRecorrenteFields.tsx`
+- `DespesaFixaFields.tsx`
+- `DespesaVariavelFields.tsx`
+
+`InlineLancamentoForm` vira um **orquestrador**: escolhe categoria → renderiza o sub-componente correto.
+
+Decisão importante: **deixar de redirecionar** Recorrente/Fixa para modais dedicados — a Central absorve esses fluxos.
+
+---
+
+## Fase 3 — Campos Inteligentes (UX Inputs)
+
+**Objetivo:** reduzir fricção em cada campo individual.
+
+- **CurrencyInput BR** — máscara automática `1.234,56` enquanto digita (já existe `currency-input.tsx`, padronizar uso).
+- **Cliente com criação rápida**: combobox (cmdk) que detecta texto novo e oferece "+ Criar cliente: DARLEY" inline (sem sair).
+- **Descrição auto-preenchida** com nome da categoria, **editável**, obrigatória.
+- **Status financeiro**: toggle `Em aberto / Pago` no topo do bloco financeiro.
+  - Se **Pago** → revela: data de pagamento (default hoje), forma de pagamento (obrigatória).
+- **Competência**: dropdown mês/ano discreto, default = mês ativo, editável.
+- Validação visual em tempo real (bordas vermelhas + helper text).
+
+---
+
+## Fase 4 — Resumo + Confirmação Compacta
+
+**Objetivo:** dar ao usuário a sensação de "fechei o caixa".
+
+Após preencher, o card colapsa para **modo resumo**:
 
 ```text
-Dashboard
-├── [Aba] Executivo            ← Nível 1 (Fase 1)
-├── [Aba] Receita              ← Nível 2 (Fase 2)
-├── [Aba] Despesas             ← Nível 2 (Fase 2)
-├── [Aba] Clientes             ← Nível 2 (Fase 2)
-├── [Aba] Caixa & Contas       ← Nível 2 (Fase 2)
-├── [Aba] Projeção & Tendência ← Nível 3 (Fase 3)
-└── [Aba] Insights             ← Nível 4 (Fase 4)
+✔ Entrada Avulsa
+  Conta: Bancária  ·  C. Custo: Receita Bruta
+  Cliente: Fazenda X  ·  Entidade: Darley
+  Valor: R$ 12.500,00  ·  Vencimento: 07/05/2026
+  Status: Pago (PIX, 07/05)
+  [Editar]   [Lançar]   [Lançar e novo]
 ```
 
-Cada bloco usa o mesmo **Year Context** ativo do app (memória `Year-Based Operational Context`) e respeita as regras já consolidadas (DRE exclui Transferências/Investimentos, regime competência por padrão, semântica verde/vermelho).
+- Botão **"Lançar e novo"** → mantém categoria + cliente, limpa valor/data (lançamentos em série).
+- Atalhos de teclado: `Enter` lançar, `Ctrl+Enter` lançar e novo, `Esc` cancelar.
 
 ---
 
-## FASE 1 — CORE EXECUTIVO (alto valor, baixo custo)
+## Fase 5 — Inteligência (preparação para futuro)
 
-**Objetivo:** painel de leitura rápida do negócio em uma tela.
-
-Aba **"Executivo"** (substitui a "Visão Geral" atual, mantendo a "Análise Anual" como aba separada):
-
-1. **Hero KPIs (linha única, 4 cards grandes)** — ano corrente acumulado:
-   - Receita YTD · Despesa YTD · **Resultado Operacional YTD** · Saldo Total em Caixa
-   - Cada card mostra: valor, variação % vs mesmo período do ano anterior, mini-sparkline 12 meses.
-
-2. **Tira de KPIs secundários (8 mini-cards)**: Receita Recorrente %, MRR estimado (Σ contratos × SM ativo), Ticket Médio, Margem Operacional %, A Receber, A Pagar, Atrasados, Burn Rate mensal médio.
-
-3. **Gráfico mestre — Evolução Mensal (12 meses)**:
-   - Linhas: Receita, Despesa, Resultado.
-   - Sempre ano completo (jan→dez), sem pular meses (já corrigido).
-   - Toggle Competência/Caixa.
-   - Click no mês → navega para detalhamento mensal (reusa `AccountMonthDrillDown` patterns).
-
-4. **Split lado-a-lado**:
-   - Receita Recorrente vs Avulsa (donut + valor).
-   - Despesa Fixa vs Variável (donut + valor).
-
-5. **Alertas operacionais** (chips no topo):
-   - Contas negativas, atrasados >30d, queda de receita >20% MoM, contratos vencendo nos próximos 30d.
-
-**Custo técnico:** baixo. Reaproveita `useTransactionKPIs`, `useTransactions`, `useRecurringContracts`, `useAccounts`, `useDREReport`, `RevenueExpenseChart`, `RecurringVsPontualChart`.
-
-**Arquivos:**
-- `src/components/dashboard/Dashboard.tsx` (reorganizar abas)
-- `src/components/dashboard/executive/HeroKPIs.tsx` (novo)
-- `src/components/dashboard/executive/SecondaryKPIs.tsx` (novo)
-- `src/components/dashboard/executive/MasterEvolutionChart.tsx` (novo, baseado em `RevenueExpenseChart`)
-- `src/components/dashboard/executive/AlertsBar.tsx` (novo)
-- `src/hooks/useDashboardYTD.ts` (novo — agregador YTD + YoY)
+Stub apenas, sem implementação pesada nesta rodada — só deixar ganchos:
+- Hook `useSuggestedCategory(descricao)` que poderá usar Lovable AI depois.
+- Função `duplicateLastLaunch()` (botão "Repetir último lançamento").
+- Histórico recente (últimos 3) clicáveis para auto-preencher.
 
 ---
 
-## FASE 2 — CONTROLE (médio custo, alto valor)
+## Estrutura de Arquivos Final
 
-Quatro abas exploratórias. Cada uma tem KPIs próprios + gráficos + tabela com drill-down.
+```text
+src/components/transactions/
+├── LancamentoPage.tsx                    (sem alterações estruturais)
+├── InlineLancamentoForm.tsx              (vira orquestrador slim)
+├── CategoryCombobox.tsx                  [novo - Fase 1]
+├── lancamento/
+│   ├── CategoryChip.tsx                  [novo - Fase 1]
+│   ├── PaymentStatusBlock.tsx            [novo - Fase 3]
+│   ├── QuickClientCombobox.tsx           [novo - Fase 3]
+│   ├── LancamentoSummary.tsx             [novo - Fase 4]
+│   └── fields/
+│       ├── EntradaAvulsaFields.tsx       [novo - Fase 2]
+│       ├── EntradaRecorrenteFields.tsx   [novo - Fase 2]
+│       ├── DespesaFixaFields.tsx         [novo - Fase 2]
+│       └── DespesaVariavelFields.tsx     [novo - Fase 2]
+```
 
-### 2.1 Aba **Receita**
-- Receita por mês (barras empilhadas: Recorrente / Avulsa).
-- Top 10 clientes (já temos `ClientRankingChart`).
-- Ranking por categoria de entrada.
-- Concentração: % do faturamento dos top 3 clientes (risco de dependência).
-- Tabela: contratos ativos × SM × valor mensal × próximo vencimento.
+## Execução
 
-### 2.2 Aba **Despesas**
-- Despesa por mês (barras empilhadas por **Centro de Custo** ou **Categoria** — toggle).
-- Top categorias (Pareto 80/20).
-- Fixa vs Variável ao longo do ano.
-- Heatmap categoria × mês (identifica picos).
-- Tabela drill-down clicável → abre transações filtradas.
+Confirmando o plano, executamos **Fase 1 primeiro** (impacto visual imediato — resolve o "tela explode") e validamos antes de partir para a Fase 2. Cada fase é entregue isoladamente e testável.
 
-### 2.3 Aba **Clientes**
-- Ranking por lucratividade (já existe, expandir).
-- Receita por cliente ao longo do ano (linhas múltiplas).
-- Clientes novos vs perdidos (entradas/saídas no período).
-- Curva ABC.
-
-### 2.4 Aba **Caixa & Contas**
-- Saldo total ao longo do ano (reusa `AccountsEvolutionChart`).
-- Distribuição por conta (já existe `AccountsDistributionPanel`).
-- Transferências planejadas vs executadas.
-- Projeção de saldo final do ano (reusa `useAccountForecast`).
-
-**Custo técnico:** médio. Maioria reaproveita componentes existentes; precisamos de novos hooks de agregação por categoria/centro de custo ao longo do ano.
-
-**Arquivos novos:**
-- `src/components/dashboard/revenue/RevenueTab.tsx`
-- `src/components/dashboard/expenses/ExpensesTab.tsx` (+ `CategoryHeatmap.tsx`, `ParetoChart.tsx`)
-- `src/components/dashboard/clients/ClientsTab.tsx`
-- `src/components/dashboard/cash/CashTab.tsx`
-- `src/hooks/useCategoryAnnualBreakdown.ts`
-- `src/hooks/useCostCenterAnnualBreakdown.ts`
-
----
-
-## FASE 3 — INTELIGÊNCIA (médio/alto custo)
-
-Aba **"Projeção & Tendência"**:
-
-1. **Projeção vs Realizado** (mês a mês do ano corrente):
-   - Realizado (PAGO) · Previsto (EM_ABERTO + recorrências futuras) · Meta (opcional).
-2. **Comparativo YoY**: ano corrente vs ano anterior (linhas sobrepostas) para Receita, Despesa, Resultado.
-3. **Tendência (média móvel 3m)** com indicador de aceleração/desaceleração.
-4. **Cenários simples**: "se cortar X% das variáveis", "se perder cliente Y".
-5. **Forecast de saldo de caixa** até final do ano por conta + total.
-
-**Custo técnico:** médio-alto. Requer agregadores que cruzam transações realizadas + parcelas futuras de `recurring_installments` + `fixed_expenses` projetados.
-
-**Arquivos:**
-- `src/components/dashboard/forecast/ForecastTab.tsx`
-- `src/components/dashboard/forecast/YoYComparison.tsx`
-- `src/components/dashboard/forecast/ScenarioSimulator.tsx`
-- `src/hooks/useAnnualProjection.ts`
-
----
-
-## FASE 4 — EXPLORAÇÃO & INSIGHTS (alto custo)
-
-Aba **"Insights"**:
-
-1. **Drill-down universal**: qualquer KPI/gráfico clicável navega para a lista de transações filtrada (descrição, categoria, conta, período).
-2. **Insights automáticos** (regras simples no client, sem IA):
-   - "Despesas com X cresceram 40% vs mês anterior."
-   - "Cliente Y representa 35% da receita — risco alto."
-   - "Conta Z ficará negativa em 18 dias no ritmo atual."
-3. **Comparativos multi-ano** (3 anos lado a lado).
-4. **Exportação** (CSV/PDF) de cada bloco.
-
-**Custo técnico:** alto. Requer engine de regras de insight + sistema de navegação cruzada padronizada entre módulos.
-
-**Arquivos:**
-- `src/components/dashboard/insights/InsightsTab.tsx`
-- `src/lib/dashboard/insightRules.ts`
-- `src/lib/dashboard/drillDownNavigator.ts`
-
----
-
-## Decisões a confirmar antes da Fase 1
-
-1. **Indicadores Fiscais** (`FiscalIndicators`): manter na aba Executivo como tira reduzida, ou mover para subpágina dedicada (consistente com a recomendação de baixa prioridade)?
-2. **MRR / SM contratado**: exibir em R$ (multiplicado pelo SM ativo do ano) ou em "X SM"?
-3. **Aba "Análise Anual" atual**: absorvida pelo novo "Executivo" + "Receita/Despesas", ou mantida como compatibilidade?
-
----
-
-## Entregável Fase 1 (próxima execução, após aprovação)
-
-Apenas a Fase 1 (Executivo) — entrega visível e funcional em uma única iteração. As Fases 2–4 serão planejadas e aprovadas individualmente conforme avançarmos.
+Posso começar pela Fase 1?
