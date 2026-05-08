@@ -11,6 +11,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Logo } from '@/components/brand/Logo';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface SidebarProps {
   activeTab: string;
@@ -109,6 +110,7 @@ function SidebarContent({
 }) {
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['transactions']);
   const { profile, role, signOut, isAdmin } = useAuth();
+  const { can } = usePermissions();
   const { data: pendingCount } = useApprovalCount();
 
   const toggleExpanded = (id: string) => {
@@ -124,7 +126,16 @@ function SidebarContent({
   };
 
   const visibleSections = menuSections
-    .map(s => ({ ...s, items: s.items.filter(it => !it.adminOnly || isAdmin) }))
+    .map(s => ({
+      ...s,
+      items: s.items
+        .filter(it => !it.adminOnly || isAdmin)
+        .filter(it => can(it.id))
+        .map(it => it.subItems
+          ? { ...it, subItems: it.subItems.filter(si => can(si.id)) }
+          : it
+        ),
+    }))
     .filter(s => s.items.length > 0);
 
   const renderItem = (item: MenuItemType) => {

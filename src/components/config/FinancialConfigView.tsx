@@ -47,8 +47,11 @@ import {
   Search,
   ArrowUpDown,
   Filter,
+  ShieldCheck,
 } from 'lucide-react';
 import { getEntityIcon, getEntityColor } from '@/utils/entityIcons';
+import { useAuth } from '@/hooks/useAuth';
+import { UserPermissionsView } from '@/components/settings/UserPermissionsView';
 import { 
   useCompanies,
   useAccounts,
@@ -1957,8 +1960,18 @@ export function FinancialConfigView() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <ConfigTabs />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ConfigTabs() {
+  const { isAdmin } = useAuth();
+  return (
           <Tabs defaultValue="companies" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-9 mb-6">
+            <TabsList className={`grid w-full grid-cols-4 ${isAdmin ? 'lg:grid-cols-10' : 'lg:grid-cols-9'} mb-6`}>
               <TabsTrigger value="companies" className="flex items-center gap-2">
                 <Building2 className="w-4 h-4" />
                 <span className="hidden lg:inline">Empresas</span>
@@ -1995,38 +2008,26 @@ export function FinancialConfigView() {
                 <Target className="w-4 h-4" />
                 <span className="hidden lg:inline">Fiscal</span>
               </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger value="permissions" className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span className="hidden lg:inline">Permissões</span>
+                </TabsTrigger>
+              )}
             </TabsList>
 
-            <TabsContent value="companies">
-              <CompaniesTab />
-            </TabsContent>
-            <TabsContent value="accounts">
-              <AccountsTab />
-            </TabsContent>
-            <TabsContent value="account-categories">
-              <AccountCategoriesTab />
-            </TabsContent>
-            <TabsContent value="cost-centers">
-              <CostCentersTab />
-            </TabsContent>
-            <TabsContent value="transaction-categories">
-              <TransactionCategoriesTab />
-            </TabsContent>
-            <TabsContent value="payment-methods">
-              <PaymentMethodsTab />
-            </TabsContent>
-            <TabsContent value="contract-plans">
-              <ContractPlansTab />
-            </TabsContent>
-            <TabsContent value="minimum-wage">
-              <MinimumWageTab />
-            </TabsContent>
-            <TabsContent value="fiscal">
-              <FiscalConfigTab />
-            </TabsContent>
+            <TabsContent value="companies"><CompaniesTab /></TabsContent>
+            <TabsContent value="accounts"><AccountsTab /></TabsContent>
+            <TabsContent value="account-categories"><AccountCategoriesTab /></TabsContent>
+            <TabsContent value="cost-centers"><CostCentersTab /></TabsContent>
+            <TabsContent value="transaction-categories"><TransactionCategoriesTab /></TabsContent>
+            <TabsContent value="payment-methods"><PaymentMethodsTab /></TabsContent>
+            <TabsContent value="contract-plans"><ContractPlansTab /></TabsContent>
+            <TabsContent value="minimum-wage"><MinimumWageTab /></TabsContent>
+            <TabsContent value="fiscal"><FiscalConfigTab /></TabsContent>
+            {isAdmin && (
+              <TabsContent value="permissions"><UserPermissionsView /></TabsContent>
+            )}
           </Tabs>
-        </CardContent>
-      </Card>
-    </div>
   );
 }
