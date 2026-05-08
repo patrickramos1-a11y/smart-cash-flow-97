@@ -28,6 +28,7 @@ type MenuItemType = {
   subItems?: SubMenuItem[];
   adminOnly?: boolean;
 };
+type MenuSection = { id: string; label: string; items: MenuItemType[] };
 
 function useApprovalCount() {
   return useQuery({
