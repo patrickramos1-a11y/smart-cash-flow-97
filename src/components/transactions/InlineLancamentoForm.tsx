@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   ArrowDownCircle, ArrowUpCircle, Loader2, Send, RefreshCw,
   Repeat, Split, Sparkles, AlertCircle, ChevronUp, ChevronDown,
+  Plus, Eye, Keyboard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -145,7 +146,7 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
     (!paidRequired || (!!dataPagamento && !!paymentMethodId)) &&
     !!descricao.trim();
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (andNew = false) => {
     if (!selected) return;
     if (needsDedicated) {
       onNeedsDedicatedFlow(selected.subtype === 'RECORRENTE' ? 'recurring' : 'fixa');
@@ -168,7 +169,7 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
         const suffix = reps > 1
           ? (repMode === 'parcelamento' ? ` - Parcela ${i + 1}/${reps}` : ` - Repetição ${i + 1}/${reps}`)
           : '';
-        const isPaidThis = paidRequired && i === 0; // paga só a primeira ao parcelar
+        const isPaidThis = paidRequired && i === 0;
         const result = await createTransaction.mutateAsync({
           tipo_movimento: selected.type,
           natureza: selected.subtype === 'AVULSA' ? 'AVULSA' : 'AVULSA',
@@ -188,7 +189,6 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
           status: isPaidThis ? 'PAGO' : 'EM_ABERTO',
           valor_pago: isPaidThis ? valorParcela : null,
           data_pagamento: isPaidThis ? dataPagamento : null,
-          // Fiscal (entrada avulsa)
           origem_receita: isAvulsaEntrada ? origemReceita : null,
           documento_recebimento: isAvulsaEntrada ? documentoRecebimento : null,
         } as any);
@@ -202,7 +202,18 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
       qc.invalidateQueries({ queryKey: ['transactions'] });
       qc.invalidateQueries({ queryKey: ['recent-launches'] });
       toast.success(reps > 1 ? `${reps} lançamentos criados!` : 'Lançamento criado!');
-      reset();
+      if (andNew) {
+        setValorNum(0);
+        setDescricao('');
+        setDescricaoTouched(false);
+        setNotes('');
+        setStatus('EM_ABERTO');
+        setEnableRep(false);
+        setRepCount(2);
+        toast.message('Pronto para o próximo ⚡');
+      } else {
+        reset();
+      }
       onCreated?.();
     } catch (e: any) {
       toast.error(e?.message || 'Erro ao criar lançamento');
@@ -210,6 +221,23 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
       setSubmitting(false);
     }
   };
+
+  // Atalhos: Ctrl/Cmd+Enter = Lançar | Ctrl/Cmd+Shift+Enter = Lançar e novo | Esc = limpar
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const meta = e.ctrlKey || e.metaKey;
+      if (meta && e.key === 'Enter') {
+        e.preventDefault();
+        if (canSubmit && !submitting) handleSubmit(e.shiftKey);
+      } else if (e.key === 'Escape' && selected) {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA') reset();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canSubmit, submitting, selected]);
 
   const subtypeBadge = selected && {
     'RECORRENTE': { label: 'Entrada Recorrente', cls: 'border-income/40 text-income' },
@@ -288,7 +316,7 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
                 </p>
                 <p className="text-amber-700/80">Vamos abrir o formulário dedicado para garantir as parcelas e regras.</p>
               </div>
-              <Button size="sm" onClick={handleSubmit}>
+              <Button size="sm" onClick={() => handleSubmit(false)}>
                 Continuar
               </Button>
             </CardContent>
@@ -512,12 +540,46 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
               <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Opcional" />
             </div>
 
-            <div className="flex items-center justify-between gap-2 pt-2 border-t">
-              <Button variant="ghost" size="sm" onClick={reset}>Limpar</Button>
-              <Button onClick={handleSubmit} disabled={!canSubmit || submitting} className="gap-2">
-                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                Lançar
-              </Button>
+            {/* Resumo final + Ações */}
+            {canSubmit && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs space-y-1">
+                <div className="flex items-center gap-1.5 font-bold uppercase tracking-wide text-primary">
+                  <Eye className="w-3 h-3" /> Resumo
+                </div>
+                <div className="grid sm:grid-cols-2 gap-x-4 gap-y-0.5 text-foreground/90">
+                  <div><span className="text-muted-foreground">Categoria:</span> <strong>{selected.name}</strong></div>
+                  <div><span className="text-muted-foreground">Conta:</span> <strong>{accObj?.name || '—'}</strong></div>
+                  <div><span className="text-muted-foreground">Valor:</span> <strong className={isEntrada ? 'text-income' : 'text-expense'}>R$ {valorNum.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>{enableRep && repCount > 1 && <span className="text-muted-foreground"> × {repCount}{repMode === 'parcelamento' ? ' (parcelado)' : ' (repetido)'}</span>}</div>
+                  <div><span className="text-muted-foreground">Vencimento:</span> <strong>{new Date(dataVenc + 'T00:00:00').toLocaleDateString('pt-BR')}</strong></div>
+                  <div><span className="text-muted-foreground">Competência:</span> <strong>{String(competenciaMes).padStart(2, '0')}/{competenciaAno}</strong></div>
+                  <div><span className="text-muted-foreground">Situação:</span> <strong>{status === 'PAGO' ? 'Pago' : 'Em aberto'}</strong></div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-2 pt-2 border-t flex-wrap">
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={reset}>Limpar</Button>
+                <span className="hidden md:inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <Keyboard className="w-3 h-3" /> Ctrl+Enter lança · Ctrl+Shift+Enter lança e novo · Esc limpa
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handleSubmit(true)}
+                  disabled={!canSubmit || submitting}
+                  className="gap-2"
+                  title="Lança e mantém categoria/cliente/competência (Ctrl+Shift+Enter)"
+                >
+                  <Plus className="w-4 h-4" />
+                  Lançar e novo
+                </Button>
+                <Button onClick={() => handleSubmit(false)} disabled={!canSubmit || submitting} className="gap-2">
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Lançar
+                </Button>
+              </div>
             </div>
           </>
         )}
