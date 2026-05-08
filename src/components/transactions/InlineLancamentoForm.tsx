@@ -316,7 +316,7 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
                 </p>
                 <p className="text-amber-700/80">Vamos abrir o formulário dedicado para garantir as parcelas e regras.</p>
               </div>
-              <Button size="sm" onClick={handleSubmit}>
+              <Button size="sm" onClick={() => handleSubmit(false)}>
                 Continuar
               </Button>
             </CardContent>
