@@ -1,139 +1,70 @@
-# Refatoração Visual + Reorganização — Sisramos / Ramos Engenharia
+# Permissões por Usuário (Visibilidade de Módulos)
 
-Redesenho completo + reorganização da navegação, baseado na identidade visual oficial (verde `#0dd375`, cinza `#5b5b5b`, símbolo "copa/círculo incompleto"). **Nenhuma cor cadastrada de categorias/contas/entidades é alterada** — só o shell visual.
+Hoje a navegação só distingue **Admin × Financeiro**. Vamos adicionar uma camada por usuário onde o admin escolhe, com checkboxes, **quais itens do menu** cada usuário enxerga. Admin sempre vê tudo.
 
-## Princípios
-- Marca primeiro: verde-ciano + cinza institucional, círculo incompleto como motivo gráfico recorrente (badges ativos, dividers, loaders).
-- Tipografia: Inter (corpo) + **Space Grotesk** (títulos) — geometria que conversa com a logo.
-- Componentes shadcn estendidos com novas variantes (`brand`, `glass`, `gradient`).
-- Cada fase termina com **Auditoria & Validação** (checklist visual + funcional) antes de avançar.
+## Como vai funcionar
 
-## Logo
-Os arquivos enviados serão usados como ativo oficial:
-- `SO_LOGO.png` → símbolo (sidebar colapsada, favicon, splash, loaders).
-- `LOGO-IMG--12.png` (horizontal) → header/topbar e tela de login.
-- `LOGO-IMG--11.png` (vertical) → splash screen e empty states grandes.
-- `MARCA_DA_GUA.png` → marca d'água sutil em hero do dashboard e fundos de relatórios.
-Copiados para `src/assets/brand/` e expostos via componente `<Logo variant="symbol|horizontal|vertical|watermark" />`.
+1. Em **Configuração → Usuários & Permissões** (nova aba, só para admin) aparece a lista de todos os perfis.
+2. O admin abre a Zonilda e vê um painel com checkboxes agrupados pelas seções do menu (Principal, Gestão, Relatórios, Cadastros, Sistema).
+3. Marca/desmarca módulos. "Salvar" grava as permissões.
+4. Na próxima vez que ela abrir o sistema, a sidebar e a bottom-nav só mostram o que está habilitado, e ao tentar acessar uma rota bloqueada vê uma tela "Sem acesso a este módulo".
+5. Atalhos rápidos no painel: **Marcar tudo**, **Desmarcar tudo**, **Aplicar preset Financeiro padrão**.
 
----
+Por padrão, qualquer usuário Financeiro novo terá um preset (todos exceto Backlog, Importar/Exportar, Reclassificação, Configuração) — exatamente como hoje. Admin ignora as permissões.
 
-## FASE 1 — Fundação Visual + Shell + Identidade
-*(Engloba antigas Fases 1, 2 e parte da 3)*
+## Banco de dados
 
-**1.1 Design System v2** (`src/index.css`, `tailwind.config.ts`)
-- Nova paleta primária: `--brand: 155 88% 44%`, `--brand-glow`, `--brand-deep`, `--neutral: 0 0% 36%`.
-- Tokens novos: `--surface`, `--surface-elevated`, `--gradient-brand`, `--gradient-mesh`, `--shadow-brand`, `--ring-soft`.
-- Raio padrão 1rem, escala (sm/md/lg/2xl).
-- Dark mode recalibrado.
-- Fonte Space Grotesk via Google Fonts.
+Nova tabela `user_module_permissions`:
 
-**1.2 Componente de Marca**
-- `<Logo />` com 4 variantes a partir dos PNGs enviados.
-- Favicon, apple-touch, theme-color, splash atualizados.
-
-**1.3 Shell (Sidebar + Header + Bottom Nav)**
-- Sidebar redesenhada com `shadcn/sidebar` (`collapsible="icon"`), glass leve, indicador ativo em formato de "círculo incompleto", grupos colapsáveis, marca no topo.
-- Header com command palette `⌘K`, seletor de Ano Ativo destacado, avatar refinado.
-- MobileBottomNav: pílula flutuante com FAB central de "Novo lançamento".
-
-**1.4 Componentes base atualizados**
-- `Button`: variantes `brand`, `brandGhost`, `glass`, `gradient`, estados loading/success.
-- `Card`: variantes `elevated`, `glass`, `outlined`, `gradient`.
-- `Input/Select/Combobox`: 44px, ring verde suave.
-- `Badge`: semânticos + `soft`.
-- `Tabs`: pílula com indicador animado.
-
-**Auditoria 1**: contraste AA, dark mode, mobile 375px, todas as rotas renderizam sem regressão visual, cores de categorias intactas.
-
----
-
-## FASE 2 — Reorganização da Navegação + Telas Operacionais
-*(Engloba antigas Fases 4 e parte de 5, + IA do menu)*
-
-**2.1 Nova IA do menu** (proposta — confirmamos antes de codar)
 ```text
-PRINCIPAL
-  Dashboard
-  Lançamento (CTA destaque)
-  Transações
-    ├─ Todas
-    ├─ Entradas Avulsas
-    ├─ Entradas Recorrentes
-    ├─ Despesas Fixas
-    └─ Despesas Variáveis
-  Aprovações  (badge contador)
-  Pagamentos em Aberto
-
-GESTÃO
-  Contas
-  Contratos Recorrentes
-  Clientes & Entidades
-  Reclassificação
-
-RELATÓRIOS
-  DRE
-  Análise de Despesas
-  Fiscal
-  Relatórios Gerais
-
-CONFIGURAÇÕES
-  Cadastros (Categorias, Centros de Custo, Formas de Pagto, Planos)
-  Financeiro (Salário Mínimo, Regras Fiscais)
-  Importação / Exportação
-  Backlog
-  Usuários & Permissões
+id            uuid PK
+user_id       uuid  -> auth.users (cascade)
+module_key    text  (ex: 'dashboard', 'transactions', 'approval', ...)
+allowed       boolean default true
+created_at, updated_at
+UNIQUE(user_id, module_key)
 ```
-Reduz de ~20 itens soltos para 4 grupos claros, com a operação diária no topo.
 
-**2.2 Telas operacionais**
-- **Dashboard**: hero com saudação + marca d'água, KPIs no novo padrão, gráfico mestre com gradient verde, alertas redesenhados.
-- **Lançamento (Central)**: refino visual do form atual (chips, comboboxes, resumo, atalhos).
-- **Transações**: linhas com hover sutil, badges no novo padrão, filtros como pílulas, MonthYear navigator polido.
-- **Contas**: cards com gradient sutil, micro-charts.
-- **Aprovações / Pagamentos em Aberto**: KPI cards como filtros, bulk actions visíveis.
+RLS:
+- SELECT: o próprio usuário lê suas permissões; admin lê todas.
+- INSERT/UPDATE/DELETE: somente admin (`has_role(auth.uid(),'admin')`).
 
-**Auditoria 2**: fluxo de lançamento ponta-a-ponta, navegação por teclado, mobile, performance (LCP), nenhuma rota órfã após reorganização.
+Regra de leitura no app: se NÃO existir nenhuma linha para o usuário → aplica preset padrão Financeiro. Se existir pelo menos uma → usa exatamente o que está marcado.
 
----
+## Frontend
 
-## FASE 3 — Telas Analíticas, Cadastros e Polimento Final
-*(Engloba antigas Fases 5 e 6)*
+**Novos arquivos**
+- `src/lib/modules.ts` — catálogo único de módulos (key, label, ícone, seção, default Financeiro). Fonte da verdade usada por sidebar, bottom-nav e tela de permissões.
+- `src/hooks/usePermissions.ts` — busca + cache (react-query) das permissões do usuário logado, expõe `can(moduleKey)` e `allowedKeys`.
+- `src/components/settings/UserPermissionsView.tsx` — lista de usuários (esquerda) + painel de checkboxes agrupados (direita), com Salvar / Marcar tudo / Preset Financeiro.
+- `src/components/feedback/NoAccess.tsx` — tela amigável quando o usuário tenta abrir um módulo bloqueado.
 
-**3.1 Analíticas e Cadastros**
-- **DRE / Relatórios**: tipografia tabular, indentação visual, totais em destaque branded, export polido.
-- **Categorias / Centros de Custo / Entidades**: grid moderno **preservando as cores cadastradas** (apenas o container muda).
-- **Configurações**: nav lateral interna, seções como cards.
-- **Login**: split-screen com logo vertical + form minimalista.
-
-**3.2 Microinterações
-- Transições de página (fade + slide leve).
-- Skeletons com shimmer verde.
-- Empty states ilustrados com motivo do círculo incompleto.
-- Count-up nos KPIs.
-- Toaster (sonner) com tema branded.
-
-**Auditoria 3 (final)**: checklist completo — acessibilidade AA, dark mode tela a tela, mobile/tablet/desktop, smoke test funcional de todas as rotas, validação com você antes de fechar.
-
----
+**Edições**
+- `src/components/layout/Sidebar.tsx` — filtrar `menuSections` por `can(item.id)`. Admin ignora filtro.
+- `src/components/layout/MobileBottomNav.tsx` — mesmo filtro.
+- `src/pages/Index.tsx` — antes de renderizar uma aba, checar `can(activeTab)`; se não, mostrar `<NoAccess />`. Se a aba ativa virou inacessível (admin tirou permissão em runtime), redireciona para o primeiro módulo permitido.
+- `src/components/config/FinancialConfigView.tsx` — adicionar aba "Usuários & Permissões" visível só para admin.
 
 ## Detalhes técnicos
 
 ```text
-Arquivos por fase
-F1: src/index.css, tailwind.config.ts, src/components/brand/Logo.tsx,
-    src/assets/brand/*, index.html, ui/{button,card,input,badge,tabs}.tsx,
-    layout/{Sidebar,Header,MobileBottomNav}.tsx
-F2: App.tsx (rotas/grupos), Sidebar (nova IA), Dashboard, Lançamento,
-    Transações, Contas, Aprovações, OpenPayments
-F3: DRE, Reports, Cadastros, Configurações, Login, feedback/{Skeleton,
-    EmptyState,PageTransition}
+modules.ts (chaves alinhadas ao activeTab atual)
+  PRINCIPAL: dashboard, lancamento, transactions
+  GESTÃO:    accounts, open-payments, approval, recurring-contracts, reclassification
+  RELATÓRIOS: reports
+  CADASTROS: clients, entities
+  SISTEMA:   config, import, backlog
 ```
 
-## Garantias
-- Cores cadastradas pelo usuário (categorias/contas/entidades) **intactas**.
-- Sem migração de banco. Sem quebra de API.
-- Cada fase é entregue revisável; auditoria entre fases.
+- O catálogo cobre só os itens de **primeiro nível**. Sub-itens de Transações herdam do pai.
+- `usePermissions` faz `select module_key,allowed from user_module_permissions where user_id=auth.uid()`. Admin curto-circuita: `can = () => true`.
+- Salvar = upsert por `(user_id, module_key)`. "Marcar tudo" envia todos com `allowed=true`. Preset Financeiro envia conforme defaults.
 
-## Próximo passo
-Aprovando o plano, começo pela **Fase 1**. Antes da Fase 2, te mostro a IA do menu para confirmação final.
+## Garantias
+
+- Não altera roles existentes; é uma camada adicional sobre `admin/financeiro`.
+- Admin nunca é bloqueado.
+- Nenhum dado financeiro é tocado.
+- Se a tabela estiver vazia para um usuário, o comportamento é idêntico ao de hoje (compatível com o que já existe).
+
+Aprovando, eu crio a migração + tela de permissões + filtro na sidebar/bottom-nav numa única entrega.
