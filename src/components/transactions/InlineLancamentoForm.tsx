@@ -146,7 +146,7 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
     (!paidRequired || (!!dataPagamento && !!paymentMethodId)) &&
     !!descricao.trim();
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (andNew = false) => {
     if (!selected) return;
     if (needsDedicated) {
       onNeedsDedicatedFlow(selected.subtype === 'RECORRENTE' ? 'recurring' : 'fixa');
@@ -169,7 +169,7 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
         const suffix = reps > 1
           ? (repMode === 'parcelamento' ? ` - Parcela ${i + 1}/${reps}` : ` - Repetição ${i + 1}/${reps}`)
           : '';
-        const isPaidThis = paidRequired && i === 0; // paga só a primeira ao parcelar
+        const isPaidThis = paidRequired && i === 0;
         const result = await createTransaction.mutateAsync({
           tipo_movimento: selected.type,
           natureza: selected.subtype === 'AVULSA' ? 'AVULSA' : 'AVULSA',
@@ -189,7 +189,6 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
           status: isPaidThis ? 'PAGO' : 'EM_ABERTO',
           valor_pago: isPaidThis ? valorParcela : null,
           data_pagamento: isPaidThis ? dataPagamento : null,
-          // Fiscal (entrada avulsa)
           origem_receita: isAvulsaEntrada ? origemReceita : null,
           documento_recebimento: isAvulsaEntrada ? documentoRecebimento : null,
         } as any);
@@ -203,7 +202,18 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
       qc.invalidateQueries({ queryKey: ['transactions'] });
       qc.invalidateQueries({ queryKey: ['recent-launches'] });
       toast.success(reps > 1 ? `${reps} lançamentos criados!` : 'Lançamento criado!');
-      reset();
+      if (andNew) {
+        setValorNum(0);
+        setDescricao('');
+        setDescricaoTouched(false);
+        setNotes('');
+        setStatus('EM_ABERTO');
+        setEnableRep(false);
+        setRepCount(2);
+        toast.message('Pronto para o próximo ⚡');
+      } else {
+        reset();
+      }
       onCreated?.();
     } catch (e: any) {
       toast.error(e?.message || 'Erro ao criar lançamento');
@@ -211,6 +221,23 @@ export function InlineLancamentoForm({ defaultMonth, defaultYear, onNeedsDedicat
       setSubmitting(false);
     }
   };
+
+  // Atalhos: Ctrl/Cmd+Enter = Lançar | Ctrl/Cmd+Shift+Enter = Lançar e novo | Esc = limpar
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const meta = e.ctrlKey || e.metaKey;
+      if (meta && e.key === 'Enter') {
+        e.preventDefault();
+        if (canSubmit && !submitting) handleSubmit(e.shiftKey);
+      } else if (e.key === 'Escape' && selected) {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA') reset();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canSubmit, submitting, selected]);
 
   const subtypeBadge = selected && {
     'RECORRENTE': { label: 'Entrada Recorrente', cls: 'border-income/40 text-income' },
