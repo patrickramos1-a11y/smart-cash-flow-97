@@ -3,9 +3,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Loader2, Lock, Mail } from 'lucide-react';
 import { toast } from 'sonner';
+import { Logo } from '@/components/brand/Logo';
+import watermark from '@/assets/brand/watermark.png';
 
 export default function Login() {
   const { signIn } = useAuth();
@@ -19,81 +20,106 @@ export default function Login() {
       toast.error('Preencha e-mail e senha');
       return;
     }
-
     setLoading(true);
     const { error } = await signIn(email, password);
     setLoading(false);
-
-    if (error) {
-      toast.error('Credenciais inválidas. Verifique e-mail e senha.');
-    }
+    if (error) toast.error('Credenciais inválidas. Verifique e-mail e senha.');
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mx-auto mb-4 shadow-xl shadow-emerald-500/20">
-            <span className="text-white font-bold text-2xl">SR</span>
-          </div>
-          <h1 className="text-2xl font-bold text-white">Sisramos Financeiro</h1>
-          <p className="text-slate-400 text-sm mt-1">Módulo de Gestão Financeira</p>
+    <div className="min-h-screen w-full grid lg:grid-cols-2 bg-background">
+      {/* Brand panel */}
+      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-gradient-mesh p-12">
+        <img
+          src={watermark}
+          alt=""
+          aria-hidden
+          className="pointer-events-none absolute -right-20 -bottom-20 w-[640px] opacity-[0.06] select-none"
+        />
+        <div className="relative z-10">
+          <Logo variant="vertical" className="h-40 w-auto" />
         </div>
-
-        <Card className="border-slate-700 bg-slate-800/50 backdrop-blur-sm shadow-2xl">
-          <CardHeader className="pb-4">
-            <h2 className="text-lg font-semibold text-white text-center">Acesse sua conta</h2>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-300">E-mail</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/20"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-slate-300">Senha</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/20"
-                  />
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold h-11 shadow-lg shadow-emerald-500/20"
-              >
-                {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : null}
-                Entrar
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        <p className="text-center text-slate-500 text-xs mt-6">
-          Ramos Engenharia e Consultoria Ambiental © 2026
+        <div className="relative z-10 space-y-3 max-w-md">
+          <h2 className="font-display text-3xl font-bold leading-tight text-foreground">
+            Gestão financeira <span className="text-brand">inteligente</span>
+            <br />
+            para a Ramos Engenharia.
+          </h2>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            Controle de receitas, despesas, contratos recorrentes e DRE em um único lugar —
+            com a clareza visual que a sua operação merece.
+          </p>
+        </div>
+        <p className="relative z-10 text-xs text-muted-foreground/70 tracking-wide uppercase">
+          Ramos Engenharia · Consulting & Solutions · © 2026
         </p>
+      </div>
+
+      {/* Form panel */}
+      <div className="flex items-center justify-center p-6 sm:p-12 animate-fade-in">
+        <div className="w-full max-w-sm space-y-8">
+          <div className="lg:hidden flex flex-col items-center gap-3 text-center">
+            <Logo variant="symbol" className="h-16 w-16" />
+            <div>
+              <h1 className="font-display text-xl font-bold">Ramos Engenharia</h1>
+              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Financeiro</p>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <h2 className="font-display text-2xl font-bold tracking-tight">Bem-vindo de volta</h2>
+            <p className="text-sm text-muted-foreground">Acesse sua conta para continuar.</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="email">E-mail</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="pl-10 h-11"
+                  autoComplete="email"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Senha</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10 h-11"
+                  autoComplete="current-password"
+                />
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              variant="brand"
+              size="lg"
+              disabled={loading}
+              className="w-full"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Entrar
+            </Button>
+          </form>
+
+          <p className="text-center text-[11px] text-muted-foreground tracking-wide">
+            Acesso restrito · Equipe Ramos Engenharia
+          </p>
+        </div>
       </div>
     </div>
   );

@@ -25,6 +25,7 @@ import { ReclassificationView } from '@/components/reclassification/Reclassifica
 import { ApprovalView } from '@/components/approval/ApprovalView';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
+import { PageTransition } from '@/components/feedback/PageTransition';
 
 const tabConfig: Record<string, { title: string; subtitle?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Visão geral financeira' },
@@ -123,7 +124,9 @@ const Index = () => {
         <Header title={title} subtitle={subtitle} />
         
         <div className="p-3 lg:p-8">
-          {renderContent()}
+          <PageTransition routeKey={`${activeTab}:${detailAccountId ?? ''}`}>
+            {renderContent()}
+          </PageTransition>
         </div>
       </main>
 
