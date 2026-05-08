@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   ArrowDownCircle, ArrowUpCircle, Loader2, Send, RefreshCw,
   Repeat, Split, Sparkles, AlertCircle, ChevronUp, ChevronDown,
+  Plus, Eye, Keyboard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
