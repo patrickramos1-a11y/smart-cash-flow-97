@@ -28,6 +28,7 @@ type MenuItemType = {
   subItems?: SubMenuItem[];
   adminOnly?: boolean;
 };
+type MenuSection = { id: string; label: string; items: MenuItemType[] };
 
 function useApprovalCount() {
   return useQuery({
@@ -44,30 +45,60 @@ function useApprovalCount() {
   });
 }
 
-const menuItems: MenuItemType[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { 
-    id: 'transactions', label: 'Transações', icon: ArrowDownUp,
-    subItems: [
-      { id: 'transactions', label: 'Visão Geral', icon: ArrowDownUp },
-      { id: 'entradas-recorrentes', label: 'Entradas Recorrentes', icon: RefreshCw },
-      { id: 'entradas-avulsas', label: 'Entradas Avulsas', icon: ArrowDownCircle },
-      { id: 'despesas-fixas', label: 'Despesas Fixas', icon: RefreshCw },
-      { id: 'despesas-variaveis', label: 'Despesas Variáveis', icon: ArrowUpCircle },
-      { id: 'lancamento', label: 'Lançamento', icon: PlusCircle },
-    ]
+const menuSections: MenuSection[] = [
+  {
+    id: 'principal',
+    label: 'Principal',
+    items: [
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'lancamento', label: 'Novo Lançamento', icon: PlusCircle },
+      {
+        id: 'transactions', label: 'Transações', icon: ArrowDownUp,
+        subItems: [
+          { id: 'transactions', label: 'Visão Geral', icon: ArrowDownUp },
+          { id: 'entradas-recorrentes', label: 'Entradas Recorrentes', icon: RefreshCw },
+          { id: 'entradas-avulsas', label: 'Entradas Avulsas', icon: ArrowDownCircle },
+          { id: 'despesas-fixas', label: 'Despesas Fixas', icon: RefreshCw },
+          { id: 'despesas-variaveis', label: 'Despesas Variáveis', icon: ArrowUpCircle },
+        ],
+      },
+    ],
   },
-  { id: 'accounts', label: 'Contas', icon: Wallet },
-  { id: 'open-payments', label: 'Em Aberto', icon: AlertCircle, badge: 'critical' },
-  { id: 'approval', label: 'Aprovações', icon: ShieldCheck, badge: 'approval' },
-  { id: 'recurring-contracts', label: 'Contratos', icon: RefreshCw },
-  { id: 'reports', label: 'Relatórios', icon: BarChart3 },
-  { id: 'clients', label: 'Clientes', icon: Users },
-  { id: 'entities', label: 'Entidades', icon: Building2 },
-  { id: 'backlog', label: 'Backlog', icon: ClipboardList, badge: 'new', adminOnly: true },
-  { id: 'config', label: 'Configuração', icon: Settings },
-  { id: 'reclassification', label: 'Reclassificação', icon: FileText },
-  { id: 'import', label: 'Importar/Exportar', icon: FileSpreadsheet },
+  {
+    id: 'gestao',
+    label: 'Gestão',
+    items: [
+      { id: 'accounts', label: 'Contas', icon: Wallet },
+      { id: 'open-payments', label: 'Em Aberto', icon: AlertCircle, badge: 'critical' },
+      { id: 'approval', label: 'Aprovações', icon: ShieldCheck, badge: 'approval' },
+      { id: 'recurring-contracts', label: 'Contratos', icon: RefreshCw },
+      { id: 'reclassification', label: 'Reclassificação', icon: FileText },
+    ],
+  },
+  {
+    id: 'relatorios',
+    label: 'Relatórios',
+    items: [
+      { id: 'reports', label: 'Análise & DRE', icon: BarChart3 },
+    ],
+  },
+  {
+    id: 'cadastros',
+    label: 'Cadastros',
+    items: [
+      { id: 'clients', label: 'Clientes', icon: Users },
+      { id: 'entities', label: 'Entidades', icon: Building2 },
+    ],
+  },
+  {
+    id: 'sistema',
+    label: 'Sistema',
+    items: [
+      { id: 'config', label: 'Configuração', icon: Settings },
+      { id: 'import', label: 'Importar / Exportar', icon: FileSpreadsheet },
+      { id: 'backlog', label: 'Backlog', icon: ClipboardList, badge: 'new', adminOnly: true },
+    ],
+  },
 ];
 
 function SidebarContent({ 
@@ -92,7 +123,78 @@ function SidebarContent({
     }
   };
 
-  const visibleItems = menuItems.filter(item => !item.adminOnly || isAdmin);
+  const visibleSections = menuSections
+    .map(s => ({ ...s, items: s.items.filter(it => !it.adminOnly || isAdmin) }))
+    .filter(s => s.items.length > 0);
+
+  const renderItem = (item: MenuItemType) => {
+    const Icon = item.icon;
+    const isActive = activeTab === item.id || (item.subItems && item.subItems.some(s => s.id === activeTab));
+    const isExpanded = expandedMenus.includes(item.id);
+    const hasSubItems = item.subItems && item.subItems.length > 0;
+
+    return (
+      <div key={item.id}>
+        <button
+          onClick={() => handleMenuClick(item)}
+          className={cn(
+            "nav-item w-full relative",
+            isActive && !hasSubItems && "active",
+            hasSubItems && isActive && "bg-sidebar-accent/50"
+          )}
+          title={collapsed && !isMobile ? item.label : undefined}
+        >
+          <Icon className="w-5 h-5 flex-shrink-0" />
+          {(!collapsed || isMobile) && (
+            <>
+              <span className="flex-1 text-left">{item.label}</span>
+              {item.badge === 'critical' && (
+                <span className="w-2 h-2 bg-expense rounded-full animate-pulse" />
+              )}
+              {item.badge === 'approval' && pendingCount && pendingCount > 0 ? (
+                <span className="text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded-full font-bold min-w-[20px] text-center">
+                  {pendingCount}
+                </span>
+              ) : null}
+              {item.badge === 'new' && (
+                <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">Novo</span>
+              )}
+              {hasSubItems && (
+                <ChevronDown className={cn("w-4 h-4 transition-transform", isExpanded && "rotate-180")} />
+              )}
+            </>
+          )}
+          {collapsed && !isMobile && item.badge === 'approval' && pendingCount && pendingCount > 0 ? (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold">
+              {pendingCount}
+            </span>
+          ) : null}
+          {collapsed && !isMobile && item.badge === 'critical' && (
+            <span className="absolute -top-1 -right-1 w-2 h-2 bg-expense rounded-full animate-pulse" />
+          )}
+        </button>
+
+        {hasSubItems && isExpanded && (!collapsed || isMobile) && (
+          <div className="ml-4 mt-1 space-y-1 border-l-2 border-sidebar-border pl-3">
+            {item.subItems!.map((subItem) => {
+              const SubIcon = subItem.icon;
+              const isSubActive = activeTab === subItem.id;
+              return (
+                <button
+                  key={subItem.id}
+                  onClick={() => onTabChange(subItem.id)}
+                  className={cn("nav-item w-full text-sm py-2", isSubActive && "active")}
+                >
+                  <SubIcon className="w-4 h-4 flex-shrink-0" />
+                  <span className="flex-1 text-left">{subItem.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -110,75 +212,22 @@ function SidebarContent({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-3 lg:p-4 space-y-1 overflow-y-auto custom-scrollbar">
-        {visibleItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id || (item.subItems && item.subItems.some(s => s.id === activeTab));
-          const isExpanded = expandedMenus.includes(item.id);
-          const hasSubItems = item.subItems && item.subItems.length > 0;
-          
-          return (
-            <div key={item.id}>
-              <button
-                onClick={() => handleMenuClick(item)}
-                className={cn(
-                  "nav-item w-full relative",
-                  isActive && !hasSubItems && "active",
-                  hasSubItems && isActive && "bg-sidebar-accent/50"
-                )}
-                title={collapsed && !isMobile ? item.label : undefined}
-              >
-                <Icon className="w-5 h-5 flex-shrink-0" />
-                {(!collapsed || isMobile) && (
-                  <>
-                    <span className="flex-1 text-left">{item.label}</span>
-                    {item.badge === 'critical' && (
-                      <span className="w-2 h-2 bg-expense rounded-full animate-pulse" />
-                    )}
-                    {item.badge === 'approval' && pendingCount && pendingCount > 0 ? (
-                      <span className="text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded-full font-bold min-w-[20px] text-center">
-                        {pendingCount}
-                      </span>
-                    ) : null}
-                    {item.badge === 'new' && (
-                      <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">Novo</span>
-                    )}
-                    {hasSubItems && (
-                      <ChevronDown className={cn("w-4 h-4 transition-transform", isExpanded && "rotate-180")} />
-                    )}
-                  </>
-                )}
-                {collapsed && !isMobile && item.badge === 'approval' && pendingCount && pendingCount > 0 ? (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-white rounded-full text-[9px] flex items-center justify-center font-bold">
-                    {pendingCount}
-                  </span>
-                ) : null}
-                {collapsed && !isMobile && item.badge === 'critical' && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-expense rounded-full animate-pulse" />
-                )}
-              </button>
-
-              {hasSubItems && isExpanded && (!collapsed || isMobile) && (
-                <div className="ml-4 mt-1 space-y-1 border-l-2 border-sidebar-border pl-3">
-                  {item.subItems!.map((subItem) => {
-                    const SubIcon = subItem.icon;
-                    const isSubActive = activeTab === subItem.id;
-                    return (
-                      <button
-                        key={subItem.id}
-                        onClick={() => onTabChange(subItem.id)}
-                        className={cn("nav-item w-full text-sm py-2", isSubActive && "active")}
-                      >
-                        <SubIcon className="w-4 h-4 flex-shrink-0" />
-                        <span className="flex-1 text-left">{subItem.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+      <nav className="flex-1 p-3 lg:p-4 overflow-y-auto custom-scrollbar">
+        {visibleSections.map((section, idx) => (
+          <div key={section.id} className={cn(idx > 0 && "mt-4")}>
+            {(!collapsed || isMobile) && (
+              <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/40">
+                {section.label}
+              </p>
+            )}
+            {collapsed && !isMobile && idx > 0 && (
+              <div className="mx-3 mb-2 h-px bg-sidebar-border/60" />
+            )}
+            <div className="space-y-1">
+              {section.items.map(renderItem)}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </nav>
 
       {/* Collapse button (desktop only) */}
