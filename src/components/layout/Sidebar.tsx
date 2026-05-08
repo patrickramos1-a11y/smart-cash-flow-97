@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Logo } from '@/components/brand/Logo';
 
 interface SidebarProps {
   activeTab: string;
@@ -96,14 +97,14 @@ function SidebarContent({
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="flex items-center gap-3 p-4 lg:p-6 border-b border-sidebar-border">
-        <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center flex-shrink-0 shadow-lg">
-          <span className="text-white font-bold text-lg">SR</span>
+      <div className="flex items-center gap-3 p-4 lg:p-5 border-b border-sidebar-border">
+        <div className="w-11 h-11 rounded-2xl bg-white/95 flex items-center justify-center flex-shrink-0 shadow-brand p-1">
+          <Logo variant="symbol" className="w-full h-full object-contain" />
         </div>
         {(!collapsed || isMobile) && (
           <div className="overflow-hidden">
-            <h1 className="text-sidebar-foreground font-bold text-lg leading-tight">Sisramos</h1>
-            <p className="text-sidebar-foreground/60 text-xs">Módulo Financeiro</p>
+            <h1 className="text-sidebar-foreground font-display font-bold text-base leading-tight tracking-tight">Ramos Engenharia</h1>
+            <p className="text-sidebar-foreground/55 text-[11px] uppercase tracking-[0.14em]">Financeiro</p>
           </div>
         )}
       </div>
@@ -245,10 +246,13 @@ export function Sidebar({ activeTab, onTabChange, mobileOpen, setMobileOpen }: S
           </SheetContent>
         </Sheet>
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <div className="w-7 h-7 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-bold text-xs">SR</span>
+          <div className="w-8 h-8 rounded-xl bg-white shadow-soft flex items-center justify-center flex-shrink-0 p-0.5 border border-border/40">
+            <Logo variant="symbol" className="w-full h-full object-contain" />
           </div>
-          <span className="font-semibold text-foreground text-sm truncate">Sisramos Financeiro</span>
+          <div className="flex flex-col leading-tight min-w-0">
+            <span className="font-display font-bold text-foreground text-sm truncate">Ramos Engenharia</span>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Financeiro</span>
+          </div>
         </div>
       </div>
 
