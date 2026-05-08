@@ -123,7 +123,9 @@ const Index = () => {
         <Header title={title} subtitle={subtitle} />
         
         <div className="p-3 lg:p-8">
-          {renderContent()}
+          <PageTransition routeKey={`${activeTab}:${detailAccountId ?? ''}`}>
+            {renderContent()}
+          </PageTransition>
         </div>
       </main>
 
