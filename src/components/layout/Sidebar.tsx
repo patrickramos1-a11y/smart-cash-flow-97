@@ -45,30 +45,60 @@ function useApprovalCount() {
   });
 }
 
-const menuItems: MenuItemType[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { 
-    id: 'transactions', label: 'Transações', icon: ArrowDownUp,
-    subItems: [
-      { id: 'transactions', label: 'Visão Geral', icon: ArrowDownUp },
-      { id: 'entradas-recorrentes', label: 'Entradas Recorrentes', icon: RefreshCw },
-      { id: 'entradas-avulsas', label: 'Entradas Avulsas', icon: ArrowDownCircle },
-      { id: 'despesas-fixas', label: 'Despesas Fixas', icon: RefreshCw },
-      { id: 'despesas-variaveis', label: 'Despesas Variáveis', icon: ArrowUpCircle },
-      { id: 'lancamento', label: 'Lançamento', icon: PlusCircle },
-    ]
+const menuSections: MenuSection[] = [
+  {
+    id: 'principal',
+    label: 'Principal',
+    items: [
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'lancamento', label: 'Novo Lançamento', icon: PlusCircle },
+      {
+        id: 'transactions', label: 'Transações', icon: ArrowDownUp,
+        subItems: [
+          { id: 'transactions', label: 'Visão Geral', icon: ArrowDownUp },
+          { id: 'entradas-recorrentes', label: 'Entradas Recorrentes', icon: RefreshCw },
+          { id: 'entradas-avulsas', label: 'Entradas Avulsas', icon: ArrowDownCircle },
+          { id: 'despesas-fixas', label: 'Despesas Fixas', icon: RefreshCw },
+          { id: 'despesas-variaveis', label: 'Despesas Variáveis', icon: ArrowUpCircle },
+        ],
+      },
+    ],
   },
-  { id: 'accounts', label: 'Contas', icon: Wallet },
-  { id: 'open-payments', label: 'Em Aberto', icon: AlertCircle, badge: 'critical' },
-  { id: 'approval', label: 'Aprovações', icon: ShieldCheck, badge: 'approval' },
-  { id: 'recurring-contracts', label: 'Contratos', icon: RefreshCw },
-  { id: 'reports', label: 'Relatórios', icon: BarChart3 },
-  { id: 'clients', label: 'Clientes', icon: Users },
-  { id: 'entities', label: 'Entidades', icon: Building2 },
-  { id: 'backlog', label: 'Backlog', icon: ClipboardList, badge: 'new', adminOnly: true },
-  { id: 'config', label: 'Configuração', icon: Settings },
-  { id: 'reclassification', label: 'Reclassificação', icon: FileText },
-  { id: 'import', label: 'Importar/Exportar', icon: FileSpreadsheet },
+  {
+    id: 'gestao',
+    label: 'Gestão',
+    items: [
+      { id: 'accounts', label: 'Contas', icon: Wallet },
+      { id: 'open-payments', label: 'Em Aberto', icon: AlertCircle, badge: 'critical' },
+      { id: 'approval', label: 'Aprovações', icon: ShieldCheck, badge: 'approval' },
+      { id: 'recurring-contracts', label: 'Contratos', icon: RefreshCw },
+      { id: 'reclassification', label: 'Reclassificação', icon: FileText },
+    ],
+  },
+  {
+    id: 'relatorios',
+    label: 'Relatórios',
+    items: [
+      { id: 'reports', label: 'Análise & DRE', icon: BarChart3 },
+    ],
+  },
+  {
+    id: 'cadastros',
+    label: 'Cadastros',
+    items: [
+      { id: 'clients', label: 'Clientes', icon: Users },
+      { id: 'entities', label: 'Entidades', icon: Building2 },
+    ],
+  },
+  {
+    id: 'sistema',
+    label: 'Sistema',
+    items: [
+      { id: 'config', label: 'Configuração', icon: Settings },
+      { id: 'import', label: 'Importar / Exportar', icon: FileSpreadsheet },
+      { id: 'backlog', label: 'Backlog', icon: ClipboardList, badge: 'new', adminOnly: true },
+    ],
+  },
 ];
 
 function SidebarContent({ 
