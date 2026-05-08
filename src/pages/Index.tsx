@@ -122,4 +122,33 @@ const Index = () => {
   );
 };
 
+function GatedContent({ activeTab, setDetailAccountId }: { activeTab: string; setDetailAccountId: (id: string | null) => void }) {
+  const { can } = usePermissions();
+  if (!can(activeTab)) {
+    const mod = MODULES.find(m => m.key === resolveModuleKey(activeTab));
+    return <NoAccess moduleLabel={mod?.label} />;
+  }
+  switch (activeTab) {
+    case 'dashboard': return <Dashboard />;
+    case 'accounts': return <AccountsView onOpenDetail={setDetailAccountId} />;
+    case 'transactions': return <TransactionsHub />;
+    case 'entradas-recorrentes': return <EntradasRecorrentesPage />;
+    case 'entradas-avulsas': return <EntradasAvulsasPage />;
+    case 'despesas-fixas': return <DespesasFixasPage />;
+    case 'despesas-variaveis': return <DespesasVariaveisPage />;
+    case 'lancamento': return <LancamentoPage />;
+    case 'open-payments': return <OpenPaymentsView />;
+    case 'recurring-contracts': return <RecurringContractsView />;
+    case 'reports': return <ReportsView />;
+    case 'clients': return <ClientsView />;
+    case 'entities': return <EntitiesView />;
+    case 'approval': return <ApprovalView />;
+    case 'backlog': return <BacklogView />;
+    case 'config': return <FinancialConfigView />;
+    case 'import': return <ImportExportView />;
+    case 'reclassification': return <ReclassificationView />;
+    default: return <Dashboard />;
+  }
+}
+
 export default Index;
