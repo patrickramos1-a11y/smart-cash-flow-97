@@ -2008,38 +2008,26 @@ function ConfigTabs() {
                 <Target className="w-4 h-4" />
                 <span className="hidden lg:inline">Fiscal</span>
               </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger value="permissions" className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span className="hidden lg:inline">Permissões</span>
+                </TabsTrigger>
+              )}
             </TabsList>
 
-            <TabsContent value="companies">
-              <CompaniesTab />
-            </TabsContent>
-            <TabsContent value="accounts">
-              <AccountsTab />
-            </TabsContent>
-            <TabsContent value="account-categories">
-              <AccountCategoriesTab />
-            </TabsContent>
-            <TabsContent value="cost-centers">
-              <CostCentersTab />
-            </TabsContent>
-            <TabsContent value="transaction-categories">
-              <TransactionCategoriesTab />
-            </TabsContent>
-            <TabsContent value="payment-methods">
-              <PaymentMethodsTab />
-            </TabsContent>
-            <TabsContent value="contract-plans">
-              <ContractPlansTab />
-            </TabsContent>
-            <TabsContent value="minimum-wage">
-              <MinimumWageTab />
-            </TabsContent>
-            <TabsContent value="fiscal">
-              <FiscalConfigTab />
-            </TabsContent>
+            <TabsContent value="companies"><CompaniesTab /></TabsContent>
+            <TabsContent value="accounts"><AccountsTab /></TabsContent>
+            <TabsContent value="account-categories"><AccountCategoriesTab /></TabsContent>
+            <TabsContent value="cost-centers"><CostCentersTab /></TabsContent>
+            <TabsContent value="transaction-categories"><TransactionCategoriesTab /></TabsContent>
+            <TabsContent value="payment-methods"><PaymentMethodsTab /></TabsContent>
+            <TabsContent value="contract-plans"><ContractPlansTab /></TabsContent>
+            <TabsContent value="minimum-wage"><MinimumWageTab /></TabsContent>
+            <TabsContent value="fiscal"><FiscalConfigTab /></TabsContent>
+            {isAdmin && (
+              <TabsContent value="permissions"><UserPermissionsView /></TabsContent>
+            )}
           </Tabs>
-        </CardContent>
-      </Card>
-    </div>
   );
 }
