@@ -7,6 +7,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface MobileBottomNavProps {
   activeTab: string;
@@ -25,7 +26,11 @@ const rightItems = [
 ];
 
 export function MobileBottomNav({ activeTab, onTabChange, onMenuOpen }: MobileBottomNavProps) {
+  const { can } = usePermissions();
   const isTransactionPage = ['transactions', 'entradas-recorrentes', 'entradas-avulsas', 'despesas-fixas', 'despesas-variaveis', 'lancamento'].includes(activeTab);
+  const visibleLeft = leftItems.filter(i => can(i.id));
+  const visibleRight = rightItems.filter(i => can(i.id));
+  const canLancamento = can('lancamento');
 
   const renderItem = (item: typeof leftItems[number] & { alert?: boolean }) => {
     const Icon = item.icon;
@@ -55,19 +60,20 @@ export function MobileBottomNav({ activeTab, onTabChange, onMenuOpen }: MobileBo
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 safe-area-bottom px-3 pb-2">
       <div className="relative mx-auto max-w-md">
-        {/* FAB central */}
-        <button
-          onClick={() => onTabChange('lancamento')}
-          aria-label="Novo lançamento"
-          className="absolute left-1/2 -translate-x-1/2 -top-6 w-14 h-14 rounded-full gradient-brand text-white shadow-brand flex items-center justify-center active:scale-95 transition-transform ring-4 ring-background"
-        >
-          <Plus className="w-6 h-6" strokeWidth={2.5} />
-        </button>
+        {canLancamento && (
+          <button
+            onClick={() => onTabChange('lancamento')}
+            aria-label="Novo lançamento"
+            className="absolute left-1/2 -translate-x-1/2 -top-6 w-14 h-14 rounded-full gradient-brand text-white shadow-brand flex items-center justify-center active:scale-95 transition-transform ring-4 ring-background"
+          >
+            <Plus className="w-6 h-6" strokeWidth={2.5} />
+          </button>
+        )}
 
         <div className="glass rounded-2xl shadow-elevated border border-border/40 flex items-stretch overflow-hidden h-16">
-          {leftItems.map(renderItem)}
-          <div className="w-14 flex-shrink-0" aria-hidden /> {/* spacer for FAB */}
-          {rightItems.map(renderItem)}
+          {visibleLeft.map(renderItem)}
+          {canLancamento && <div className="w-14 flex-shrink-0" aria-hidden />}
+          {visibleRight.map(renderItem)}
           <button
             onClick={onMenuOpen}
             className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-muted-foreground active:bg-muted/50 transition-colors"

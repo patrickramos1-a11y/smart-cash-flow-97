@@ -26,6 +26,9 @@ import { ApprovalView } from '@/components/approval/ApprovalView';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 import { PageTransition } from '@/components/feedback/PageTransition';
+import { usePermissions } from '@/hooks/usePermissions';
+import { NoAccess } from '@/components/feedback/NoAccess';
+import { resolveModuleKey, MODULES } from '@/lib/modules';
 
 const tabConfig: Record<string, { title: string; subtitle?: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Visão geral financeira' },
@@ -81,27 +84,7 @@ const Index = () => {
         />
       );
     }
-    switch (activeTab) {
-      case 'dashboard': return <Dashboard />;
-      case 'accounts': return <AccountsView onOpenDetail={setDetailAccountId} />;
-      case 'transactions': return <TransactionsHub />;
-      case 'entradas-recorrentes': return <EntradasRecorrentesPage />;
-      case 'entradas-avulsas': return <EntradasAvulsasPage />;
-      case 'despesas-fixas': return <DespesasFixasPage />;
-      case 'despesas-variaveis': return <DespesasVariaveisPage />;
-      case 'lancamento': return <LancamentoPage />;
-      case 'open-payments': return <OpenPaymentsView />;
-      case 'recurring-contracts': return <RecurringContractsView />;
-      case 'reports': return <ReportsView />;
-      case 'clients': return <ClientsView />;
-      case 'entities': return <EntitiesView />;
-      case 'approval': return <ApprovalView />;
-      case 'backlog': return <BacklogView />;
-      case 'config': return <FinancialConfigView />;
-      case 'import': return <ImportExportView />;
-      case 'reclassification': return <ReclassificationView />;
-      default: return <Dashboard />;
-    }
+    return <GatedContent activeTab={activeTab} setDetailAccountId={setDetailAccountId} />;
   };
 
   const { title, subtitle } = tabConfig[activeTab] || tabConfig.dashboard;
