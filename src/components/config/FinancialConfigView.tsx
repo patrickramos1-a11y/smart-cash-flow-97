@@ -1971,7 +1971,7 @@ function ConfigTabs() {
   const { isAdmin } = useAuth();
   return (
           <Tabs defaultValue="companies" className="w-full">
-            <TabsList className={`grid w-full grid-cols-4 lg:grid-cols-${isAdmin ? 10 : 9} mb-6`}>
+            <TabsList className={`grid w-full grid-cols-4 ${isAdmin ? 'lg:grid-cols-10' : 'lg:grid-cols-9'} mb-6`}>
               <TabsTrigger value="companies" className="flex items-center gap-2">
                 <Building2 className="w-4 h-4" />
                 <span className="hidden lg:inline">Empresas</span>
