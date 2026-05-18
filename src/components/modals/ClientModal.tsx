@@ -1,74 +1,126 @@
-import { useState } from 'react';
-import { X, Save, User } from 'lucide-react';
-import { Client, ClientType } from '@/types/financial';
+import { useEffect, useState } from 'react';
+import { X, Save, User, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+
+export interface ClientRecord {
+  id?: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  document?: string | null;
+  address?: string | null;
+  notes?: string | null;
+  active?: boolean;
+}
 
 interface ClientModalProps {
   open: boolean;
   onClose: () => void;
-  client?: Client;
-  onSave?: (client: Partial<Client>) => void;
+  client?: ClientRecord | null;
+  onSaved?: (client: ClientRecord) => void;
 }
 
-export function ClientModal({ open, onClose, client, onSave }: ClientModalProps) {
+export function ClientModal({ open, onClose, client, onSaved }: ClientModalProps) {
+  const qc = useQueryClient();
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
-    name: client?.name || '',
-    type: client?.type || 'RECORRENTE' as ClientType,
-    email: client?.email || '',
-    phone: client?.phone || '',
-    document: client?.document || '',
-    address: client?.address || '',
+    name: '',
+    email: '',
+    phone: '',
+    document: '',
+    address: '',
+    notes: '',
   });
+
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        name: client?.name || '',
+        email: client?.email || '',
+        phone: client?.phone || '',
+        document: client?.document || '',
+        address: client?.address || '',
+        notes: client?.notes || '',
+      });
+    }
+  }, [open, client]);
 
   if (!open) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.name) {
+    const name = formData.name.trim();
+    if (!name) {
       toast.error('Nome é obrigatório');
       return;
     }
 
-    const newClient: Partial<Client> = {
-      id: client?.id || `cli_${Date.now()}`,
-      name: formData.name,
-      type: formData.type,
-      email: formData.email || undefined,
-      phone: formData.phone || undefined,
-      document: formData.document || undefined,
-      address: formData.address || undefined,
-      contracts: client?.contracts || [],
-      createdAt: client?.createdAt || new Date(),
-      updatedAt: new Date(),
-    };
+    setSaving(true);
+    try {
+      const payload = {
+        name,
+        email: formData.email.trim() || null,
+        phone: formData.phone.trim() || null,
+        document: formData.document.trim() || null,
+        address: formData.address.trim() || null,
+        notes: formData.notes.trim() || null,
+        active: true,
+      };
 
-    onSave?.(newClient);
-    toast.success(client ? 'Cliente atualizado!' : 'Cliente criado!');
-    onClose();
+      let saved: ClientRecord;
+      if (client?.id) {
+        const { data, error } = await supabase
+          .from('recurring_clients')
+          .update(payload)
+          .eq('id', client.id)
+          .select()
+          .single();
+        if (error) throw error;
+        saved = data as ClientRecord;
+        toast.success('Cliente atualizado!');
+      } else {
+        const { data, error } = await supabase
+          .from('recurring_clients')
+          .insert(payload)
+          .select()
+          .single();
+        if (error) throw error;
+        saved = data as ClientRecord;
+        toast.success('Cliente criado!');
+      }
+
+      await qc.invalidateQueries({ queryKey: ['recurring_clients'] });
+      await qc.invalidateQueries({ queryKey: ['clients'] });
+      onSaved?.(saved);
+      onClose();
+    } catch (err: any) {
+      console.error('[ClientModal] save error', err);
+      toast.error(err?.message || 'Erro ao salvar cliente');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-card rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-auto">
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
               <User className="w-5 h-5 text-primary" />
             </div>
             <h2 className="text-xl font-semibold text-foreground">
-              {client ? 'Editar Cliente' : 'Novo Cliente'}
+              {client?.id ? 'Editar Cliente' : 'Novo Cliente'}
             </h2>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-muted">
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-muted" type="button">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Name */}
           <div>
             <label className="text-sm font-medium text-foreground">Nome *</label>
             <input
@@ -78,39 +130,10 @@ export function ClientModal({ open, onClose, client, onSave }: ClientModalProps)
               className="form-input mt-1"
               placeholder="Nome do cliente"
               required
+              autoFocus
             />
           </div>
 
-          {/* Type */}
-          <div>
-            <label className="text-sm font-medium text-foreground">Tipo</label>
-            <div className="flex gap-4 mt-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="clientType"
-                  value="RECORRENTE"
-                  checked={formData.type === 'RECORRENTE'}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value as ClientType })}
-                  className="w-4 h-4 text-primary"
-                />
-                <span className="text-sm">Recorrente</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="clientType"
-                  value="AVULSO"
-                  checked={formData.type === 'AVULSO'}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value as ClientType })}
-                  className="w-4 h-4 text-warning"
-                />
-                <span className="text-sm">Avulso</span>
-              </label>
-            </div>
-          </div>
-
-          {/* Email and Phone */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-foreground">E-mail</label>
@@ -134,7 +157,6 @@ export function ClientModal({ open, onClose, client, onSave }: ClientModalProps)
             </div>
           </div>
 
-          {/* Document */}
           <div>
             <label className="text-sm font-medium text-foreground">CNPJ/CPF</label>
             <input
@@ -146,7 +168,6 @@ export function ClientModal({ open, onClose, client, onSave }: ClientModalProps)
             />
           </div>
 
-          {/* Address */}
           <div>
             <label className="text-sm font-medium text-foreground">Endereço</label>
             <textarea
@@ -158,14 +179,24 @@ export function ClientModal({ open, onClose, client, onSave }: ClientModalProps)
             />
           </div>
 
-          {/* Actions */}
+          <div>
+            <label className="text-sm font-medium text-foreground">Observações</label>
+            <textarea
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              className="form-input mt-1"
+              rows={2}
+              placeholder="Notas internas (opcional)"
+            />
+          </div>
+
           <div className="flex justify-end gap-3 pt-4 border-t border-border">
-            <button type="button" onClick={onClose} className="btn-secondary">
+            <button type="button" onClick={onClose} className="btn-secondary" disabled={saving}>
               Cancelar
             </button>
-            <button type="submit" className="btn-primary">
-              <Save className="w-4 h-4" />
-              {client ? 'Salvar Alterações' : 'Criar Cliente'}
+            <button type="submit" className="btn-primary" disabled={saving}>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {client?.id ? 'Salvar Alterações' : 'Criar Cliente'}
             </button>
           </div>
         </form>
