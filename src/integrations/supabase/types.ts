@@ -632,6 +632,171 @@ export type Database = {
           },
         ]
       }
+      credit_card_invoice_items: {
+        Row: {
+          account_id: string | null
+          amount: number
+          card_final_digits: string | null
+          card_name: string
+          card_type: string | null
+          category_hint: string | null
+          country: string | null
+          created_at: string
+          description: string
+          entity_id: string | null
+          fx_rate: number | null
+          id: string
+          installment: string | null
+          invoice_id: string
+          normalized_description: string | null
+          notes: string | null
+          review_status: string
+          scope: string
+          transaction_category_id: string | null
+          transaction_date: string | null
+          transaction_id: string | null
+          updated_at: string
+          usd_value: number | null
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          card_final_digits?: string | null
+          card_name: string
+          card_type?: string | null
+          category_hint?: string | null
+          country?: string | null
+          created_at?: string
+          description: string
+          entity_id?: string | null
+          fx_rate?: number | null
+          id?: string
+          installment?: string | null
+          invoice_id: string
+          normalized_description?: string | null
+          notes?: string | null
+          review_status?: string
+          scope?: string
+          transaction_category_id?: string | null
+          transaction_date?: string | null
+          transaction_id?: string | null
+          updated_at?: string
+          usd_value?: number | null
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          card_final_digits?: string | null
+          card_name?: string
+          card_type?: string | null
+          category_hint?: string | null
+          country?: string | null
+          created_at?: string
+          description?: string
+          entity_id?: string | null
+          fx_rate?: number | null
+          id?: string
+          installment?: string | null
+          invoice_id?: string
+          normalized_description?: string | null
+          notes?: string | null
+          review_status?: string
+          scope?: string
+          transaction_category_id?: string | null
+          transaction_date?: string | null
+          transaction_id?: string | null
+          updated_at?: string
+          usd_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_card_invoice_items_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_card_invoice_items_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "financial_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_card_invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "credit_card_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_card_invoice_items_transaction_category_id_fkey"
+            columns: ["transaction_category_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_card_invoice_items_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_card_invoices: {
+        Row: {
+          competence_month: number
+          competence_year: number
+          created_at: string
+          created_by: string | null
+          file_name: string | null
+          holder: string | null
+          id: string
+          invoice_label: string | null
+          selected_cards: Json
+          source_meta: Json
+          status: string
+          total_amount: number
+          total_transactions: number
+          updated_at: string
+        }
+        Insert: {
+          competence_month: number
+          competence_year: number
+          created_at?: string
+          created_by?: string | null
+          file_name?: string | null
+          holder?: string | null
+          id?: string
+          invoice_label?: string | null
+          selected_cards?: Json
+          source_meta?: Json
+          status?: string
+          total_amount?: number
+          total_transactions?: number
+          updated_at?: string
+        }
+        Update: {
+          competence_month?: number
+          competence_year?: number
+          created_at?: string
+          created_by?: string | null
+          file_name?: string | null
+          holder?: string | null
+          id?: string
+          invoice_label?: string | null
+          selected_cards?: Json
+          source_meta?: Json
+          status?: string
+          total_amount?: number
+          total_transactions?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       financial_companies: {
         Row: {
           active: boolean
