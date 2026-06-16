@@ -552,6 +552,282 @@ export type Database = {
           },
         ]
       }
+      contract_acceptance_events: {
+        Row: {
+          acceptance_link_id: string | null
+          actor_document: string | null
+          actor_email: string | null
+          actor_name: string | null
+          created_at: string
+          document_id: string
+          event_type: string
+          id: string
+          ip_address: string | null
+          metadata: Json
+          user_agent: string | null
+        }
+        Insert: {
+          acceptance_link_id?: string | null
+          actor_document?: string | null
+          actor_email?: string | null
+          actor_name?: string | null
+          created_at?: string
+          document_id: string
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          user_agent?: string | null
+        }
+        Update: {
+          acceptance_link_id?: string | null
+          actor_document?: string | null
+          actor_email?: string | null
+          actor_name?: string | null
+          created_at?: string
+          document_id?: string
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_acceptance_events_acceptance_link_id_fkey"
+            columns: ["acceptance_link_id"]
+            isOneToOne: false
+            referencedRelation: "contract_acceptance_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_acceptance_events_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "contract_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_acceptance_links: {
+        Row: {
+          accepted_at: string | null
+          accepted_document: string | null
+          accepted_email: string | null
+          accepted_ip: string | null
+          accepted_name: string | null
+          created_at: string
+          document_id: string
+          expires_at: string | null
+          id: string
+          status: string
+          token: string
+          user_agent: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_document?: string | null
+          accepted_email?: string | null
+          accepted_ip?: string | null
+          accepted_name?: string | null
+          created_at?: string
+          document_id: string
+          expires_at?: string | null
+          id?: string
+          status?: string
+          token: string
+          user_agent?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_document?: string | null
+          accepted_email?: string | null
+          accepted_ip?: string | null
+          accepted_name?: string | null
+          created_at?: string
+          document_id?: string
+          expires_at?: string | null
+          id?: string
+          status?: string
+          token?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_acceptance_links_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "contract_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_clauses: {
+        Row: {
+          active: boolean
+          body: string
+          created_at: string
+          display_order: number
+          id: string
+          template_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          body: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          template_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          body?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          template_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_clauses_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "contract_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_document_clauses: {
+        Row: {
+          body: string
+          created_at: string
+          display_order: number
+          document_id: string
+          id: string
+          source_clause_id: string | null
+          title: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          display_order?: number
+          document_id: string
+          id?: string
+          source_clause_id?: string | null
+          title: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          display_order?: number
+          document_id?: string
+          id?: string
+          source_clause_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_document_clauses_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "contract_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_document_clauses_source_clause_id_fkey"
+            columns: ["source_clause_id"]
+            isOneToOne: false
+            referencedRelation: "contract_clauses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_documents: {
+        Row: {
+          accepted_at: string | null
+          contractor_address: string | null
+          contractor_document: string
+          contractor_email: string | null
+          contractor_name: string
+          contractor_phone: string | null
+          contractor_responsible: string | null
+          contractor_type: string
+          created_at: string
+          created_by: string | null
+          digital_snapshot: Json
+          end_date: string | null
+          id: string
+          payment_terms: string | null
+          plan_name: string | null
+          plan_value: number | null
+          start_date: string | null
+          status: string
+          template_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          contractor_address?: string | null
+          contractor_document: string
+          contractor_email?: string | null
+          contractor_name: string
+          contractor_phone?: string | null
+          contractor_responsible?: string | null
+          contractor_type: string
+          created_at?: string
+          created_by?: string | null
+          digital_snapshot?: Json
+          end_date?: string | null
+          id?: string
+          payment_terms?: string | null
+          plan_name?: string | null
+          plan_value?: number | null
+          start_date?: string | null
+          status?: string
+          template_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          contractor_address?: string | null
+          contractor_document?: string
+          contractor_email?: string | null
+          contractor_name?: string
+          contractor_phone?: string | null
+          contractor_responsible?: string | null
+          contractor_type?: string
+          created_at?: string
+          created_by?: string | null
+          digital_snapshot?: Json
+          end_date?: string | null
+          id?: string
+          payment_terms?: string | null
+          plan_name?: string | null
+          plan_value?: number | null
+          start_date?: string | null
+          status?: string
+          template_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_documents_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "contract_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_plans: {
         Row: {
           active: boolean
@@ -578,6 +854,42 @@ export type Database = {
           id?: string
           minimum_wage_factor?: number
           name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contract_templates: {
+        Row: {
+          active: boolean
+          cover_subtitle: string | null
+          cover_title: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          service_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          cover_subtitle?: string | null
+          cover_title?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          service_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          cover_subtitle?: string | null
+          cover_title?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          service_type?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -640,6 +952,10 @@ export type Database = {
           card_name: string
           card_type: string | null
           category_hint: string | null
+          cliente_id: string | null
+          conversion_status: string
+          converted_at: string | null
+          cost_center_id: string | null
           country: string | null
           created_at: string
           description: string
@@ -650,12 +966,15 @@ export type Database = {
           invoice_id: string
           normalized_description: string | null
           notes: string | null
+          reimbursement_notes: string | null
+          reimbursement_status: string
           review_status: string
           scope: string
           transaction_category_id: string | null
           transaction_date: string | null
           transaction_id: string | null
           updated_at: string
+          usage_scope: string
           usd_value: number | null
         }
         Insert: {
@@ -665,6 +984,10 @@ export type Database = {
           card_name: string
           card_type?: string | null
           category_hint?: string | null
+          cliente_id?: string | null
+          conversion_status?: string
+          converted_at?: string | null
+          cost_center_id?: string | null
           country?: string | null
           created_at?: string
           description: string
@@ -675,12 +998,15 @@ export type Database = {
           invoice_id: string
           normalized_description?: string | null
           notes?: string | null
+          reimbursement_notes?: string | null
+          reimbursement_status?: string
           review_status?: string
           scope?: string
           transaction_category_id?: string | null
           transaction_date?: string | null
           transaction_id?: string | null
           updated_at?: string
+          usage_scope?: string
           usd_value?: number | null
         }
         Update: {
@@ -690,6 +1016,10 @@ export type Database = {
           card_name?: string
           card_type?: string | null
           category_hint?: string | null
+          cliente_id?: string | null
+          conversion_status?: string
+          converted_at?: string | null
+          cost_center_id?: string | null
           country?: string | null
           created_at?: string
           description?: string
@@ -700,12 +1030,15 @@ export type Database = {
           invoice_id?: string
           normalized_description?: string | null
           notes?: string | null
+          reimbursement_notes?: string | null
+          reimbursement_status?: string
           review_status?: string
           scope?: string
           transaction_category_id?: string | null
           transaction_date?: string | null
           transaction_id?: string | null
           updated_at?: string
+          usage_scope?: string
           usd_value?: number | null
         }
         Relationships: [
@@ -714,6 +1047,20 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_card_invoice_items_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_card_invoice_items_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
             referencedColumns: ["id"]
           },
           {
@@ -796,6 +1143,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      credit_card_merchant_rules: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          merchant_key: string
+          merchant_label: string
+          transaction_category_id: string
+          updated_at: string
+          usage_scope: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          merchant_key: string
+          merchant_label: string
+          transaction_category_id: string
+          updated_at?: string
+          usage_scope?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          merchant_key?: string
+          merchant_label?: string
+          transaction_category_id?: string
+          updated_at?: string
+          usage_scope?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_card_merchant_rules_transaction_category_id_fkey"
+            columns: ["transaction_category_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       financial_companies: {
         Row: {
