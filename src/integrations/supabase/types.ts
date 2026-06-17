@@ -666,32 +666,44 @@ export type Database = {
         Row: {
           active: boolean
           body: string
+          clause_kind: string | null
           created_at: string
           display_order: number
           id: string
+          is_required: boolean | null
+          notes: string | null
           template_id: string | null
           title: string
           updated_at: string
+          version_label: string | null
         }
         Insert: {
           active?: boolean
           body: string
+          clause_kind?: string | null
           created_at?: string
           display_order?: number
           id?: string
+          is_required?: boolean | null
+          notes?: string | null
           template_id?: string | null
           title: string
           updated_at?: string
+          version_label?: string | null
         }
         Update: {
           active?: boolean
           body?: string
+          clause_kind?: string | null
           created_at?: string
           display_order?: number
           id?: string
+          is_required?: boolean | null
+          notes?: string | null
           template_id?: string | null
           title?: string
           updated_at?: string
+          version_label?: string | null
         }
         Relationships: [
           {
@@ -860,7 +872,9 @@ export type Database = {
       }
       contract_templates: {
         Row: {
+          accent_color: string | null
           active: boolean
+          cover_image_url: string | null
           cover_subtitle: string | null
           cover_title: string | null
           created_at: string
@@ -868,10 +882,14 @@ export type Database = {
           id: string
           name: string
           service_type: string | null
+          template_status: string | null
           updated_at: string
+          version_label: string | null
         }
         Insert: {
+          accent_color?: string | null
           active?: boolean
+          cover_image_url?: string | null
           cover_subtitle?: string | null
           cover_title?: string | null
           created_at?: string
@@ -879,10 +897,14 @@ export type Database = {
           id?: string
           name: string
           service_type?: string | null
+          template_status?: string | null
           updated_at?: string
+          version_label?: string | null
         }
         Update: {
+          accent_color?: string | null
           active?: boolean
+          cover_image_url?: string | null
           cover_subtitle?: string | null
           cover_title?: string | null
           created_at?: string
@@ -890,7 +912,9 @@ export type Database = {
           id?: string
           name?: string
           service_type?: string | null
+          template_status?: string | null
           updated_at?: string
+          version_label?: string | null
         }
         Relationships: []
       }
@@ -1184,6 +1208,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      credit_card_profiles: {
+        Row: {
+          active: boolean
+          card_final_digits: string | null
+          card_key: string
+          card_name: string
+          card_type: string | null
+          color: string
+          created_at: string
+          id: string
+          owner_name: string | null
+          updated_at: string
+          usage_scope: string
+        }
+        Insert: {
+          active?: boolean
+          card_final_digits?: string | null
+          card_key: string
+          card_name: string
+          card_type?: string | null
+          color?: string
+          created_at?: string
+          id?: string
+          owner_name?: string | null
+          updated_at?: string
+          usage_scope?: string
+        }
+        Update: {
+          active?: boolean
+          card_final_digits?: string | null
+          card_key?: string
+          card_name?: string
+          card_type?: string | null
+          color?: string
+          created_at?: string
+          id?: string
+          owner_name?: string | null
+          updated_at?: string
+          usage_scope?: string
+        }
+        Relationships: []
       }
       financial_companies: {
         Row: {
