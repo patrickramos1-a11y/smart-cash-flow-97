@@ -990,6 +990,7 @@ export type Database = {
           invoice_id: string
           normalized_description: string | null
           notes: string | null
+          personal_category_id: string | null
           reimbursement_notes: string | null
           reimbursement_status: string
           review_status: string
@@ -1022,6 +1023,7 @@ export type Database = {
           invoice_id: string
           normalized_description?: string | null
           notes?: string | null
+          personal_category_id?: string | null
           reimbursement_notes?: string | null
           reimbursement_status?: string
           review_status?: string
@@ -1054,6 +1056,7 @@ export type Database = {
           invoice_id?: string
           normalized_description?: string | null
           notes?: string | null
+          personal_category_id?: string | null
           reimbursement_notes?: string | null
           reimbursement_status?: string
           review_status?: string
@@ -1099,6 +1102,13 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "credit_card_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_card_invoice_items_personal_category_id_fkey"
+            columns: ["personal_category_id"]
+            isOneToOne: false
+            referencedRelation: "credit_card_personal_categories"
             referencedColumns: ["id"]
           },
           {
@@ -1208,6 +1218,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      credit_card_personal_categories: {
+        Row: {
+          active: boolean
+          color: string
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       credit_card_profiles: {
         Row: {
